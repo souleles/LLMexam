@@ -1,0 +1,56 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+dist/
+*.egg
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Database
+*.sqlite
+*.sqlite3
+
+# Uploads / generated files
+uploads/
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Claude Code artifacts
+.claude/cache/
+.claude/tmp/
+
+# Docker
+.docker/
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+.pytest_cache/
