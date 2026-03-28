@@ -15,8 +15,8 @@ ExamChecker is a web application for university professors to:
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React (Vite + TypeScript), shadcn/ui or Chakra UI, React Query, SSE |
-| Backend | NestJS (TypeScript), PostgreSQL via TypeORM or Prisma |
+| Frontend | React (Vite + TypeScript), Chakra UI, React Query, SSE |
+| Backend | NestJS (TypeScript), PostgreSQL via Prisma |
 | Python Service | FastAPI, LangChain, pdfplumber, sqlparse |
 | Database | PostgreSQL |
 
@@ -30,14 +30,14 @@ ExamChecker is a web application for university professors to:
 3. Python extracts text via `pdfplumber`
 4. LangChain runs **two-pass** LLM extraction:
    - Pass 1: extract all tasks/requirements as structured list
-   - Pass 2: for each requirement, generate: description, regex patterns, `match_mode` (any|all), `check_type` (keyword|structural)
+   - Pass 2: for each requirement, generate: description, regex patterns
 5. LLM response streams back via SSE → NestJS SSE proxy → React chat UI
 6. Professor reviews/refines via chat (conversation history in PostgreSQL, trimmed context)
 7. On approval: checkpoint JSON is Zod-validated and stored in PostgreSQL
 
 ### Phase 2: Student Submission Upload
-- Supported: `.sql`, `.txt`, `.py`, `.pdf`, `.docx`
-- `.sql/.txt/.py`: read directly in NestJS
+- Supported: `.sql`, `.txt`, `.py`, `.pdf`, `.docx`, `.js`, `.ts`, `.tsx`
+- `.sql/.txt/.py./js./ts./tsx`: read directly in NestJS
 - `.pdf`: forward to Python microservice
 - `.docx`: Node library or Python microservice
 
@@ -45,10 +45,9 @@ ExamChecker is a web application for university professors to:
 For each student file × each checkpoint:
 1. Strip comments (SQL: `--` and `/* */`, Python: `#`)
 2. Strip string literals
-3. Match by `check_type`:
-   - `keyword`: regex against `patterns[]`
-   - `structural`: sqlparse token tree or AST
-4. Store: `matched`, `confidence`, `matched_patterns`, `matched_snippets` (line + text)
+3. Match by  regex against `patterns[]`
+4. Results are shown to professor in ui, if each checkpoint was found or not, and if found where found, file > line
+5. Store result on professor clicking save
 
 ---
 
@@ -64,7 +63,7 @@ id UUID PK | exercise_id FK | role ENUM(professor,assistant) | content TEXT | cr
 
 -- checkpoints
 id UUID PK | exercise_id FK | description VARCHAR
-patterns JSONB | match_mode ENUM(any,all) | check_type ENUM(keyword,structural)
+patterns JSONB
 case_sensitive BOOLEAN DEFAULT false | order_index INTEGER
 
 -- submissions

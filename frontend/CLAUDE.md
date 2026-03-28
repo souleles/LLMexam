@@ -2,9 +2,10 @@
 
 ## Stack
 - **React** (Vite + TypeScript)
-- **UI:** shadcn/ui or Chakra UI (TBD — decide before implementing first component)
+- **UI:** Chakra UI
 - **Data fetching:** React Query (`@tanstack/react-query`)
 - **SSE:** native `EventSource` API for streaming LLM responses
+- **env:** use envs for backend url and also create an httpClient with interceptor that sends requests withCredentials: true, use axios for fetching
 
 ## Key Patterns
 

@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Exercise represents a grading task (e.g., a SQL homework assignment)
+model Exercise {
+  id          String   @id @default(uuid())
+  title       String
+  pdfUrl      String   // URL or path to the uploaded PDF
+  status      ExerciseStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checkpoints Checkpoint[]
+  submissions Submission[]
+  conversations Conversation[]
+
+  @@map("exercises")
+}
+
+enum ExerciseStatus {
+  DRAFT       // Checkpoints being extracted
+  APPROVED    // Ready for student submissions
+  GRADED      // All submissions graded
+}
+
+// Checkpoint represents a grading criterion extracted from the PDF
+model Checkpoint {
+  id              String   @id @default(uuid())
+  exerciseId      String
+  order           Int      // Display order (1, 2, 3, ...)
+  description     String   // Human-readable description
+  pattern         String   // Regex pattern for matching
+  caseSensitive   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  checkpointResults CheckpointResult[]
+
+  @@map("checkpoints")
+  @@index([exerciseId])
+}
+
+// Conversation tracks the LLM chat for checkpoint extraction
+model Conversation {
+  id          String   @id @default(uuid())
+  exerciseId  String
+  role        ConversationRole
+  content     String   // Message content
+  createdAt   DateTime @default(now())
+
+  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@map("conversations")
+  @@index([exerciseId])
+}
+
+enum ConversationRole {
+  PROFESSOR
+  ASSISTANT
+}
+
+// Submission represents a student's submitted file
+model Submission {
+  id              String   @id @default(uuid())
+  exerciseId      String
+  studentName     String   // Student identifier
+  fileName        String
+  fileUrl         String   // URL or path to the uploaded file
+  fileType        String   // Extension: .sql, .txt, .py, etc.
+  content         String   @db.Text // Extracted text content
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  gradingResult   GradingResult?
+
+  @@map("submissions")
+  @@index([exerciseId])
+}
+
+// GradingResult stores the overall grading outcome for a submission
+model GradingResult {
+  id              String   @id @default(uuid())
+  submissionId    String   @unique
+  totalCheckpoints Int
+  passedCheckpoints Int
+  score           Float    // Percentage (0-100)
+  passed          Boolean  // Pass/Fail based on threshold
+  gradedAt        DateTime @default(now())
+
+  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  checkpointResults CheckpointResult[]
+
+  @@map("grading_results")
+}
+
+// CheckpointResult stores the detailed match for each checkpoint
+model CheckpointResult {
+  id              String   @id @default(uuid())
+  gradingResultId String
+  checkpointId    String
+  matched         Boolean
+  matchedSnippets String[] // Array of matched code snippets
+  createdAt       DateTime @default(now())
+
+  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+  checkpoint      Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@map("checkpoint_results")
+  @@index([gradingResultId])
+  @@index([checkpointId])
+}
