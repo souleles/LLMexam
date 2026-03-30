@@ -39,7 +39,7 @@ export function CheckpointList({ checkpoints }: CheckpointListProps) {
         ) : (
           <VStack spacing={4} align="stretch">
             {checkpoints
-              .sort((a, b) => a.orderIndex - b.orderIndex)
+              .sort((a, b) => a.order - b.order)
               .map((checkpoint, idx) => (
                 <CheckpointCard key={checkpoint.id} checkpoint={checkpoint} index={idx + 1} />
               ))}
@@ -73,26 +73,21 @@ function CheckpointCard({ checkpoint, index }: CheckpointCardProps) {
 
           <Text fontWeight="medium">{checkpoint.description}</Text>
 
-          {checkpoint.patterns && checkpoint.patterns.length > 0 && (
+          {checkpoint.pattern && (
             <Box w="full">
               <Text fontSize="sm" fontWeight="medium" color="gray.600" mb={2}>
-                Μοτίβα:
+                Μοτίβο:
               </Text>
-              <VStack align="stretch" spacing={2}>
-                {checkpoint.patterns.map((pattern, pIdx) => (
-                  <Code
-                    key={pIdx}
-                    p={2}
-                    borderRadius="md"
-                    fontSize="xs"
-                    display="block"
-                    whiteSpace="pre-wrap"
-                    wordBreak="break-all"
-                  >
-                    {pattern}
-                  </Code>
-                ))}
-              </VStack>
+              <Code
+                p={2}
+                borderRadius="md"
+                fontSize="xs"
+                display="block"
+                whiteSpace="pre-wrap"
+                wordBreak="break-all"
+              >
+                {checkpoint.pattern}
+              </Code>
             </Box>
           )}
         </VStack>

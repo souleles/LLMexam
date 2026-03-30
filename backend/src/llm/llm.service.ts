@@ -62,10 +62,10 @@ export class LlmService {
     try {
       // Call Python service for streaming response
       const response = await axios.post(
-        `${this.pythonServiceUrl}/llm/stream`,
+        `${this.pythonServiceUrl}/generate-checkpoints`,
         {
-          exerciseId,
-          pdfUrl: exercise.pdfUrl,
+          text: exercise.extractedText ?? '',
+          current_checkpoints: '',
           message,
           history: history.map((msg) => ({
             role: msg.role.toLowerCase(),

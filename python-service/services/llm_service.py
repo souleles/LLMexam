@@ -1,9 +1,11 @@
 """
 LLM service using LangChain for checkpoint extraction.
 """
+import json
 import logging
 import os
 from typing import AsyncIterator
+import httpx
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from models import GenerateCheckpointsRequest
@@ -74,37 +76,77 @@ async def stream_checkpoint_generation(request: GenerateCheckpointsRequest) -> A
         SSE-formatted strings: "data: {token}\n\n"
     """
     try:
-        # Get OpenAI API key from environment
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment")
-        
-        # Initialize LLM with streaming
+
         llm = ChatOpenAI(
             model="gpt-4o",
             streaming=True,
-            temperature=0.3,  # Lower temperature for more consistent structured output
+            temperature=0.3,
             api_key=api_key,
+            http_client=httpx.Client(),
+            http_async_client=httpx.AsyncClient(),
         )
-        
-        # Build message list
+
         messages = build_messages(request)
-        
-        logger.info("Starting LLM stream...")
-        
-        # Stream tokens
+        logger.info("Starting LLM call...")
+
+        # Accumulate the full response (LLM returns JSON)
+        full_response = ""
         async for chunk in llm.astream(messages):
-            token = chunk.content
-            if token:
-                # Send as SSE format
-                yield f"data: {token}\n\n"
-        
-        # Send completion signal
+            if chunk.content:
+                full_response += chunk.content
+
+        logger.info(f"LLM call completed. full_response length={len(full_response)} first200={repr(full_response[:200])}")
+
+        # Extract JSON array from the response (model may add text/fences around it)
+        cleaned = full_response.strip()
+        # Try to find a ```...``` fence first
+        if "```" in cleaned:
+            fenced = cleaned.split("```", 1)[1]          # drop text before first fence
+            fenced = fenced.split("```", 1)[0]           # drop text after closing fence
+            fenced = fenced.lstrip("json").strip()       # strip optional language tag
+            cleaned = fenced
+        # Fall back to slicing from first '[' to last ']'
+        if not cleaned.startswith("["):
+            start = cleaned.find("[")
+            end = cleaned.rfind("]")
+            if start != -1 and end != -1:
+                cleaned = cleaned[start:end + 1]
+
+        raw_checkpoints = json.loads(cleaned)
+
+        # Normalize LLM output to DB schema:
+        # LLM: patterns[], order_index, case_sensitive
+        # DB:  pattern (string), order, caseSensitive
+        normalized = []
+        for i, cp in enumerate(raw_checkpoints):
+            patterns = cp.get("patterns", [])
+            pattern = "|".join(patterns) if patterns else ""
+            normalized.append({
+                "order": cp.get("order_index", i + 1),
+                "description": cp.get("description", ""),
+                "pattern": pattern,
+                "caseSensitive": cp.get("case_sensitive", False),
+            })
+
+        count = len(normalized)
+        logger.info(f"Parsed {count} checkpoints")
+
+        # Send human-readable message for the chat UI
+        yield f"data: Εξήχθησαν {count} checkpoints από την άσκηση.\n\n"
+
+        # Send structured checkpoints event for the frontend to save
+        yield f"data: {json.dumps({'type': 'checkpoints', 'data': normalized})}\n\n"
+
         yield "data: [DONE]\n\n"
-        logger.info("LLM stream completed")
-        
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse LLM JSON response: {e}", exc_info=True)
+        yield f"data: Σφάλμα: η απάντηση δεν ήταν έγκυρο JSON.\n\n"
+        yield "data: [DONE]\n\n"
     except Exception as e:
-        logger.error(f"LLM streaming failed: {str(e)}")
-        # Send error as SSE
-        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+        logger.error(f"LLM streaming failed: {str(e)}", exc_info=True)
+        yield f"data: Σφάλμα κατά την εξαγωγή checkpoints: {str(e)}\n\n"
         yield "data: [DONE]\n\n"

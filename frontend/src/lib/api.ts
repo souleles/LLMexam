@@ -14,9 +14,9 @@ export interface Checkpoint {
   id: string;
   exerciseId: string;
   description: string;
-  patterns: string[];
+  pattern: string;
   caseSensitive: boolean;
-  orderIndex: number;
+  order: number;
 }
 
 export interface ConversationMessage {
@@ -64,7 +64,7 @@ export const api = {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('title', title);
-      const { data } = await httpClient.post('/api/exercises', formData, {
+      const { data } = await httpClient.post('/api/exercises/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return data;
@@ -80,6 +80,13 @@ export const api = {
     },
     approve: async (exerciseId: string): Promise<void> => {
       await httpClient.post(`/api/checkpoints/approve`, { exerciseId });
+    },
+    bulkReplace: async (
+      exerciseId: string,
+      checkpoints: Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive'>[],
+    ): Promise<Checkpoint[]> => {
+      const { data } = await httpClient.post(`/api/checkpoints/bulk/${exerciseId}`, checkpoints);
+      return data;
     },
   },
   conversations: {

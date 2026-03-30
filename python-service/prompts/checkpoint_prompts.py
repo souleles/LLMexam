@@ -20,7 +20,7 @@ Guidelines for patterns:
 - For SQL keywords, use word boundaries: \\bGROUP BY\\b
 - For structural checks (subqueries, CTEs, nested structures), describe what to look for
 
-Return ONLY a valid JSON array of checkpoint objects. No explanation, no markdown fences, just the JSON array.
+Return ONLY a valid JSON array of checkpoint objects. No explanation, no preamble, no markdown fences. Start your response with [ and end with ].
 """
 
 USER_PROMPT_INITIAL = """Here is the exercise text:

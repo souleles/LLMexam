@@ -4,25 +4,27 @@ import {
   Body,
   Param,
   Get,
+  Query,
   Sse,
   MessageEvent,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Observable, from } from 'rxjs';
-import { map, concatMap } from 'rxjs/operators';
+import { concatMap } from 'rxjs/operators';
 import { LlmService } from './llm.service';
-import { StreamMessageDto, ConversationResponseDto } from './dto/conversation.dto';
+import { ConversationResponseDto } from './dto/conversation.dto';
 
 @ApiTags('llm')
 @Controller('llm')
 export class LlmController {
   constructor(private readonly llmService: LlmService) {}
 
-  @Sse('stream')
+  @Sse('chat')
   @ApiOperation({ summary: 'Stream LLM response for checkpoint extraction' })
-  streamCheckpointExtraction(@Body() streamMessageDto: StreamMessageDto): Observable<MessageEvent> {
-    const { exerciseId, message } = streamMessageDto;
-
+  streamCheckpointExtraction(
+    @Query('exercise_id') exerciseId: string,
+    @Query('message') message: string,
+  ): Observable<MessageEvent> {
     return from(this.llmService.streamResponse(exerciseId, message)).pipe(
       concatMap((chunk) => from([{ data: chunk }])),
     );

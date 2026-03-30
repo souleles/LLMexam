@@ -9,6 +9,10 @@ export class CreateExerciseDto {
   @IsString()
   @IsNotEmpty()
   pdfUrl: string;
+
+  @IsString()
+  @IsOptional()
+  extractedText?: string;
 }
 
 export class UpdateExerciseDto {

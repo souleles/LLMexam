@@ -181,7 +181,7 @@ export function ExerciseDetailPage() {
                                 {index + 1}. {checkpoint.description}
                               </Text>
                               <Text fontSize="sm" color="gray.600">
-                                {checkpoint.patterns.length} μοτίβο/α
+                                {checkpoint.pattern.length} μοτίβο/α
                               </Text>
                             </VStack>
                           </HStack>

@@ -14,6 +14,8 @@ import {
   DrawerOverlay,
   DrawerContent,
   DrawerCloseButton,
+  UnorderedList,
+  ListItem,
 } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -62,21 +64,23 @@ export function ChatInterface({ isOpen, onClose, exerciseId, extractedText }: Ch
 
   return (
     <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="lg">
-      <DrawerOverlay />      <DrawerContent>
+      <DrawerOverlay />
+      <DrawerContent>
         <DrawerCloseButton />
         <DrawerHeader>Chat Εξαγωγής Checkpoints</DrawerHeader>
 
         <DrawerBody>
-          <VStack spacing={4} align="stretch" h="full">            {messages.length === 0 && !buffer && (
-            <Box textAlign="center" py={8}>
-              <Text color="gray.500">
-                Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση
-              </Text>
-              <Text fontSize="sm" color="gray.400" mt={2}>
-                Παράδειγμα: "Εξήγαγε όλα τα checkpoints βαθμολόγησης από αυτή την άσκηση"
-              </Text>
-            </Box>
-          )}
+          <VStack spacing={4} align="stretch" h="full">
+            {messages.length === 0 && !buffer && (
+              <Box textAlign="center" py={8}>
+                <Text color="gray.500">
+                  Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση
+                </Text>
+                <Text fontSize="sm" color="gray.400" mt={2}>
+                  Παράδειγμα: "Εξήγαγε όλα τα checkpoints βαθμολόγησης από αυτή την άσκηση"
+                </Text>
+              </Box>
+            )}
 
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
@@ -121,6 +125,36 @@ export function ChatInterface({ isOpen, onClose, exerciseId, extractedText }: Ch
   );
 }
 
+// Detects "1. foo\n2. bar" lines and renders them as a visual list
+function MessageContent({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const isNumberedList = lines.filter((l) => /^\d+\.\s/.test(l.trim())).length > 1;
+
+  if (isNumberedList) {
+    const items = lines.filter((l) => l.trim());
+    return (
+      <UnorderedList spacing={1} styleType="none" m={0} pl={0}>
+        {items.map((line, i) => {
+          const match = line.match(/^(\d+)\.\s+(.+)/);
+          if (!match) return <ListItem key={i}><Text fontSize="sm">{line}</Text></ListItem>;
+          return (
+            <ListItem key={i}>
+              <HStack align="start" spacing={2}>
+                <Text fontSize="xs" fontWeight="bold" color="brand.500" minW="20px" mt="1px">
+                  {match[1]}.
+                </Text>
+                <Text fontSize="sm">{match[2]}</Text>
+              </HStack>
+            </ListItem>
+          );
+        })}
+      </UnorderedList>
+    );
+  }
+
+  return <Text whiteSpace="pre-wrap" fontSize="sm">{content}</Text>;
+}
+
 interface MessageBubbleProps {
   message: ConversationMessage;
   isStreaming?: boolean;
@@ -147,7 +181,7 @@ function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
         borderRadius="lg"
         position="relative"
       >
-        <Text whiteSpace="pre-wrap">{message.content}</Text>
+        <MessageContent content={message.content} />
         {isStreaming && (
           <Box
             as="span"

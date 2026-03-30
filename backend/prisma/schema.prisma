@@ -12,10 +12,11 @@ datasource db {
 
 // Exercise represents a grading task (e.g., a SQL homework assignment)
 model Exercise {
-  id          String   @id @default(uuid())
-  title       String
-  pdfUrl      String   // URL or path to the uploaded PDF
-  status      ExerciseStatus @default(DRAFT)
+  id            String         @id @default(uuid())
+  title         String
+  pdfUrl        String         // URL or path to the uploaded PDF
+  extractedText String?        @db.Text // Text extracted from the PDF
+  status        ExerciseStatus @default(DRAFT)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

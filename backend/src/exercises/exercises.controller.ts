@@ -10,15 +10,28 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { firstValueFrom } from 'rxjs';
+import * as fs from 'fs';
+import * as FormData from 'form-data';
 import { CreateExerciseDto, ExerciseResponseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { ExercisesService } from './exercises.service';
 
 @Controller('exercises')
 export class ExercisesController {
-  constructor(private readonly exercisesService: ExercisesService) {}
+  private readonly pythonServiceUrl: string;
+
+  constructor(
+    private readonly exercisesService: ExercisesService,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
+  }
 
   @Post()
   create(@Body() createExerciseDto: CreateExerciseDto): Promise<ExerciseResponseDto> {
@@ -60,7 +73,28 @@ export class ExercisesController {
     }
 
     const pdfUrl = `/uploads/exercises/${file.filename}`;
-    return this.exercisesService.create({ title, pdfUrl });
+
+    // Extract text from PDF via Python service
+    let extractedText: string | undefined;
+    try {
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(file.path), {
+        filename: file.originalname,
+        contentType: 'application/pdf',
+      });
+
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${this.pythonServiceUrl}/extract-pdf`, formData, {
+          headers: formData.getHeaders(),
+        }),
+      );
+      extractedText = data.extracted_text;
+    } catch (err) {
+      // Non-fatal: exercise is still created, but LLM chat won't have context
+      console.error('PDF extraction failed:', err.message);
+    }
+
+    return this.exercisesService.create({ title, pdfUrl, extractedText });
   }
 
   @Get()
