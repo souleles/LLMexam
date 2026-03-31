@@ -13,35 +13,39 @@
 |-------|------|---------|
 | `/exercises` | `ExercisesPage` | List all exercises |
 | `/exercises/new` | `NewExercisePage` | Upload PDF + create exercise |
-| `/exercises/:exerciseId` | `ExerciseDetailPage` | Chat interface + checkpoints + history |
+| `/exercises/:exerciseId` | `ExerciseDetailPage` | 2-tab chat (Checkpoints + Patterns) + checkpoints panel |
 | `/student-exercises` | `StudentExercisesPage` | Upload & grade student submissions |
 
 ## Key Components
 
-- **`ExerciseDetailPage`** — inline chat (scrollable box, 400px), DB history seeded on load, local state for live session, "Accept Checkpoints" button to save pending checkpoints
+- **`ExerciseDetailPage`** — 2-tab Chakra `Tabs` card: Tab 1 = Checkpoints chat, Tab 2 = Patterns chat (disabled until checkpoints saved). Both tabs use `InlineChat` inline component.
+- **`InlineChat`** (inline in ExerciseDetailPage) — self-contained chat component: fetches its own DB history by type (`CHECKPOINT`/`PATTERN`), uses `useLlmStream` with `mode`, shows "Accept" button when pending data available, pre-populates input when no history
 - **`FileUploader`** — drag-and-drop file upload
 - **`Layout`** — navigation shell
 
 ## SSE / Chat Pattern
 
 ```typescript
-// useLlmStream — custom hook in hooks/useLlmStream.ts
+// useLlmStream(exerciseId, mode) — custom hook in hooks/useLlmStream.ts
+// - mode: 'checkpoints' → /api/llm/chat, 'patterns' → /api/llm/chat-patterns
 // - Opens EventSource on send
 // - Strips "data: " prefix from raw SSE chunks
 // - Splits multi-line events on \n\n
 // - Parses { type: "checkpoints", data: [...] } events → pendingCheckpoints state
+// - Parses { type: "patterns", data: [...] } events → pendingPatterns state
 // - Parses plain text tokens → buffer state
-// - Exposes: buffer, streaming, sendMessage, pendingCheckpoints, clearPendingCheckpoints
+// - Exposes: buffer, streaming, sendMessage, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns
 ```
 
-## Chat State Management (ExerciseDetailPage)
+## Chat State Management (InlineChat)
 
-1. `dbMessages` fetched once on load via React Query (`staleTime: Infinity`)
+1. `dbMessages` fetched once on load via React Query (`staleTime: Infinity`) filtered by `type` (`CHECKPOINT`/`PATTERN`)
 2. Seeded into `messages` state via `useEffect` + `seeded` ref (runs once)
-3. On send: professor bubble appended to `messages` immediately
-4. While streaming: live bubble shown from `buffer` (gated by `streaming && buffer`)
-5. On `[DONE]`: `prevStreaming` ref detects transition → assistant bubble finalized into `messages`
-6. Checkpoints only saved to DB when user clicks "Accept Checkpoints"
+3. Input pre-populated with default prompt when no history
+4. On send: professor bubble appended to `messages` immediately
+5. While streaming: live bubble shown from `buffer` (gated by `streaming && buffer`)
+6. On `[DONE]`: `prevStreaming` ref detects transition → assistant bubble finalized into `messages`
+7. Checkpoints/Patterns only saved to DB when user clicks "Accept" button
 
 ## Content Parsing
 

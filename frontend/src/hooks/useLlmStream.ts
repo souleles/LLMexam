@@ -5,6 +5,7 @@ import { parseMessageContent } from '@/lib/parseMessageContent';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 type PendingCheckpoint = Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive'>;
+type PendingPattern = { order: number; pattern: string; description: string };
 
 interface UseLlmStreamResult {
   buffer: string;
@@ -13,15 +14,19 @@ interface UseLlmStreamResult {
   error: string | null;
   pendingCheckpoints: PendingCheckpoint[];
   clearPendingCheckpoints: () => void;
+  pendingPatterns: PendingPattern[];
+  clearPendingPatterns: () => void;
 }
 
-export function useLlmStream(exerciseId: string): UseLlmStreamResult {
+export function useLlmStream(exerciseId: string, mode: 'checkpoints' | 'patterns' = 'checkpoints'): UseLlmStreamResult {
   const [buffer, setBuffer] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingCheckpoints, setPendingCheckpoints] = useState<PendingCheckpoint[]>([]);
+  const [pendingPatterns, setPendingPatterns] = useState<PendingPattern[]>([]);
 
   const clearPendingCheckpoints = useCallback(() => setPendingCheckpoints([]), []);
+  const clearPendingPatterns = useCallback(() => setPendingPatterns([]), []);
 
   const sendMessage = useCallback(
     (message: string) => {
@@ -29,12 +34,13 @@ export function useLlmStream(exerciseId: string): UseLlmStreamResult {
       setBuffer('');
       setError(null);
       setPendingCheckpoints([]);
+      setPendingPatterns([]);
 
-      const url = `${API_BASE_URL}/api/llm/chat?exercise_id=${exerciseId}&message=${encodeURIComponent(message)}`;
+      const endpoint = mode === 'patterns' ? 'chat-patterns' : 'chat';
+      const url = `${API_BASE_URL}/api/llm/${endpoint}?exercise_id=${exerciseId}&message=${encodeURIComponent(message)}`;
       const es = new EventSource(url);
 
       es.onmessage = (e: MessageEvent) => {
-
         const chunks = (e.data as string)
           .split(/\n\n/)
           .map((chunk: string) => chunk.replace(/^data:\s*/, '').trim())
@@ -42,13 +48,14 @@ export function useLlmStream(exerciseId: string): UseLlmStreamResult {
 
         const isDone = chunks.includes('[DONE]');
 
-        // Collect checkpoints into pending state — saving only happens on user approval
         for (const raw of chunks) {
           if (raw === '[DONE]') continue;
           try {
             const parsed = JSON.parse(raw);
             if (parsed.type === 'checkpoints' && Array.isArray(parsed.data)) {
               setPendingCheckpoints(parsed.data as PendingCheckpoint[]);
+            } else if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
+              setPendingPatterns(parsed.data as PendingPattern[]);
             }
           } catch { /* not JSON */ }
         }
@@ -69,8 +76,8 @@ export function useLlmStream(exerciseId: string): UseLlmStreamResult {
         setError('Connection error. Please try again.');
       };
     },
-    [exerciseId]
+    [exerciseId, mode]
   );
 
-  return { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints };
+  return { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns };
 }

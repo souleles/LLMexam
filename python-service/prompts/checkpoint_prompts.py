@@ -29,7 +29,9 @@ USER_PROMPT_INITIAL = """Here is the exercise text:
 {extracted_text}
 ---
 
-Extract all grading checkpoints from this exercise. Return a JSON array of checkpoint objects."""
+{message}
+
+Return a JSON array of checkpoint objects."""
 
 SYSTEM_PROMPT_REFINEMENT = """You are helping a university professor refine automated grading checkpoints for an exercise.
 

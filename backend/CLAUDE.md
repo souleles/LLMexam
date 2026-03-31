@@ -18,31 +18,27 @@
 
 ## Key Patterns
 
-### SSE Endpoint (LlmModule)
-```typescript
-@Sse('chat')
-chat(@Query('exercise_id') exerciseId: string, @Query('message') message: string): Observable<MessageEvent> {
-  return new Observable((subscriber) => {
-    (async () => {
-      for await (const chunk of this.llmService.streamResponse(exerciseId, message)) {
-        subscriber.next({ data: chunk });
-      }
-      subscriber.complete();
-    })();
-  });
-}
-```
+### SSE Endpoints (LlmModule)
+- `GET /api/llm/chat` — checkpoint extraction streaming
+- `GET /api/llm/chat-patterns` — pattern generation streaming
+
+Both use `@Sse()` decorator + `Observable<MessageEvent>` piped from async generator.
 
 ### Proxying SSE from Python Service (LlmService)
 - Uses `axios` with `responseType: 'stream'`
-- POSTs to `${PYTHON_SERVICE_URL}/generate-checkpoints` with `{ text, history, message, current_checkpoints }`
+- `streamResponse` → POSTs to `/generate-checkpoints` with `{ text, history (CHECKPOINT type), message, current_checkpoints }`; saves with `ConversationType.CHECKPOINT`
+- `streamPatternResponse` → POSTs to `/generate-patterns` with `{ checkpoints, history (PATTERN type), message }`; saves with `ConversationType.PATTERN`
 - Saves professor message before streaming, saves full assistant response after
-- Streams raw chunks back to the NestJS SSE subscriber
 
-### Checkpoint Bulk Replace
+### Conversation Type Filtering
+- `Conversation` model has `type: ConversationType` field (`CHECKPOINT` | `PATTERN`, default `CHECKPOINT`)
+- `GET /api/conversations?exerciseId=xxx&type=CHECKPOINT` returns only checkpoint conversations
+- `LlmService.getConversationHistory(exerciseId, type?)` filters by type
+
+### Checkpoint Bulk Replace & Pattern Update
 ```typescript
-// POST /api/checkpoints/bulk/:exerciseId
-// Replaces all checkpoints for an exercise atomically (deleteMany + createMany in transaction)
+// POST /api/checkpoints/bulk/:exerciseId  — replaces all checkpoints (deleteMany + createMany)
+// PATCH /api/checkpoints/bulk-patterns/:exerciseId  — updates only `pattern` field by order index
 ```
 
 ## Grading Pipeline (GradingModule)

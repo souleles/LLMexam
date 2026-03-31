@@ -11,13 +11,14 @@ from dotenv import load_dotenv
 
 from models import (
     GenerateCheckpointsRequest,
+    GeneratePatternsRequest,
     ExtractPdfResponse,
     SqlParseRequest,
     SqlParseResponse,
     HealthResponse,
 )
 from services.pdf_service import extract_text_from_pdf
-from services.llm_service import stream_checkpoint_generation
+from services.llm_service import stream_checkpoint_generation, stream_pattern_generation
 from services.sql_service import parse_sql
 
 # Load environment variables
@@ -116,6 +117,25 @@ async def generate_checkpoints(request: GenerateCheckpointsRequest):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
+
+
+@app.post("/generate-patterns")
+async def generate_patterns(request: GeneratePatternsRequest):
+    """
+    Generate regex patterns for grading checkpoints using LLM.
+    Streams response via Server-Sent Events (SSE).
+    """
+    logger.info("Received pattern generation request")
+
+    return StreamingResponse(
+        stream_pattern_generation(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
 

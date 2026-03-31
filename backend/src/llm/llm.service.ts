@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { ConversationRole } from '@prisma/client';
+import { ConversationRole, ConversationType } from '@prisma/client';
 import axios from 'axios';
 
 @Injectable()
@@ -15,8 +15,12 @@ export class LlmService {
     this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
   }
 
-  async saveMessage(exerciseId: string, role: ConversationRole, content: string) {
-    // Verify exercise exists
+  async saveMessage(
+    exerciseId: string,
+    role: ConversationRole,
+    content: string,
+    type: ConversationType = ConversationType.CHECKPOINT,
+  ) {
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
     });
@@ -26,17 +30,13 @@ export class LlmService {
     }
 
     return this.prisma.conversation.create({
-      data: {
-        exerciseId,
-        role,
-        content,
-      },
+      data: { exerciseId, role, content, type },
     });
   }
 
-  async getConversationHistory(exerciseId: string) {
+  async getConversationHistory(exerciseId: string, type?: ConversationType) {
     const messages = await this.prisma.conversation.findMany({
-      where: { exerciseId },
+      where: { exerciseId, ...(type ? { type } : {}) },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -44,13 +44,10 @@ export class LlmService {
   }
 
   async *streamResponse(exerciseId: string, message: string): AsyncGenerator<string> {
-    // Save professor's message
-    await this.saveMessage(exerciseId, ConversationRole.PROFESSOR, message);
+    await this.saveMessage(exerciseId, ConversationRole.PROFESSOR, message, ConversationType.CHECKPOINT);
 
-    // Get conversation history
-    const history = await this.getConversationHistory(exerciseId);
-    
-    // Get exercise details
+    const history = await this.getConversationHistory(exerciseId, ConversationType.CHECKPOINT);
+
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
     });
@@ -59,69 +56,91 @@ export class LlmService {
       throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
     }
 
+    const currentCheckpoints = await this.prisma.checkpoint.findMany({
+      where: { exerciseId },
+      orderBy: { order: 'asc' },
+    });
+
     try {
-      // Call Python service for streaming response
       const response = await axios.post(
         `${this.pythonServiceUrl}/generate-checkpoints`,
         {
           text: exercise.extractedText ?? '',
-          current_checkpoints: '',
+          current_checkpoints: JSON.stringify(currentCheckpoints),
           message,
-          history: history.map((msg) => ({
+          history: history.slice(0, -1).map((msg) => ({
             role: msg.role.toLowerCase(),
             content: msg.content,
           })),
         },
         {
           responseType: 'stream',
-          timeout: 120000, // 2 minute timeout
+          timeout: 120000,
         },
       );
 
       let fullResponse = '';
 
-      // Stream the response
       for await (const chunk of response.data) {
         const text = chunk.toString();
         fullResponse += text;
         yield text;
       }
 
-      // Save assistant's response
-      await this.saveMessage(exerciseId, ConversationRole.ASSISTANT, fullResponse);
+      await this.saveMessage(exerciseId, ConversationRole.ASSISTANT, fullResponse, ConversationType.CHECKPOINT);
     } catch (error) {
-      console.error('Error streaming from Python service:', error.message);
+      console.error('Error streaming from Python service:', { exerciseId, message: error.message });
       throw new Error('Failed to stream response from LLM service');
     }
   }
 
-  async extractCheckpoints(exerciseId: string): Promise<any[]> {
-    // Get exercise details
-    const exercise = await this.prisma.exercise.findUnique({
-      where: { id: exerciseId },
+  async *streamPatternResponse(exerciseId: string, message: string): AsyncGenerator<string> {
+    await this.saveMessage(exerciseId, ConversationRole.PROFESSOR, message, ConversationType.PATTERN);
+
+    const history = await this.getConversationHistory(exerciseId, ConversationType.PATTERN);
+
+    const checkpoints = await this.prisma.checkpoint.findMany({
+      where: { exerciseId },
+      orderBy: { order: 'asc' },
     });
 
-    if (!exercise) {
-      throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
+    if (checkpoints.length === 0) {
+      throw new NotFoundException(`No checkpoints found for exercise ${exerciseId}`);
     }
 
     try {
-      // Call Python service to extract checkpoints
       const response = await axios.post(
-        `${this.pythonServiceUrl}/llm/extract-checkpoints`,
+        `${this.pythonServiceUrl}/generate-patterns`,
         {
-          exerciseId,
-          pdfUrl: exercise.pdfUrl,
+          checkpoints: checkpoints.map((cp) => ({
+            order: cp.order,
+            description: cp.description,
+            current_pattern: cp.pattern,
+          })),
+          message,
+          history: history.slice(0, -1).map((msg) => ({
+            role: msg.role.toLowerCase(),
+            content: msg.content,
+          })),
         },
         {
-          timeout: 60000, // 1 minute timeout
+          responseType: 'stream',
+          timeout: 120000,
         },
       );
 
-      return response.data.checkpoints || [];
+      let fullResponse = '';
+
+      for await (const chunk of response.data) {
+        const text = chunk.toString();
+        fullResponse += text;
+        yield text;
+      }
+
+      await this.saveMessage(exerciseId, ConversationRole.ASSISTANT, fullResponse, ConversationType.PATTERN);
     } catch (error) {
-      console.error('Error extracting checkpoints:', error.message);
-      throw new Error('Failed to extract checkpoints from LLM service');
+      console.error('Error streaming patterns from Python service:', { exerciseId, message: error.message });
+      throw new Error('Failed to stream pattern response from LLM service');
     }
   }
 }

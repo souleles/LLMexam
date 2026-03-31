@@ -1,4 +1,10 @@
 import {
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Box,
   Button,
   Card,
@@ -20,49 +26,60 @@ import {
   Spinner,
   Avatar,
   OrderedList,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  useDisclosure,
   useToast,
 } from '@chakra-ui/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck } from 'react-icons/fi';
+import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { api, ConversationMessage } from '@/lib/api';
+import { api, Checkpoint, ConversationMessage } from '@/lib/api';
 import { useLlmStream } from '@/hooks/useLlmStream';
 import { parseMessageContent } from '@/lib/parseMessageContent';
 import { queryClient } from '@/lib/queryClient';
 
-export function ExerciseDetailPage() {
-  const { exerciseId } = useParams<{ exerciseId: string }>();
-  const navigate = useNavigate();
+// ── InlineChat ─────────────────────────────────────────────────────────────────
+
+interface InlineChatProps {
+  exerciseId: string;
+  mode: 'checkpoints' | 'patterns';
+  patternsEnabled?: boolean;
+  checkpoints?: Checkpoint[];
+  isReadOnly?: boolean;
+  onAccepted: () => void;
+}
+
+function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = [], isReadOnly = false, onAccepted }: InlineChatProps) {
   const toast = useToast();
+
+  const defaultInput =
+    mode === 'checkpoints'
+      ? 'Εξήγαγε όλα τα checkpoints βαθμολόγησης από αυτή την άσκηση'
+      : 'Δημιούργησε regex patterns για κάθε checkpoint';
+
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const seeded = useRef(false);
 
-  const { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints } =
-    useLlmStream(exerciseId!);
+  const { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns } =
+    useLlmStream(exerciseId, mode);
 
-  const { data: exercise, isLoading: exerciseLoading } = useQuery({
-    queryKey: ['exercises', exerciseId],
-    queryFn: () => api.exercises.get(exerciseId!),
-    enabled: !!exerciseId,
-  });
+  const conversationType = mode === 'checkpoints' ? 'CHECKPOINT' : 'PATTERN';
 
-  const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
-    queryKey: ['checkpoints', exerciseId],
-    queryFn: () => api.checkpoints.list(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  // Seed messages state from DB once on load
-  const { data: dbMessages = [], isLoading: conversationsLoading } = useQuery({
-    queryKey: ['conversations', exerciseId],
-    queryFn: () => api.conversations.list(exerciseId!),
-    enabled: !!exerciseId,
+  const { data: dbMessages = [] } = useQuery({
+    queryKey: ['conversations', exerciseId, conversationType],
+    queryFn: () => api.conversations.listByType(exerciseId, conversationType),
+    enabled: !!exerciseId && (mode === 'checkpoints' || patternsEnabled),
     staleTime: Infinity,
   });
 
-  const seeded = useRef(false);
+  // Seed from DB once
   useEffect(() => {
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
@@ -70,7 +87,14 @@ export function ExerciseDetailPage() {
     }
   }, [dbMessages]);
 
-  // When streaming ends, finalize the assistant message into messages
+  // Pre-populate input when no history
+  useEffect(() => {
+    if (dbMessages.length === 0 && messages.length === 0) {
+      setInput(defaultInput);
+    }
+  }, [dbMessages.length, messages.length, defaultInput]);
+
+  // Finalize assistant bubble when streaming ends
   const prevStreaming = useRef(false);
   useEffect(() => {
     if (prevStreaming.current && !streaming && buffer) {
@@ -78,7 +102,7 @@ export function ExerciseDetailPage() {
         ...prev,
         {
           id: `assistant-${Date.now()}`,
-          exerciseId: exerciseId!,
+          exerciseId,
           role: 'assistant',
           content: buffer,
           createdAt: new Date().toISOString(),
@@ -88,21 +112,40 @@ export function ExerciseDetailPage() {
     prevStreaming.current = streaming;
   }, [streaming, buffer, exerciseId]);
 
-  const acceptMutation = useMutation({
-    mutationFn: () => api.checkpoints.bulkReplace(exerciseId!, pendingCheckpoints),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
-      clearPendingCheckpoints();
-      toast({ title: 'Checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
-    },
-    onError: () => {
-      toast({ title: 'Σφάλμα αποθήκευσης', status: 'error', duration: 3000 });
-    },
-  });
-
+  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, buffer]);
+
+  const acceptCheckpointsMutation = useMutation({
+    mutationFn: () => api.checkpoints.bulkReplace(exerciseId, pendingCheckpoints),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+      clearPendingCheckpoints();
+      onAccepted();
+      toast({ title: 'Checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα αποθήκευσης checkpoints', status: 'error', duration: 3000 });
+    },
+  });
+
+  const acceptPatternsMutation = useMutation({
+    mutationFn: () =>
+      api.checkpoints.bulkUpdatePatterns(
+        exerciseId,
+        pendingPatterns.map((p) => ({ order: p.order, pattern: p.pattern })),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+      clearPendingPatterns();
+      onAccepted();
+      toast({ title: 'Patterns αποθηκεύτηκαν', status: 'success', duration: 3000 });
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα αποθήκευσης patterns', status: 'error', duration: 3000 });
+    },
+  });
 
   const handleSend = useCallback(() => {
     if (!input.trim() || streaming) return;
@@ -111,7 +154,7 @@ export function ExerciseDetailPage() {
       ...prev,
       {
         id: `professor-${Date.now()}`,
-        exerciseId: exerciseId!,
+        exerciseId,
         role: 'professor',
         content: text,
         createdAt: new Date().toISOString(),
@@ -128,7 +171,115 @@ export function ExerciseDetailPage() {
     }
   };
 
-  if (exerciseLoading || checkpointsLoading || conversationsLoading) {
+  const hasPending = mode === 'checkpoints' ? pendingCheckpoints.length > 0 : pendingPatterns.length > 0;
+  const pendingCount = mode === 'checkpoints' ? pendingCheckpoints.length : pendingPatterns.length;
+  const acceptMutation = mode === 'checkpoints' ? acceptCheckpointsMutation : acceptPatternsMutation;
+  const acceptLabel = mode === 'checkpoints' ? 'Αποδοχή Checkpoints' : 'Αποδοχή Patterns';
+
+  const emptyLabel =
+    mode === 'checkpoints'
+      ? 'Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση'
+      : 'Ζητήστε από την AI να δημιουργήσει regex patterns για τα checkpoints';
+
+  return (
+    <VStack align="stretch" spacing={4}>
+      {!isReadOnly && (
+        <HStack justify="flex-end">
+          {hasPending && (
+            <Button
+              leftIcon={<FiCheck />}
+              colorScheme="green"
+              size="sm"
+              isLoading={acceptMutation.isPending}
+              onClick={() => acceptMutation.mutate()}
+            >
+              {acceptLabel} ({pendingCount})
+            </Button>
+          )}
+        </HStack>
+      )}
+
+      {/* Messages area */}
+      <Box h="400px" overflowY="auto" px={1}>
+        <VStack spacing={4} align="stretch">
+          {messages.length === 0 && !streaming && (
+            <Box textAlign="center" py={8}>
+              <Text color="gray.500">{emptyLabel}</Text>
+            </Box>
+          )}
+
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
+
+          {streaming && buffer && (
+            <MessageBubble
+              message={{
+                id: 'streaming',
+                exerciseId,
+                role: 'assistant',
+                content: buffer,
+                createdAt: new Date().toISOString(),
+              }}
+              isStreaming
+            />
+          )}
+
+          {error && (
+            <Text fontSize="sm" color="red.500" textAlign="center">{error}</Text>
+          )}
+
+          <div ref={messagesEndRef} />
+        </VStack>
+      </Box>
+
+      {/* Input — hidden when read-only */}
+      {!isReadOnly && (
+        <HStack>
+          <Input
+            placeholder={mode === 'checkpoints' ? 'Ρωτήστε για checkpoints...' : 'Ρωτήστε για patterns...'}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={streaming}
+          />
+          <Button
+            leftIcon={streaming ? <Spinner size="sm" /> : <FiSend />}
+            colorScheme="brand"
+            onClick={handleSend}
+            isDisabled={!input.trim() || streaming}
+          >
+            Αποστολή
+          </Button>
+        </HStack>
+      )}
+    </VStack>
+  );
+}
+
+// ── ExerciseDetailPage ────────────────────────────────────────────────────────
+
+export function ExerciseDetailPage() {
+  const { exerciseId } = useParams<{ exerciseId: string }>();
+  const navigate = useNavigate();
+
+  const { data: exercise, isLoading: exerciseLoading } = useQuery({
+    queryKey: ['exercises', exerciseId],
+    queryFn: () => api.exercises.get(exerciseId!),
+    enabled: !!exerciseId,
+  });
+
+  const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
+    queryKey: ['checkpoints', exerciseId],
+    queryFn: () => api.checkpoints.list(exerciseId!),
+    enabled: !!exerciseId,
+  });
+
+  const handleAccepted = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+  }, [exerciseId]);
+
+  if (exerciseLoading || checkpointsLoading) {
     return (
       <Box>
         <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6}>
@@ -248,9 +399,11 @@ export function ExerciseDetailPage() {
                               <Text fontWeight="medium">
                                 {index + 1}. {checkpoint.description}
                               </Text>
-                              <Text fontSize="sm" color="gray.600">
-                                {checkpoint.pattern.length} μοτίβο/α
-                              </Text>
+                              {checkpoint.pattern && (
+                                <Text fontSize="xs" color="gray.500" fontFamily="mono">
+                                  {checkpoint.pattern}
+                                </Text>
+                              )}
                             </VStack>
                           </HStack>
                         </ListItem>
@@ -263,84 +416,43 @@ export function ExerciseDetailPage() {
           </GridItem>
         </Grid>
 
-        {/* Inline Chat */}
+        {/* Chat Tabs */}
         <Card>
           <CardBody>
-            <VStack align="stretch" spacing={4}>
-              <HStack justify="space-between">
-                <Heading size="md">Συνομιλία & Εξαγωγή Checkpoints</Heading>
-                {pendingCheckpoints.length > 0 && (
-                  <Button
-                    leftIcon={<FiCheck />}
-                    colorScheme="green"
-                    size="sm"
-                    isLoading={acceptMutation.isPending}
-                    onClick={() => acceptMutation.mutate()}
-                  >
-                    Αποδοχή Checkpoints ({pendingCheckpoints.length})
-                  </Button>
-                )}
-              </HStack>
-              <Divider />
-
-              {/* Messages area */}
-              <Box h="400px" overflowY="auto" px={1}>
-                <VStack spacing={4} align="stretch">
-                  {messages.length === 0 && !streaming && (
-                    <Box textAlign="center" py={8}>
-                      <Text color="gray.500">
-                        Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση
-                      </Text>
-                      <Text fontSize="sm" color="gray.400" mt={2}>
-                        Παράδειγμα: "Εξήγαγε όλα τα checkpoints βαθμολόγησης από αυτή την άσκηση"
-                      </Text>
-                    </Box>
+            <Heading size="md" mb={4}>Συνομιλία & Εξαγωγή</Heading>
+            <Divider mb={4} />
+            <Tabs variant="enclosed" colorScheme="brand">
+              <TabList>
+                <Tab>Checkpoints</Tab>
+                <Tab isDisabled={checkpoints.length === 0}>
+                  Patterns
+                  {checkpoints.length === 0 && (
+                    <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                      (αποδεχτείτε checkpoints πρώτα)
+                    </Text>
                   )}
-
-                  {messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))}
-
-                  {streaming && buffer && (
-                    <MessageBubble
-                      message={{
-                        id: 'streaming',
-                        exerciseId: exerciseId!,
-                        role: 'assistant',
-                        content: buffer,
-                        createdAt: new Date().toISOString(),
-                      }}
-                      isStreaming
-                    />
-                  )}
-
-                  {error && (
-                    <Text fontSize="sm" color="red.500" textAlign="center">{error}</Text>
-                  )}
-
-                  <div ref={messagesEndRef} />
-                </VStack>
-              </Box>
-
-              {/* Input */}
-              <HStack>
-                <Input
-                  placeholder="Ρωτήστε για checkpoints..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  disabled={streaming}
-                />
-                <Button
-                  leftIcon={streaming ? <Spinner size="sm" /> : <FiSend />}
-                  colorScheme="brand"
-                  onClick={handleSend}
-                  isDisabled={!input.trim() || streaming}
-                >
-                  Αποστολή
-                </Button>
-              </HStack>
-            </VStack>
+                </Tab>
+              </TabList>
+              <TabPanels>
+                <TabPanel px={0} pt={4}>
+                  <InlineChat
+                    exerciseId={exerciseId!}
+                    mode="checkpoints"
+                    checkpoints={checkpoints}
+                    onAccepted={handleAccepted}
+                  />
+                </TabPanel>
+                <TabPanel px={0} pt={4}>
+                  <InlineChat
+                    exerciseId={exerciseId!}
+                    mode="patterns"
+                    patternsEnabled={checkpoints.length > 0}
+                    checkpoints={checkpoints}
+                    onAccepted={handleAccepted}
+                  />
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </CardBody>
         </Card>
       </VStack>
@@ -395,7 +507,7 @@ function MessageContent({ content }: { content: string }) {
               const match = item.match(/^\d+\.\s+(.+)/);
               return (
                 <ListItem key={j}>
-                  <Text fontSize="sm">{match ? match[1] : item}</Text>
+                  <Text fontSize="sm" whiteSpace="pre-wrap">{match ? match[1] : item}</Text>
                 </ListItem>
               );
             })}

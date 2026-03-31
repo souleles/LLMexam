@@ -51,13 +51,14 @@ model Checkpoint {
   @@index([exerciseId])
 }
 
-// Conversation tracks the LLM chat for checkpoint extraction
+// Conversation tracks the LLM chat for checkpoint and pattern extraction
 model Conversation {
-  id          String   @id @default(uuid())
+  id          String           @id @default(uuid())
   exerciseId  String
   role        ConversationRole
-  content     String   // Message content
-  createdAt   DateTime @default(now())
+  type        ConversationType @default(CHECKPOINT)
+  content     String           // Message content
+  createdAt   DateTime         @default(now())
 
   exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
@@ -68,6 +69,11 @@ model Conversation {
 enum ConversationRole {
   PROFESSOR
   ASSISTANT
+}
+
+enum ConversationType {
+  CHECKPOINT
+  PATTERN
 }
 
 // Submission represents a student's submitted file

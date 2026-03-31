@@ -27,6 +27,14 @@ export function parseMessageContent(raw: string): string {
         continue;
       }
 
+      if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
+        const listText = (parsed.data as { order: number; description: string; pattern: string }[])
+          .map((p, i) => `${p.order ?? i + 1}. ${p.description}\n   Pattern: \`${p.pattern}\``)
+          .join('\n');
+        parts.push(listText);
+        continue;
+      }
+
       const token = parsed.content ?? parsed.choices?.[0]?.delta?.content;
       if (token) parts.push(token);
     } catch {

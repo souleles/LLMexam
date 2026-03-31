@@ -72,6 +72,10 @@ export const api = {
     delete: async (id: string): Promise<void> => {
       await httpClient.delete(`/api/exercises/${id}`);
     },
+    approve: async (id: string): Promise<Exercise> => {
+      const { data } = await httpClient.patch(`/api/exercises/${id}/approve`);
+      return data;
+    },
   },
   checkpoints: {
     list: async (exerciseId: string): Promise<Checkpoint[]> => {
@@ -88,10 +92,21 @@ export const api = {
       const { data } = await httpClient.post(`/api/checkpoints/bulk/${exerciseId}`, checkpoints);
       return data;
     },
+    bulkUpdatePatterns: async (
+      exerciseId: string,
+      patterns: { order: number; pattern: string }[],
+    ): Promise<Checkpoint[]> => {
+      const { data } = await httpClient.patch(`/api/checkpoints/bulk-patterns/${exerciseId}`, patterns);
+      return data;
+    },
   },
   conversations: {
     list: async (exerciseId: string): Promise<ConversationMessage[]> => {
       const { data } = await httpClient.get(`/api/conversations?exerciseId=${exerciseId}`);
+      return data;
+    },
+    listByType: async (exerciseId: string, type: 'CHECKPOINT' | 'PATTERN'): Promise<ConversationMessage[]> => {
+      const { data } = await httpClient.get(`/api/conversations?exerciseId=${exerciseId}&type=${type}`);
       return data;
     },
   },

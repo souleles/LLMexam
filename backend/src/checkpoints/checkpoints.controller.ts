@@ -82,8 +82,16 @@ export class CheckpointsController {
   @ApiOperation({ summary: 'Approve checkpoints for an exercise' })
   @ApiResponse({ status: 200, description: 'Checkpoints approved' })
   async approveCheckpoints(@Body('exerciseId') exerciseId: string): Promise<{ message: string }> {
-    // This approves the exercise (mark as ready for submissions)
-    // You might want to inject ExercisesService here
     return { message: 'Checkpoints approved successfully' };
+  }
+
+  @Patch('bulk-patterns/:exerciseId')
+  @ApiOperation({ summary: 'Bulk update patterns for all checkpoints in an exercise' })
+  @ApiResponse({ status: 200, description: 'Patterns updated', type: [CheckpointResponseDto] })
+  bulkUpdatePatterns(
+    @Param('exerciseId') exerciseId: string,
+    @Body() patterns: { order: number; pattern: string }[],
+  ): Promise<CheckpointResponseDto[]> {
+    return this.checkpointsService.bulkUpdatePatterns(exerciseId, patterns);
   }
 }

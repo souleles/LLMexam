@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { ConversationResponseDto, CreateConversationDto } from './dto/conversation.dto';
+import { ConversationType } from '@prisma/client';
 
 @Controller('conversations')
 export class ConversationsController {
@@ -12,7 +13,10 @@ export class ConversationsController {
   }
 
   @Get()
-  findByExercise(@Query('exerciseId') exerciseId: string): Promise<ConversationResponseDto[]> {
-    return this.conversationsService.findByExercise(exerciseId);
+  findByExercise(
+    @Query('exerciseId') exerciseId: string,
+    @Query('type') type?: ConversationType,
+  ): Promise<ConversationResponseDto[]> {
+    return this.conversationsService.findByExercise(exerciseId, type);
   }
 }

@@ -14,6 +14,7 @@
 |--------|------|---------|
 | POST | `/extract-pdf` | Receive PDF file (multipart), return extracted text |
 | POST | `/generate-checkpoints` | Receive text + history, stream LLM response via SSE |
+| POST | `/generate-patterns` | Receive checkpoints + history, stream regex patterns via SSE |
 | POST | `/parse-sql` | Receive SQL text, return sqlparse token tree |
 | GET | `/health` | Health check (returns `{"status": "ok"}`) |
 
@@ -97,24 +98,28 @@ OPENAI_API_KEY=sk-...
 PORT=8000
 ```
 
-## Project Structure (planned)
+## Project Structure
 
 ```
 python-service/
   main.py              # FastAPI app, routes
-  models.py            # Pydantic request/response models
+  models.py            # Pydantic request/response models (GenerateCheckpointsRequest, GeneratePatternsRequest, ...)
   services/
     pdf_service.py     # pdfplumber logic
-    llm_service.py     # LangChain + prompt building
+    llm_service.py     # LangChain: stream_checkpoint_generation, stream_pattern_generation
     sql_service.py     # sqlparse token analysis
-  prompts/             # Prompt template strings (mirrors tools/prompts/)
-  tests/
-    test_pdf.py
-    test_llm.py
-    test_sql.py
+  prompts/
+    checkpoint_prompts.py   # Checkpoint extraction prompts (English)
+    patterns_prompts.py     # Pattern generation prompts (Greek)
   requirements.txt
   .env.example
 ```
+
+## Pattern Generation Flow
+1. Receives `GeneratePatternsRequest` with `checkpoints[]`, `history[]`, `message`
+2. `_build_pattern_messages()` in `llm_service.py` handles initial vs refinement
+3. Initial call: includes user's message so professor can guide generation
+4. Returns SSE events: human-readable summary + `{type: "patterns", data: [{order, pattern, description}]}` + `[DONE]`
 
 ## AI Instructions for This Service
 

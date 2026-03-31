@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationResponseDto, CreateConversationDto } from './dto/conversation.dto';
+import { ConversationType } from '@prisma/client';
 
 @Injectable()
 export class ConversationsService {
@@ -23,9 +24,9 @@ export class ConversationsService {
     return this.mapToResponseDto(conversation);
   }
 
-  async findByExercise(exerciseId: string): Promise<ConversationResponseDto[]> {
+  async findByExercise(exerciseId: string, type?: ConversationType): Promise<ConversationResponseDto[]> {
     const conversations = await this.prisma.conversation.findMany({
-      where: { exerciseId },
+      where: { exerciseId, ...(type ? { type } : {}) },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -37,6 +38,7 @@ export class ConversationsService {
       id: conversation.id,
       exerciseId: conversation.exerciseId,
       role: conversation.role.toLowerCase() as 'professor' | 'assistant',
+      type: conversation.type as 'CHECKPOINT' | 'PATTERN',
       content: conversation.content,
       createdAt: conversation.createdAt.toISOString(),
     };

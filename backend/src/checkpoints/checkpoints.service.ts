@@ -129,4 +129,28 @@ export class CheckpointsService {
       throw new NotFoundException(`Checkpoint with ID ${id} not found`);
     }
   }
+
+  async bulkUpdatePatterns(
+    exerciseId: string,
+    patterns: { order: number; pattern: string }[],
+  ): Promise<CheckpointResponseDto[]> {
+    const exercise = await this.prisma.exercise.findUnique({
+      where: { id: exerciseId },
+    });
+
+    if (!exercise) {
+      throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
+    }
+
+    await this.prisma.$transaction(
+      patterns.map(({ order, pattern }) =>
+        this.prisma.checkpoint.updateMany({
+          where: { exerciseId, order },
+          data: { pattern },
+        }),
+      ),
+    );
+
+    return this.findByExercise(exerciseId);
+  }
 }

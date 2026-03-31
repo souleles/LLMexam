@@ -19,6 +19,20 @@ class GenerateCheckpointsRequest(BaseModel):
     message: str = Field(..., description="Current professor message")
 
 
+class CheckpointInfo(BaseModel):
+    """Checkpoint data used for pattern generation."""
+    order: int
+    description: str
+    current_pattern: str = Field(default="", description="Existing regex pattern, may be empty")
+
+
+class GeneratePatternsRequest(BaseModel):
+    """Request body for /generate-patterns endpoint."""
+    checkpoints: list[CheckpointInfo] = Field(..., description="List of checkpoints to generate patterns for")
+    history: list[Message] = Field(default_factory=list, description="Pattern conversation history")
+    message: str = Field(..., description="Current professor message")
+
+
 class ExtractPdfResponse(BaseModel):
     """Response for /extract-pdf endpoint."""
     extracted_text: str
