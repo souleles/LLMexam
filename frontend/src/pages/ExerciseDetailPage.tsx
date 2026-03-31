@@ -38,7 +38,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { api, Checkpoint, ConversationMessage } from '@/lib/api';
+import { api, Checkpoint, ConversationMessage, ExerciseStatus } from '@/lib/api';
 import { useLlmStream } from '@/hooks/useLlmStream';
 import { parseMessageContent } from '@/lib/parseMessageContent';
 import { queryClient } from '@/lib/queryClient';
@@ -65,7 +65,9 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesBoxRef = useRef<HTMLDivElement>(null);
   const seeded = useRef(false);
+  const initialScrollDone = useRef(false);
 
   const { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns } =
     useLlmStream(exerciseId, mode);
@@ -79,13 +81,26 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     staleTime: Infinity,
   });
 
-  // Seed from DB once
+  // Seed from DB once and scroll to bottom
   useEffect(() => {
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
       setMessages(dbMessages.map((m) => ({ ...m, content: parseMessageContent(m.content) || m.content })));
     }
   }, [dbMessages]);
+
+  // Initial scroll after messages are rendered (without scrolling the page)
+  useEffect(() => {
+    if (seeded.current && !initialScrollDone.current && messagesBoxRef.current && messages.length > 0) {
+      // Use requestAnimationFrame to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        if (messagesBoxRef.current) {
+          messagesBoxRef.current.scrollTop = messagesBoxRef.current.scrollHeight;
+          initialScrollDone.current = true;
+        }
+      });
+    }
+  }, [messages]);
 
   // Pre-populate input when no history
   useEffect(() => {
@@ -112,10 +127,12 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     prevStreaming.current = streaming;
   }, [streaming, buffer, exerciseId]);
 
-  // Scroll to bottom
+  // Scroll to bottom on new messages (after initial load)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, buffer]);
+    if (initialScrollDone.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [messages.length, streaming]);
 
   const acceptCheckpointsMutation = useMutation({
     mutationFn: () => api.checkpoints.bulkReplace(exerciseId, pendingCheckpoints),
@@ -200,7 +217,7 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
       )}
 
       {/* Messages area */}
-      <Box h="400px" overflowY="auto" px={1}>
+      <Box ref={messagesBoxRef} h="400px" overflowY="auto" px={1}>
         <VStack spacing={4} align="stretch">
           {messages.length === 0 && !streaming && (
             <Box textAlign="center" py={8}>
@@ -262,6 +279,9 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
 export function ExerciseDetailPage() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   const { data: exercise, isLoading: exerciseLoading } = useQuery({
     queryKey: ['exercises', exerciseId],
@@ -275,9 +295,41 @@ export function ExerciseDetailPage() {
     enabled: !!exerciseId,
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.exercises.delete(exerciseId!),
+    onSuccess: () => {
+      toast({ title: 'Η άσκηση διαγράφηκε επιτυχώς', status: 'success', duration: 3000 });
+      navigate('/exercises');
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα διαγραφής άσκησης', status: 'error', duration: 3000 });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => api.exercises.approve(exerciseId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercises', exerciseId] });
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+      toast({ title: 'Η άσκηση εγκρίθηκε επιτυχώς', status: 'success', duration: 3000 });
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα έγκρισης άσκησης', status: 'error', duration: 3000 });
+    },
+  });
+
   const handleAccepted = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
   }, [exerciseId]);
+
+  const handleApproveExercise = useCallback(() => {
+    approveMutation.mutate();
+  }, [approveMutation]);
+
+  const handleDelete = () => {
+    deleteMutation.mutate();
+    onDeleteClose();
+  };
 
   if (exerciseLoading || checkpointsLoading) {
     return (
@@ -323,14 +375,36 @@ export function ExerciseDetailPage() {
           <VStack align="start" spacing={2}>
             <Heading size="lg">{exercise.title}</Heading>
             <HStack>
-              <Badge colorScheme={exercise.status === 'approved' ? 'green' : 'yellow'}>
-                {exercise.status === 'approved' ? 'Εγκεκριμένο' : 'Πρόχειρο'}
+              <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
+                {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
               </Badge>
               <Text color="gray.500" fontSize="sm">
                 Δημιουργήθηκε {new Date(exercise.createdAt).toLocaleDateString('el-GR')}
               </Text>
             </HStack>
           </VStack>
+          <HStack>
+            {exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every(cp => cp.pattern) && (
+              <Button
+                leftIcon={<FiCheck />}
+                colorScheme="green"
+                variant="solid"
+                onClick={handleApproveExercise}
+                isLoading={approveMutation.isPending}
+              >
+                Έγκριση Άσκησης
+              </Button>
+            )}
+            <Button
+              leftIcon={<FiTrash2 />}
+              colorScheme="red"
+              variant="solid"
+              onClick={onDeleteOpen}
+              isLoading={deleteMutation.isPending}
+            >
+              Διαγραφή
+            </Button>
+          </HStack>
         </HStack>
 
         <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
@@ -419,9 +493,16 @@ export function ExerciseDetailPage() {
         {/* Chat Tabs */}
         <Card>
           <CardBody>
-            <Heading size="md" mb={4}>Συνομιλία & Εξαγωγή</Heading>
+            <Heading size="md" mb={4}>
+              Συνομιλία & Εξαγωγή
+              {exercise.status !== ExerciseStatus.DRAFT && (
+                <Badge ml={2} colorScheme="green" textTransform="none">
+                  Μόνο ανάγνωση
+                </Badge>
+              )}
+            </Heading>
             <Divider mb={4} />
-            <Tabs variant="enclosed" colorScheme="brand">
+            <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior='unmount'>
               <TabList>
                 <Tab>Checkpoints</Tab>
                 <Tab isDisabled={checkpoints.length === 0}>
@@ -439,6 +520,7 @@ export function ExerciseDetailPage() {
                     exerciseId={exerciseId!}
                     mode="checkpoints"
                     checkpoints={checkpoints}
+                    isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
                     onAccepted={handleAccepted}
                   />
                 </TabPanel>
@@ -448,6 +530,7 @@ export function ExerciseDetailPage() {
                     mode="patterns"
                     patternsEnabled={checkpoints.length > 0}
                     checkpoints={checkpoints}
+                    isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
                     onAccepted={handleAccepted}
                   />
                 </TabPanel>
@@ -456,6 +539,35 @@ export function ExerciseDetailPage() {
           </CardBody>
         </Card>
       </VStack>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onDeleteClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Διαγραφή Άσκησης
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Είστε σίγουροι ότι θέλετε να διαγράψετε την άσκηση "{exercise.title}";
+              Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteClose}>
+                Ακύρωση
+              </Button>
+              <Button colorScheme="red" onClick={handleDelete} ml={3}>
+                Διαγραφή
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 }

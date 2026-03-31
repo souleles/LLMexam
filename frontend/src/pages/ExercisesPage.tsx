@@ -21,7 +21,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FiPlus, FiTrash2, FiEye } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { api, ExerciseStatus } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 
 export function ExercisesPage() {
@@ -113,11 +113,10 @@ export function ExercisesPage() {
                     _hover={{ bg: 'gray.50' }}
                     cursor="pointer"
                     onClick={() => navigate(`/exercises/${exercise.id}`)}
-                  >
-                    <Td fontWeight="medium">{exercise.title}</Td>
+                  >                    <Td fontWeight="medium">{exercise.title}</Td>
                     <Td>
-                      <Badge colorScheme={exercise.status === 'approved' ? 'green' : 'yellow'}>
-                        {exercise.status === 'approved' ? 'Εγκεκριμένο' : 'Πρόχειρο'}
+                      <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
+                        {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
                       </Badge>
                     </Td>
                     <Td color="gray.600">

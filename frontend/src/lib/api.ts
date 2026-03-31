@@ -1,11 +1,16 @@
 import { httpClient } from './httpClient';
 
+export enum ExerciseStatus {
+  DRAFT = 'draft',
+  APPROVED = 'approved',
+}
+
 export interface Exercise {
   id: string;
   title: string;
   originalPdfPath: string;
   extractedText?: string;
-  status: 'draft' | 'approved';
+  status: ExerciseStatus;
   createdAt: string;
   updatedAt: string;
 }

@@ -22,7 +22,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FiArrowLeft, FiUpload, FiBarChart2, FiTrash2 } from 'react-icons/fi';
 import { useState } from 'react';
-import { api } from '@/lib/api';
+import { api, ExerciseStatus } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { FileUploader } from '@/components/FileUploader';
 
@@ -88,8 +88,7 @@ export function SubmissionsPage() {
       </Box>
     );
   }
-
-  if (exercise.status !== 'approved') {
+  if (exercise.status !== ExerciseStatus.APPROVED) {
     return (
       <Box textAlign="center" py={10}>
         <VStack spacing={4}>
