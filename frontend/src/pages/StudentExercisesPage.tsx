@@ -38,8 +38,7 @@ export function StudentExercisesPage() {
   const { data: exercises = [] } = useQuery({
     queryKey: ['exercises'],
     queryFn: api.exercises.list,
-  });
-  const gradeMutation = useMutation({
+  }); const gradeMutation = useMutation({
     mutationFn: async ({
       exerciseId,
       file,
@@ -51,18 +50,11 @@ export function StudentExercisesPage() {
       studentId: string;
       studentName: string;
     }) => {
-      // Upload submission
-      const submission = await api.submissions.uploadSingle(
-        exerciseId,
-        file,
-        studentId,
-        studentName
-      );
-
-      // Grade submission
-      const gradingResults = await api.grading.gradeSubmission(submission.id);
+      // Upload and grade in one call
+      const gradingResults = await api.submissions.uploadAndGrade(exerciseId, studentId, studentName, file);
       return gradingResults;
-    }, onSuccess: (data) => {
+    },
+    onSuccess: (data) => {
       setResults(data);
       toast({
         title: 'Ολοκληρώθηκε η βαθμολόγηση',
@@ -187,15 +179,16 @@ export function StudentExercisesPage() {
                     onChange={(e) => setStudentName(e.target.value)}
                   />
                 </FormControl>
-              </HStack>
-
-              <FormControl isRequired>
-                <FormLabel>Αρχείο Εργασίας Φοιτητή</FormLabel>
+              </HStack>              <FormControl isRequired>
+                <FormLabel>Αρχείο Εργασίας Φοιτητή (.zip ή μεμονωμένο αρχείο)</FormLabel>
                 <FileUploader
-                  accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx"
+                  accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip"
                   maxFiles={1}
                   onFilesSelected={(files) => setFile(files[0] || null)}
                 />
+                <Text fontSize="sm" color="gray.500" mt={2}>
+                  Μπορείτε να ανεβάσετε ένα ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
+                </Text>
               </FormControl>
 
               <Button

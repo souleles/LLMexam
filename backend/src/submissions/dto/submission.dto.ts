@@ -7,6 +7,10 @@ export class CreateSubmissionDto {
 
   @IsString()
   @IsNotEmpty()
+  studentIdentifier: string;
+
+  @IsString()
+  @IsNotEmpty()
   studentName: string;
 
   @IsString()
@@ -29,6 +33,7 @@ export class CreateSubmissionDto {
 export class SubmissionResponseDto {
   id: string;
   exerciseId: string;
+  studentIdentifier: string;
   studentName: string;
   fileName: string;
   fileUrl: string;

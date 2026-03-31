@@ -78,21 +78,23 @@ enum ConversationType {
 
 // Submission represents a student's submitted file
 model Submission {
-  id              String   @id @default(uuid())
-  exerciseId      String
-  studentName     String   // Student identifier
-  fileName        String
-  fileUrl         String   // URL or path to the uploaded file
-  fileType        String   // Extension: .sql, .txt, .py, etc.
-  content         String   @db.Text // Extracted text content
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(uuid())
+  exerciseId        String
+  studentIdentifier String   // Student ID/registration number
+  studentName       String   // Student full name
+  fileName          String
+  fileUrl           String   // URL or path to the uploaded file
+  fileType          String   // Extension: .sql, .txt, .py, etc.
+  content           String   @db.Text // Extracted text content
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   gradingResult   GradingResult?
 
   @@map("submissions")
   @@index([exerciseId])
+  @@index([studentIdentifier])
 }
 
 // GradingResult stores the overall grading outcome for a submission

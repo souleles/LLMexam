@@ -7,62 +7,68 @@ import {
   Param,
   Post,
   Query,
-  UploadedFiles,
+  UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { SubmissionResponseDto } from './dto/submission.dto';
-import { SubmissionsService } from './submissions.service';
+import { CheckpointMatch, SubmissionsService } from './submissions.service';
 
-const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.pdf', '.docx', '.js', '.ts', '.tsx'];
+const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.pdf', '.docx', '.js', '.ts', '.tsx', '.zip'];
+
+const multerConfig = {
+  storage: diskStorage({
+    destination: './uploads/submissions',
+    filename: (req, file, callback) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const ext = extname(file.originalname);
+      callback(null, `submission-${uniqueSuffix}${ext}`);
+    },
+  }),
+  fileFilter: (
+    req: Express.Request, 
+    file: Express.Multer.File, 
+    callback: (error: Error | null, accept: boolean) => void
+  ) => {
+    const ext = extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return callback(
+        new BadRequestException(
+          `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
+        ),
+        false,
+      );
+    }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB for ZIP files
+  },
+};
 
 @Controller('submissions')
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
-  @Post()
-  @UseInterceptors(
-    FilesInterceptor('files', 10, {
-      storage: diskStorage({
-        destination: './uploads/submissions',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          callback(null, `submission-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (req, file, callback) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.includes(ext)) {
-          return callback(
-            new BadRequestException(
-              `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
-            ),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB
-      },
-    }),
-  )
-  async uploadSubmissions(
-    @UploadedFiles() files: Express.Multer.File[],
+  @Post('upload-and-grade')
+  @UseInterceptors(FileInterceptor('file', multerConfig))
+  async uploadAndGrade(
     @Body('exerciseId') exerciseId: string,
-  ): Promise<SubmissionResponseDto[]> {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('At least one file is required');
+    @Body('studentIdentifier') studentIdentifier: string,
+    @Body('studentName') studentName: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<CheckpointMatch[]> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
     }
 
-    if (!exerciseId) {
-      throw new BadRequestException('Exercise ID is required');
+    if (!exerciseId || !studentIdentifier || !studentName) {
+      throw new BadRequestException('exerciseId, studentIdentifier, and studentName are required');
     }
 
-    return this.submissionsService.uploadMultiple(exerciseId, files);
+    return this.submissionsService.uploadAndGradeZip(exerciseId, studentIdentifier, studentName, file);
   }
 
   @Get()
