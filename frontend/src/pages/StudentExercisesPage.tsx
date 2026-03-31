@@ -163,7 +163,7 @@ export function StudentExercisesPage() {
 
               <HStack spacing={4} w="full">
                 <FormControl isRequired flex={1}>
-                  <FormLabel>ΑΡΙΘΜΟΣ ΜΗΤΡΩΟΥ (Αρ. Μητρώου)</FormLabel>
+                  <FormLabel>Αριθμός Μητρώου </FormLabel>
                   <Input
                     placeholder="π.χ. 2019030001"
                     value={studentId}
@@ -172,7 +172,7 @@ export function StudentExercisesPage() {
                 </FormControl>
 
                 <FormControl isRequired flex={1}>
-                  <FormLabel>ΟΝΟΜΑΤΕΠΩΝΥΜΟ (Ονοματεπώνυμο)</FormLabel>
+                  <FormLabel>Ονοματεπώνυμο</FormLabel>
                   <Input
                     placeholder="π.χ. Γιάννης Παπαδόπουλος"
                     value={studentName}
