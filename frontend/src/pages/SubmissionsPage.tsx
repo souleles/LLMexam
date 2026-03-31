@@ -1,30 +1,29 @@
-import {
-  Box,
-  Button,
-  Heading,
-  HStack,
-  VStack,
-  Text,
-  useToast,
-  Card,
-  CardBody,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  IconButton,
-  Code,
-} from '@chakra-ui/react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { FiArrowLeft, FiUpload, FiBarChart2, FiTrash2 } from 'react-icons/fi';
-import { useState } from 'react';
+import { FileUploader } from '@/components/FileUploader';
 import { api, ExerciseStatus } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
-import { FileUploader } from '@/components/FileUploader';
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardBody,
+  Code,
+  Heading,
+  HStack,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+  useToast,
+  VStack
+} from '@chakra-ui/react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { FiArrowLeft, FiBarChart2, FiUpload } from 'react-icons/fi';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const ACCEPTED_FILE_TYPES = '.sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx';
 
