@@ -24,19 +24,9 @@ import {
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FiUpload, FiCheck, FiX } from 'react-icons/fi';
-import { api } from '@/lib/api';
+import { api, GradingResult } from '@/lib/api';
 import { FileUploader } from '@/components/FileUploader';
 import { queryClient } from '@/lib/queryClient';
-
-interface GradingResult {
-  checkpointId: string;
-  checkpointDescription: string;
-  matched: boolean;
-  matchedSnippets: Array<{
-    line: number;
-    snippet: string;
-  }>;
-}
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
@@ -49,7 +39,6 @@ export function StudentExercisesPage() {
     queryKey: ['exercises'],
     queryFn: api.exercises.list,
   });
-
   const gradeMutation = useMutation({
     mutationFn: async ({
       exerciseId,
@@ -63,36 +52,16 @@ export function StudentExercisesPage() {
       studentName: string;
     }) => {
       // Upload submission
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('exerciseId', exerciseId);
-      formData.append('studentIdentifier', studentId);
-      formData.append('studentName', studentName);
-
-      const response = await fetch('http://localhost:3001/api/submissions/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload submission');
-      }
-
-      const submission = await response.json();
-
-      // Grade submission
-      const gradingResponse = await fetch(
-        `http://localhost:3001/api/grading/submission/${submission.id}`,
-        {
-          method: 'POST',
-        }
+      const submission = await api.submissions.uploadSingle(
+        exerciseId,
+        file,
+        studentId,
+        studentName
       );
 
-      if (!gradingResponse.ok) {
-        throw new Error('Failed to grade submission');
-      }
-
-      return gradingResponse.json();
+      // Grade submission
+      const gradingResults = await api.grading.gradeSubmission(submission.id);
+      return gradingResults;
     }, onSuccess: (data) => {
       setResults(data);
       toast({
@@ -227,11 +196,6 @@ export function StudentExercisesPage() {
                   maxFiles={1}
                   onFilesSelected={(files) => setFile(files[0] || null)}
                 />
-                {file && (
-                  <Text mt={2} fontSize="sm" color="gray.600">
-                    Επιλεγμένο: {file.name}
-                  </Text>
-                )}
               </FormControl>
 
               <Button

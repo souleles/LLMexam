@@ -100,11 +100,6 @@ export function NewExercisePage() {
                   maxFiles={1}
                   onFilesSelected={(files) => setFile(files[0] || null)}
                 />
-                {file && (
-                  <Text mt={2} fontSize="sm" color="gray.600">
-                    Επιλεγμένο: {file.name}
-                  </Text>
-                )}
               </FormControl>
 
               <HStack spacing={4} w="full" justify="flex-end">

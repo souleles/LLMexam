@@ -36,6 +36,7 @@ export interface Submission {
   id: string;
   exerciseId: string;
   studentIdentifier: string;
+  studentName?: string;
   originalFilePath: string;
   extractedText?: string;
   createdAt: string;
@@ -45,6 +46,7 @@ export interface GradingResult {
   id: string;
   submissionId: string;
   checkpointId: string;
+  checkpointDescription: string;
   matched: boolean;
   confidence: number;
   matchedPatterns: string[];
@@ -125,14 +127,33 @@ export const api = {
       });
       return data;
     },
+    uploadSingle: async (
+      exerciseId: string,
+      file: File,
+      studentId: string,
+      studentName: string
+    ): Promise<Submission> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('exerciseId', exerciseId);
+      formData.append('studentIdentifier', studentId);
+      formData.append('studentName', studentName);
+      const { data } = await httpClient.post('/api/submissions', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
     list: async (exerciseId: string): Promise<Submission[]> => {
       const { data } = await httpClient.get(`/api/submissions?exerciseId=${exerciseId}`);
       return data;
     },
-  },
-  grading: {
+  },  grading: {
     grade: async (submissionId: string): Promise<GradingResult[]> => {
       const { data } = await httpClient.post(`/api/grading/${submissionId}`);
+      return data;
+    },
+    gradeSubmission: async (submissionId: string): Promise<GradingResult[]> => {
+      const { data } = await httpClient.post(`/api/grading/submission/${submissionId}`);
       return data;
     },
     getResults: async (exerciseId: string): Promise<GradingResult[]> => {

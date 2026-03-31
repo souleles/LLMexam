@@ -1,5 +1,4 @@
 import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ConversationRole as PrismaConversationRole, ConversationType } from '@prisma/client';
 
 export class CreateConversationDto {
