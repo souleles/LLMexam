@@ -3,98 +3,68 @@
 ## Stack
 - **React** (Vite + TypeScript)
 - **UI:** Chakra UI
-- **Data fetching:** React Query (`@tanstack/react-query`)
-- **SSE:** native `EventSource` API for streaming LLM responses
-- **env:** use envs for backend url and also create an httpClient with interceptor that sends requests withCredentials: true, use axios for fetching
+- **Data fetching:** React Query (`@tanstack/react-query` v5)
+- **SSE:** native `EventSource` API via `useLlmStream` hook
+- **HTTP:** Axios via `httpClient` (withCredentials: true)
 
-## Key Patterns
+## Pages & Routes
 
-### API Calls (React Query)
+| Route | Page | Purpose |
+|-------|------|---------|
+| `/exercises` | `ExercisesPage` | List all exercises |
+| `/exercises/new` | `NewExercisePage` | Upload PDF + create exercise |
+| `/exercises/:exerciseId` | `ExerciseDetailPage` | Chat interface + checkpoints + history |
+| `/student-exercises` | `StudentExercisesPage` | Upload & grade student submissions |
+
+## Key Components
+
+- **`ExerciseDetailPage`** — inline chat (scrollable box, 400px), DB history seeded on load, local state for live session, "Accept Checkpoints" button to save pending checkpoints
+- **`FileUploader`** — drag-and-drop file upload
+- **`Layout`** — navigation shell
+
+## SSE / Chat Pattern
+
 ```typescript
-// Always use React Query for REST calls
-const { data, isLoading } = useQuery({
-  queryKey: ['exercise', exerciseId],
-  queryFn: () => api.exercises.get(exerciseId),
-});
-
-// Mutations
-const mutation = useMutation({
-  mutationFn: (data) => api.checkpoints.approve(data),
-  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exercise'] }),
-});
+// useLlmStream — custom hook in hooks/useLlmStream.ts
+// - Opens EventSource on send
+// - Strips "data: " prefix from raw SSE chunks
+// - Splits multi-line events on \n\n
+// - Parses { type: "checkpoints", data: [...] } events → pendingCheckpoints state
+// - Parses plain text tokens → buffer state
+// - Exposes: buffer, streaming, sendMessage, pendingCheckpoints, clearPendingCheckpoints
 ```
 
-### SSE Consumption Pattern
+## Chat State Management (ExerciseDetailPage)
+
+1. `dbMessages` fetched once on load via React Query (`staleTime: Infinity`)
+2. Seeded into `messages` state via `useEffect` + `seeded` ref (runs once)
+3. On send: professor bubble appended to `messages` immediately
+4. While streaming: live bubble shown from `buffer` (gated by `streaming && buffer`)
+5. On `[DONE]`: `prevStreaming` ref detects transition → assistant bubble finalized into `messages`
+6. Checkpoints only saved to DB when user clicks "Accept Checkpoints"
+
+## Content Parsing
+
+- `lib/parseMessageContent.ts` — shared util that strips `data:` prefixes, parses checkpoint JSON → numbered list text, handles OpenAI delta format
+- Applied to DB messages on seed (raw SSE stored in DB gets cleaned on display)
+
+## API Calls
+
 ```typescript
-// Each chat message opens a new EventSource connection
-// Backend: GET /llm/chat?exercise_id=X&message=Y (SSE)
-// Do NOT reuse EventSource across messages
-
-function useLlmStream(exerciseId: string) {
-  const [buffer, setBuffer] = useState('');
-  const [streaming, setStreaming] = useState(false);
-
-  const sendMessage = useCallback((message: string) => {
-    setStreaming(true);
-    setBuffer('');
-
-    const es = new EventSource(
-      `/api/llm/chat?exercise_id=${exerciseId}&message=${encodeURIComponent(message)}`
-    );
-
-    es.onmessage = (e) => {
-      if (e.data === '[DONE]') {
-        es.close();
-        setStreaming(false);
-        return;
-      }
-      setBuffer((prev) => prev + e.data);
-    };
-
-    es.onerror = () => {
-      es.close();
-      setStreaming(false);
-    };
-  }, [exerciseId]);
-
-  return { buffer, streaming, sendMessage };
-}
+// Always use React Query for REST — no raw fetch in components
+// All API methods in lib/api.ts
+// Mutations use useMutation, invalidate relevant query keys on success
 ```
 
-### File Upload (exercise PDF)
-```typescript
-// Use FormData — backend expects multipart/form-data
-const formData = new FormData();
-formData.append('file', file);
-formData.append('title', title);
+## File Upload
 
-await fetch('/api/exercises', { method: 'POST', body: formData });
-```
-
-## Page Structure (planned)
-
-```
-src/
-  pages/
-    ExercisesPage.tsx        # List of exercises
-    ExerciseSetupPage.tsx    # Upload PDF + chat interface (Phase 1)
-    SubmissionsPage.tsx      # Upload student files (Phase 2)
-    GradingResultsPage.tsx   # Results dashboard (Phase 3)
-  components/
-    ChatInterface/           # SSE-powered chat UI
-    CheckpointList/          # Editable checkpoint list
-    FileUploader/            # Drag-and-drop file upload
-    ResultsTable/            # Grading results grid
-  lib/
-    api.ts                   # Typed API client
-    queryClient.ts           # React Query client setup
-```
+- Validate file types client-side before upload: `.sql`, `.txt`, `.py`, `.pdf`, `.docx`, `.js`, `.ts`, `.tsx`
+- Use `FormData` — backend expects `multipart/form-data`
 
 ## AI Instructions for This Service
 
 - Study existing components before creating new ones
 - Use React Query for all API calls — no raw `fetch` in components
-- Keep SSE logic in custom hooks, not inside components
+- Keep SSE logic in `useLlmStream`, not inside components
 - Do not add UI features not explicitly requested
-- Match the chosen UI library's conventions exactly
-- Validate file types client-side before upload (`.sql`, `.txt`, `.py`, `.pdf`, `.docx`)
+- Match Chakra UI conventions exactly

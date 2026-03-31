@@ -2,7 +2,7 @@
 
 ## Stack
 - **NestJS** (TypeScript)
-- **ORM:** TypeORM or Prisma (TBD — decide before first migration)
+- **ORM:** Prisma
 - **Database:** PostgreSQL
 - **SSE:** `@nestjs/common` `Sse()` decorator + `Observable<MessageEvent>`
 
@@ -10,86 +10,50 @@
 
 | Module | Files | Responsibility |
 |--------|-------|---------------|
-| `ExerciseModule` | `exercise.controller.ts`, `exercise.service.ts`, `exercise.entity.ts` | PDF upload, exercise CRUD |
-| `LlmModule` | `llm.controller.ts`, `llm.service.ts` | SSE proxy to Python microservice |
-| `CheckpointModule` | `checkpoint.controller.ts`, `checkpoint.service.ts`, `checkpoint.entity.ts` | Checkpoint CRUD, Zod validation, approval |
-| `GradingModule` | `grading.controller.ts`, `grading.service.ts` | Student file upload, matching pipeline |
-| `ReportModule` | `report.controller.ts`, `report.service.ts` | Result aggregation and export |
+| `ExerciseModule` | `exercises.controller.ts`, `exercises.service.ts` | PDF upload, exercise CRUD |
+| `LlmModule` | `llm.controller.ts`, `llm.service.ts` | SSE proxy to Python microservice, conversation history |
+| `CheckpointModule` | `checkpoints.controller.ts`, `checkpoints.service.ts` | Checkpoint CRUD, bulk replace, approval |
+| `SubmissionsModule` | `submissions.controller.ts`, `submissions.service.ts` | Student file upload, text extraction |
+| `GradingModule` | `grading.controller.ts`, `grading.service.ts` | Regex matching pipeline, result storage |
 
 ## Key Patterns
 
 ### SSE Endpoint (LlmModule)
 ```typescript
-import { Sse, MessageEvent, Controller, Get, Query } from '@nestjs/common';
-import { Observable } from 'rxjs';
-
-@Controller('llm')
-export class LlmController {
-  constructor(private llmService: LlmService) {}
-
-  @Sse('chat')
-  @Get()
-  chat(@Query('exercise_id') exerciseId: string, @Query('message') message: string): Observable<MessageEvent> {
-    return this.llmService.streamChat(exerciseId, message);
-  }
-}
-```
-
-### Proxying SSE from Python Service
-```typescript
-// In LlmService — fetch SSE from Python and re-emit as Observable
-streamChat(exerciseId: string, message: string): Observable<MessageEvent> {
+@Sse('chat')
+chat(@Query('exercise_id') exerciseId: string, @Query('message') message: string): Observable<MessageEvent> {
   return new Observable((subscriber) => {
-    const history = await this.getConversationHistory(exerciseId);
-
-    const response = await fetch(`${PYTHON_SERVICE_URL}/generate-checkpoints`, {
-      method: 'POST',
-      body: JSON.stringify({ text, history, message }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const reader = response.body.getReader();
-    // pump reader → subscriber.next({ data: chunk })
-    // on done → subscriber.complete()
+    (async () => {
+      for await (const chunk of this.llmService.streamResponse(exerciseId, message)) {
+        subscriber.next({ data: chunk });
+      }
+      subscriber.complete();
+    })();
   });
 }
 ```
 
-### Zod Validation (Checkpoint Approval)
+### Proxying SSE from Python Service (LlmService)
+- Uses `axios` with `responseType: 'stream'`
+- POSTs to `${PYTHON_SERVICE_URL}/generate-checkpoints` with `{ text, history, message, current_checkpoints }`
+- Saves professor message before streaming, saves full assistant response after
+- Streams raw chunks back to the NestJS SSE subscriber
+
+### Checkpoint Bulk Replace
 ```typescript
-import { z } from 'zod';
-
-const CheckpointSchema = z.object({
-  description: z.string().max(500),
-  patterns: z.array(z.string()).min(1),
-  match_mode: z.enum(['any', 'all']),
-  check_type: z.enum(['keyword', 'structural']),
-  case_sensitive: z.boolean().default(false),
-  order_index: z.number().int().min(0),
-});
-
-// In CheckpointService.approve():
-const validated = z.array(CheckpointSchema).min(1).parse(rawCheckpoints);
-```
-
-### Python Service HTTP Calls
-```typescript
-// Use a shared HttpModule (NestJS built-in Axios wrapper)
-// Configure PYTHON_SERVICE_URL from env — never hardcode
-const url = this.configService.get<string>('PYTHON_SERVICE_URL');
-const { data } = await this.httpService.post(`${url}/extract-pdf`, formData).toPromise();
+// POST /api/checkpoints/bulk/:exerciseId
+// Replaces all checkpoints for an exercise atomically (deleteMany + createMany in transaction)
 ```
 
 ## Grading Pipeline (GradingModule)
 
 For each submission × checkpoint:
 1. Load `extracted_text` from DB
-2. Strip comments: SQL (`--`, `/* */`), Python (`#`), etc.
+2. Strip comments: SQL (`--`, `/* */`), Python (`#`)
 3. Strip string literals
-4. If `check_type === 'keyword'`: run regex for each pattern in `patterns[]`
-5. If `check_type === 'structural'`: POST to Python `/parse-sql`, analyze token tree
-6. Compute `matched`, `confidence` (matched count / total patterns), `matched_snippets`
-7. Upsert `grading_results`
+4. Run regex for each pattern in `patterns`
+5. Compute `matched`, `matched_snippets` (file + line)
+6. Upsert `grading_results`
 
 ## Environment Variables
 
