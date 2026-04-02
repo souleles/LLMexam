@@ -153,18 +153,26 @@ export function StudentDetailPage() {
                                 </Text>
                               </VStack>
                             </HStack>
-                          </Box>
-                          {submission.gradingResult && (
+                          </Box>                          {submission.gradingResult && (
                             <HStack spacing={2} mr={2}>
                               <Badge
                                 colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
+                                textTransform="none"
                               >
                                 {submission.gradingResult.passedCheckpoints}/
                                 {submission.gradingResult.totalCheckpoints}
                               </Badge>
-                              <Text fontSize="sm" fontWeight="bold">
-                                {Math.round(submission.gradingResult.score)}%
-                              </Text>
+                              {submission.gradingResult.teacherScore !== null &&
+                                submission.gradingResult.teacherScore !== undefined ? (
+                                <Badge colorScheme="blue" textTransform="none">
+                                  Καθηγητής: {submission.gradingResult.teacherScore}/
+                                  {submission.gradingResult.totalCheckpoints}
+                                </Badge>
+                              ) : (
+                                <Text fontSize="sm" fontWeight="bold">
+                                  {Math.round(submission.gradingResult.score)}%
+                                </Text>
+                              )}
                             </HStack>
                           )}
                           <AccordionIcon />
@@ -259,13 +267,13 @@ export function StudentDetailPage() {
                                         </Badge>
                                       </HStack>
                                     </VStack>
-                                  )}
-                                <VStack align="start" spacing={0}>
+                                  )}                                <VStack align="start" spacing={0}>
                                   <Text fontSize="xs" color="gray.600">
                                     Κατάσταση
                                   </Text>
                                   <Badge
                                     colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
+                                    textTransform="none"
                                   >
                                     {submission.gradingResult.passed ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
                                   </Badge>
