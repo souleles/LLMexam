@@ -1,4 +1,4 @@
-import { api, StudentSubmission } from '@/lib/api';
+import { api } from '@/lib/api';
 import {
   Accordion,
   AccordionButton,
@@ -253,7 +253,7 @@ export function StudentDetailPage() {
                                           {Math.round(
                                             (submission.gradingResult.teacherScore /
                                               submission.gradingResult.totalCheckpoints) *
-                                              100,
+                                            100,
                                           )}
                                           %
                                         </Badge>
