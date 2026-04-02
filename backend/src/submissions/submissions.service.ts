@@ -179,9 +179,8 @@ export class SubmissionsService {
     const totalCheckpoints = checkpointMatches.length;
     const score = (passedCheckpoints / totalCheckpoints) * 100;
     const passed = score >= 50; // 50% threshold
-    console.log(submission);
-    
-    await this.prisma.gradingResult.upsert({
+
+    const gradingResult = await this.prisma.gradingResult.upsert({
       where: {
         submissionId: submission.id,
       },
@@ -194,33 +193,30 @@ export class SubmissionsService {
         totalCheckpoints,
         passedCheckpoints,
         score,
-        passed,
-        checkpointResults: {
-          create: checkpointMatches.map(match => ({
-            checkpointId: match.checkpointId,
-            matched: match.matched,
-            matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
-          })),
-        },
+        passed
       },
       update: {
         totalCheckpoints,
         passedCheckpoints,
         score,
-        passed,
-        checkpointResults: {
-          updateMany: checkpointMatches.map(match => ({
-            where: { checkpointId: match.checkpointId },
-            data: {
-              matched: match.matched,
-              matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
-            },
-          })),
-        },
+        passed
       },
     });
 
-    // 7. Return the checkpoint matches    
+    await this.prisma.checkpointResult.deleteMany({
+      where: { gradingResultId: gradingResult.id },
+    });
+
+    await this.prisma.checkpointResult.createMany({
+      data: checkpointMatches.map(match => ({
+        gradingResultId: gradingResult.id,
+        checkpointId: match.checkpointId,
+        matched: match.matched,
+        matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
+      })),
+    });
+
+    // 7. Return the checkpoint matches
     return checkpointMatches;
   }
 
