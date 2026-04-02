@@ -148,9 +148,6 @@ export const api = {
       const { data } = await httpClient.get(`/api/checkpoints?exerciseId=${exerciseId}`);
       return data;
     },
-    approve: async (exerciseId: string): Promise<void> => {
-      await httpClient.post(`/api/checkpoints/approve`, { exerciseId });
-    },
     bulkReplace: async (
       exerciseId: string,
       checkpoints: Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive'>[],
@@ -167,24 +164,11 @@ export const api = {
     },
   },
   conversations: {
-    list: async (exerciseId: string): Promise<ConversationMessage[]> => {
-      const { data } = await httpClient.get(`/api/conversations?exerciseId=${exerciseId}`);
-      return data;
-    },
     listByType: async (exerciseId: string, type: 'CHECKPOINT' | 'PATTERN'): Promise<ConversationMessage[]> => {
       const { data } = await httpClient.get(`/api/conversations?exerciseId=${exerciseId}&type=${type}`);
       return data;
     },
   },  submissions: {
-    upload: async (exerciseId: string, files: File[]): Promise<Submission[]> => {
-      const formData = new FormData();
-      files.forEach((file) => formData.append('files', file));
-      formData.append('exerciseId', exerciseId);
-      const { data } = await httpClient.post('/api/submissions', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return data;
-    },
     uploadAndGrade: async (
       exerciseId: string,
       studentIds: string[],
@@ -226,14 +210,6 @@ export const api = {
     },
   },
   grading: {
-    grade: async (submissionId: string): Promise<GradingResult[]> => {
-      const { data } = await httpClient.post(`/api/grading/${submissionId}`);
-      return data;
-    },
-    gradeSubmission: async (submissionId: string): Promise<GradingResult[]> => {
-      const { data } = await httpClient.post(`/api/grading/submission/${submissionId}`);
-      return data;
-    },
     getResults: async (exerciseId: string): Promise<GradingResult[]> => {
       const { data } = await httpClient.get(`/api/grading/results?exerciseId=${exerciseId}`);
       return data;

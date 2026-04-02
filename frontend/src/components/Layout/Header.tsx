@@ -1,6 +1,6 @@
 import { Box, Container, Flex, Heading, Button, HStack } from '@chakra-ui/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { FiBarChart, FiFileText, FiPieChart, FiUpload, FiUsers } from 'react-icons/fi';
+import { FiBarChart, FiFileText, FiUpload, FiUsers } from 'react-icons/fi';
 
 export function Header() {
   const location = useLocation();

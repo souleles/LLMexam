@@ -36,10 +36,6 @@ export class CheckpointsController {
     return this.checkpointsService.findAll();
   }
 
-  @Get('exercise/:exerciseId')
-  findByExercise(@Param('exerciseId') exerciseId: string): Promise<CheckpointResponseDto[]> {
-    return this.checkpointsService.findByExercise(exerciseId);
-  }
   @Get(':id')
   findOne(@Param('id') id: string): Promise<CheckpointResponseDto> {
     return this.checkpointsService.findOne(id);
@@ -57,11 +53,6 @@ export class CheckpointsController {
   async remove(@Param('id') id: string): Promise<{ message: string }> {
     await this.checkpointsService.remove(id);
     return { message: 'Checkpoint deleted successfully' };
-  }
-
-  @Post('approve')
-  async approveCheckpoints(@Body('exerciseId') exerciseId: string): Promise<{ message: string }> {
-    return { message: 'Checkpoints approved successfully' };
   }
 
   @Patch('bulk-patterns/:exerciseId')
