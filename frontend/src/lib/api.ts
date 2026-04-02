@@ -67,6 +67,40 @@ export interface Student {
   updatedAt: string;
 }
 
+export interface StudentSubmission {
+  id: string;
+  exerciseId: string;
+  exerciseTitle: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  createdAt: string;
+  students: Array<{
+    id: string;
+    studentIdentifier: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+  }>;
+  gradingResult: {
+    id: string;
+    totalCheckpoints: number;
+    passedCheckpoints: number;
+    score: number;
+    teacherScore?: number;
+    passed: boolean;
+    gradedAt: string;
+    checkpointResults: Array<{
+      id: string;
+      checkpointId: string;
+      checkpointDescription: string;
+      checkpointOrder: number;
+      matched: boolean;
+      matchedSnippets: string[];
+    }>;
+  } | null;
+}
+
 export interface GradingResult {
   id: string;
   submissionId: string;
@@ -169,10 +203,17 @@ export const api = {
       const { data } = await httpClient.get(`/api/submissions?exerciseId=${exerciseId}`);
       return data;
     },
-  },
-  students: {
+  },  students: {
     list: async (): Promise<Student[]> => {
       const { data } = await httpClient.get('/api/students');
+      return data;
+    },
+    get: async (id: string): Promise<Student> => {
+      const { data } = await httpClient.get(`/api/students/${id}`);
+      return data;
+    },
+    getSubmissions: async (id: string): Promise<StudentSubmission[]> => {
+      const { data } = await httpClient.get(`/api/students/${id}/submissions`);
       return data;
     },
     upload: async (file: File): Promise<Student[]> => {

@@ -17,15 +17,18 @@ import {
   Tr,
   useToast,
   VStack,
+  IconButton,
 } from '@chakra-ui/react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { FiUpload } from 'react-icons/fi';
+import { FiUpload, FiEye } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 
 export function StudentsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: students = [], isLoading } = useQuery({
@@ -142,6 +145,7 @@ export function StudentsPage() {
                   <Th>Επώνυμο</Th>
                   <Th>Email</Th>
                   <Th>Εισαγωγή</Th>
+                  <Th w="100px"></Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -153,6 +157,16 @@ export function StudentsPage() {
                     <Td color="gray.600">{student.email ?? '—'}</Td>
                     <Td color="gray.600">
                       {new Date(student.createdAt).toLocaleDateString('el-GR')}
+                    </Td>
+                    <Td>
+                      <IconButton
+                        aria-label="Προβολή φοιτητή"
+                        icon={<FiEye />}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="blue"
+                        onClick={() => navigate(`/students/${student.id}`)}
+                      />
                     </Td>
                   </Tr>
                 ))}

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudentResponseDto } from './dto/student.dto';
@@ -57,6 +57,97 @@ export class StudentsService {
     return this.prisma.student.findMany({
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
+  }
+
+  async findOne(id: string): Promise<StudentResponseDto> {
+    const student = await this.prisma.student.findUnique({
+      where: { id },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${id} not found`);
+    }
+
+    return student;
+  }
+
+  async getStudentSubmissions(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${studentId} not found`);
+    }
+
+    const submissionStudents = await this.prisma.submissionStudent.findMany({
+      where: { studentId },
+      include: {
+        submission: {
+          include: {
+            exercise: true,
+            submissionStudents: {
+              include: {
+                student: true,
+              },
+            },
+            gradingResult: {
+              include: {
+                checkpointResults: {
+                  include: {
+                    checkpoint: true,
+                  },
+                  orderBy: {
+                    checkpoint: {
+                      order: 'asc',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return submissionStudents.map((ss) => ({
+      id: ss.submission.id,
+      exerciseId: ss.submission.exerciseId,
+      exerciseTitle: ss.submission.exercise.title,
+      fileName: ss.submission.fileName,
+      fileUrl: ss.submission.fileUrl,
+      fileType: ss.submission.fileType,
+      createdAt: ss.submission.createdAt,
+      students: ss.submission.submissionStudents.map((s) => ({
+        id: s.student.id,
+        studentIdentifier: s.student.studentIdentifier,
+        firstName: s.student.firstName,
+        lastName: s.student.lastName,
+        email: s.student.email,
+      })),
+      gradingResult: ss.submission.gradingResult
+        ? {
+            id: ss.submission.gradingResult.id,
+            totalCheckpoints: ss.submission.gradingResult.totalCheckpoints,
+            passedCheckpoints: ss.submission.gradingResult.passedCheckpoints,
+            score: ss.submission.gradingResult.score,
+            teacherScore: ss.submission.gradingResult.teacherScore,
+            passed: ss.submission.gradingResult.passed,
+            gradedAt: ss.submission.gradingResult.gradedAt,
+            checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
+              id: cr.id,
+              checkpointId: cr.checkpointId,
+              checkpointDescription: cr.checkpoint.description,
+              checkpointOrder: cr.checkpoint.order,
+              matched: cr.matched,
+              matchedSnippets: cr.matchedSnippets,
+            })),
+          }
+        : null,
+    }));
   }
 
   private parseRows(raw: Record<string, unknown>[]): StudentRow[] {

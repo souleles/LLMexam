@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Param,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -48,5 +49,15 @@ export class StudentsController {
   @Get()
   findAll(): Promise<StudentResponseDto[]> {
     return this.studentsService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string): Promise<StudentResponseDto> {
+    return this.studentsService.findOne(id);
+  }
+
+  @Get(':id/submissions')
+  getStudentSubmissions(@Param('id') id: string) {
+    return this.studentsService.getStudentSubmissions(id);
   }
 }
