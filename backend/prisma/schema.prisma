@@ -61,8 +61,8 @@ model Submission {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   gradingResult      GradingResult?
-  exercise           Exercise            @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
   submissionStudents SubmissionStudent[]
+  exercise           Exercise            @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([exerciseId])
   @@map("submissions")
@@ -73,10 +73,11 @@ model SubmissionStudent {
   submissionId String
   studentId    String
   createdAt    DateTime   @default(now())
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@unique([submissionId, studentId])
+  @@unique([submissionId, studentId], map: "submission_students_un")
   @@index([submissionId])
   @@index([studentId])
   @@map("submission_students")

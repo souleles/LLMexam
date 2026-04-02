@@ -153,7 +153,8 @@ export function StudentDetailPage() {
                                 </Text>
                               </VStack>
                             </HStack>
-                          </Box>                          {submission.gradingResult && (
+                          </Box>
+                          {submission.gradingResult && (
                             <HStack spacing={2} mr={2}>
                               <Badge
                                 colorScheme={submission.gradingResult.passed ? 'green' : 'red'}

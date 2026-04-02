@@ -1,6 +1,6 @@
 import { Box, Container, Flex, Heading, Button, HStack } from '@chakra-ui/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { FiFileText, FiUpload, FiUsers } from 'react-icons/fi';
+import { FiBarChart, FiFileText, FiPieChart, FiUpload, FiUsers } from 'react-icons/fi';
 
 export function Header() {
   const location = useLocation();
@@ -25,6 +25,16 @@ export function Header() {
             <HStack spacing={4}>
               <Button
                 as={RouterLink}
+                to="/students"
+                variant={isActive('/students') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
+                colorScheme={isActive('/students') && !isActive('/student-exercises') ? 'brand' : 'gray'}
+                leftIcon={<FiUsers />}
+                size="sm"
+              >
+                Φοιτητές
+              </Button>
+              <Button
+                as={RouterLink}
                 to="/exercises"
                 variant={isActive('/exercises') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
                 colorScheme={isActive('/exercises') && !isActive('/student-exercises') ? 'brand' : 'gray'}
@@ -45,13 +55,13 @@ export function Header() {
               </Button>
               <Button
                 as={RouterLink}
-                to="/students"
-                variant={isActive('/students') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
-                colorScheme={isActive('/students') && !isActive('/student-exercises') ? 'brand' : 'gray'}
-                leftIcon={<FiUsers />}
+                to="/student-exercises"
+                variant={isActive('/student-exercises') ? 'solid' : 'ghost'}
+                colorScheme={isActive('/student-exercises') ? 'brand' : 'gray'}
+                leftIcon={<FiBarChart />}
                 size="sm"
               >
-                Φοιτητές
+                Στατιστικά
               </Button>
             </HStack>
           </HStack>

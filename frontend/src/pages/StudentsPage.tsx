@@ -141,8 +141,8 @@ export function StudentsPage() {
               <Thead>
                 <Tr>
                   <Th>ΑΜ</Th>
-                  <Th>Όνομα</Th>
                   <Th>Επώνυμο</Th>
+                  <Th>Όνομα</Th>
                   <Th>Email</Th>
                   <Th>Εισαγωγή</Th>
                   <Th w="100px"></Th>
@@ -152,8 +152,8 @@ export function StudentsPage() {
                 {students.map((student) => (
                   <Tr key={student.id} _hover={{ bg: 'gray.50' }}>
                     <Td fontWeight="medium">{student.studentIdentifier}</Td>
-                    <Td>{student.firstName}</Td>
                     <Td>{student.lastName}</Td>
+                    <Td>{student.firstName}</Td>
                     <Td color="gray.600">{student.email ?? '—'}</Td>
                     <Td color="gray.600">
                       {new Date(student.createdAt).toLocaleDateString('el-GR')}
