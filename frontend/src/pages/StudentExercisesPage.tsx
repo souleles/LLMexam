@@ -1,32 +1,32 @@
+import { FileUploader } from '@/components/FileUploader';
+import { api, GradingResult } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 import {
+  Accordion,
+  AccordionButton,
+  AccordionIcon,
+  AccordionItem,
+  AccordionPanel,
+  Badge,
   Box,
   Button,
   Card,
   CardBody,
+  Code,
+  Divider,
   FormControl,
   FormLabel,
   Heading,
-  Input,
-  VStack,
   HStack,
+  Input,
+  Select,
   Text,
   useToast,
-  Select,
-  Divider,
-  Badge,
-  Code,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
+  VStack,
 } from '@chakra-ui/react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { FiUpload, FiCheck, FiX } from 'react-icons/fi';
-import { api, GradingResult } from '@/lib/api';
-import { FileUploader } from '@/components/FileUploader';
-import { queryClient } from '@/lib/queryClient';
+import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
@@ -249,39 +249,30 @@ export function StudentExercisesPage() {
                             <AccordionIcon />
                           </AccordionButton>
                         </h2>
-                        <AccordionPanel pb={4}>                          {result.matched && result.matchedSnippets.length > 0 ? (
-                          <VStack align="stretch" spacing={3}>
-                            <Text fontWeight="medium">Βρέθηκε στις γραμμές:</Text>
-                            {result.matchedSnippets.map((snippet, idx) => (
-                              <Box key={idx}>
-                                <Text fontSize="sm" color="gray.600" mb={1}>
-                                  Γραμμή {snippet.line}:
-                                </Text>
-                                <Code p={2} borderRadius="md" display="block">
-                                  {snippet.snippet}
-                                </Code>
-                              </Box>
-                            ))}
-                          </VStack>
-                        ) : (
-                          <Text color="gray.500">
-                            Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
-                          </Text>
-                        )}
+                        <AccordionPanel pb={4}>
+                          {result.matched && result.matchedSnippets.length > 0 ? (
+                            <VStack align="stretch" spacing={3}>
+                              <Text fontWeight="medium">Βρέθηκε στις γραμμές:</Text>
+                              {result.matchedSnippets.map((snippet, idx) => (
+                                <Box key={idx}>
+                                  <Text fontSize="sm" color="gray.600" mb={1}>
+                                    Γραμμή {snippet.line}:
+                                  </Text>
+                                  <Code p={2} borderRadius="md" display="block">
+                                    {snippet.snippet}
+                                  </Code>
+                                </Box>
+                              ))}
+                            </VStack>
+                          ) : (
+                            <Text color="gray.500">
+                              Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
+                            </Text>
+                          )}
                         </AccordionPanel>
                       </AccordionItem>
                     ))}
                   </Accordion>
-
-                  <Divider />                  <Button
-                    colorScheme="green"
-                    size="lg"
-                    onClick={handleSaveResults}
-                    isLoading={saveResultsMutation.isPending}
-                    loadingText="Αποθήκευση..."
-                  >
-                    Αποθήκευση Αποτελεσμάτων στη Βάση Δεδομένων
-                  </Button>
                 </VStack>
               </CardBody>
             </Card>

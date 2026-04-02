@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,60 +7,103 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Exercise represents a grading task (e.g., a SQL homework assignment)
 model Exercise {
   id            String         @id @default(uuid())
   title         String
-  pdfUrl        String         // URL or path to the uploaded PDF
-  extractedText String?        @db.Text // Text extracted from the PDF
+  pdfUrl        String
   status        ExerciseStatus @default(DRAFT)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  checkpoints Checkpoint[]
-  submissions Submission[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  extractedText String?
+  checkpoints   Checkpoint[]
   conversations Conversation[]
+  submissions   Submission[]
 
   @@map("exercises")
 }
 
-enum ExerciseStatus {
-  DRAFT       // Checkpoints being extracted
-  APPROVED    // Ready for student submissions
-  GRADED      // All submissions graded
-}
-
-// Checkpoint represents a grading criterion extracted from the PDF
 model Checkpoint {
-  id              String   @id @default(uuid())
-  exerciseId      String
-  order           Int      // Display order (1, 2, 3, ...)
-  description     String   // Human-readable description
-  pattern         String   // Regex pattern for matching
-  caseSensitive   Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  id                String             @id @default(uuid())
+  exerciseId        String
+  order             Int
+  description       String
+  pattern           String
+  caseSensitive     Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   checkpointResults CheckpointResult[]
+  exercise          Exercise           @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
-  @@map("checkpoints")
   @@index([exerciseId])
+  @@map("checkpoints")
 }
 
-// Conversation tracks the LLM chat for checkpoint and pattern extraction
 model Conversation {
-  id          String           @id @default(uuid())
-  exerciseId  String
-  role        ConversationRole
-  type        ConversationType @default(CHECKPOINT)
-  content     String           // Message content
-  createdAt   DateTime         @default(now())
+  id         String           @id @default(uuid())
+  exerciseId String
+  role       ConversationRole
+  content    String
+  createdAt  DateTime         @default(now())
+  type       ConversationType @default(CHECKPOINT)
+  exercise   Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
-  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@map("conversations")
   @@index([exerciseId])
+  @@map("conversations")
+}
+
+model Submission {
+  id                String         @id @default(uuid())
+  exerciseId        String
+  studentName       String
+  fileName          String
+  fileUrl           String
+  fileType          String
+  content           String
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  studentIdentifier String
+  gradingResult     GradingResult?
+  exercise          Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, studentIdentifier], map: "submissions_un")
+  @@index([exerciseId])
+  @@index([studentIdentifier])
+  @@map("submissions")
+}
+
+model GradingResult {
+  id                String             @id @default(uuid())
+  submissionId      String             @unique
+  totalCheckpoints  Int
+  passedCheckpoints Int
+  score             Float
+  passed            Boolean
+  gradedAt          DateTime           @default(now())
+  checkpointResults CheckpointResult[]
+  submission        Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@map("grading_results")
+}
+
+model CheckpointResult {
+  id              String        @id @default(uuid())
+  gradingResultId String
+  checkpointId    String
+  matched         Boolean
+  matchedSnippets String[]
+  createdAt       DateTime      @default(now())
+  checkpoint      Checkpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+
+  @@index([gradingResultId])
+  @@index([checkpointId])
+  @@map("checkpoint_results")
+}
+
+enum ExerciseStatus {
+  DRAFT
+  APPROVED
+  GRADED
 }
 
 enum ConversationRole {
@@ -74,58 +114,4 @@ enum ConversationRole {
 enum ConversationType {
   CHECKPOINT
   PATTERN
-}
-
-// Submission represents a student's submitted file
-model Submission {
-  id                String   @id @default(uuid())
-  exerciseId        String
-  studentIdentifier String   // Student ID/registration number
-  studentName       String   // Student full name
-  fileName          String
-  fileUrl           String   // URL or path to the uploaded file
-  fileType          String   // Extension: .sql, .txt, .py, etc.
-  content           String   @db.Text // Extracted text content
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  exercise        Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  gradingResult   GradingResult?
-
-  @@map("submissions")
-  @@index([exerciseId])
-  @@index([studentIdentifier])
-}
-
-// GradingResult stores the overall grading outcome for a submission
-model GradingResult {
-  id              String   @id @default(uuid())
-  submissionId    String   @unique
-  totalCheckpoints Int
-  passedCheckpoints Int
-  score           Float    // Percentage (0-100)
-  passed          Boolean  // Pass/Fail based on threshold
-  gradedAt        DateTime @default(now())
-
-  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  checkpointResults CheckpointResult[]
-
-  @@map("grading_results")
-}
-
-// CheckpointResult stores the detailed match for each checkpoint
-model CheckpointResult {
-  id              String   @id @default(uuid())
-  gradingResultId String
-  checkpointId    String
-  matched         Boolean
-  matchedSnippets String[] // Array of matched code snippets
-  createdAt       DateTime @default(now())
-
-  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
-  checkpoint      Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
-
-  @@map("checkpoint_results")
-  @@index([gradingResultId])
-  @@index([checkpointId])
 }

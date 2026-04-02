@@ -106,10 +106,23 @@ export class SubmissionsService {
       .join('\n\n');
 
     // 4. Create submission record
-    const submission = await this.prisma.submission.create({
-      data: {
+    const submission = await this.prisma.submission.upsert({
+      where: {
+        exerciseId_studentIdentifier: {
+          exerciseId,
+          studentIdentifier,
+        }
+      },
+      create: {
         exerciseId,
         studentIdentifier,
+        studentName,
+        fileName: file.originalname,
+        fileUrl: `/uploads/submissions/${file.filename}`,
+        fileType: path.extname(file.originalname),
+        content: combinedContent,
+      },
+      update: {
         studentName,
         fileName: file.originalname,
         fileUrl: `/uploads/submissions/${file.filename}`,
@@ -166,10 +179,18 @@ export class SubmissionsService {
     const totalCheckpoints = checkpointMatches.length;
     const score = (passedCheckpoints / totalCheckpoints) * 100;
     const passed = score >= 50; // 50% threshold
-
-    await this.prisma.gradingResult.create({
-      data: {
+    console.log(submission);
+    
+    await this.prisma.gradingResult.upsert({
+      where: {
         submissionId: submission.id,
+      },
+      create: {
+        submission: {
+          connect: {
+            id: submission.id,
+          }
+        },
         totalCheckpoints,
         passedCheckpoints,
         score,
@@ -179,6 +200,21 @@ export class SubmissionsService {
             checkpointId: match.checkpointId,
             matched: match.matched,
             matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
+          })),
+        },
+      },
+      update: {
+        totalCheckpoints,
+        passedCheckpoints,
+        score,
+        passed,
+        checkpointResults: {
+          updateMany: checkpointMatches.map(match => ({
+            where: { checkpointId: match.checkpointId },
+            data: {
+              matched: match.matched,
+              matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
+            },
           })),
         },
       },
