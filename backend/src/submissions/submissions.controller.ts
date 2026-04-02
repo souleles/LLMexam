@@ -56,19 +56,20 @@ export class SubmissionsController {
   @UseInterceptors(FileInterceptor('file', multerConfig))
   async uploadAndGrade(
     @Body('exerciseId') exerciseId: string,
-    @Body('studentIdentifier') studentIdentifier: string,
-    @Body('studentName') studentName: string,
+    @Body('studentId') rawStudentId: string | string[],
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<CheckpointMatch[]> {
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
-    if (!exerciseId || !studentIdentifier || !studentName) {
-      throw new BadRequestException('exerciseId, studentIdentifier, and studentName are required');
+    if (!exerciseId || !rawStudentId) {
+      throw new BadRequestException('exerciseId and studentId are required');
     }
 
-    return this.submissionsService.uploadAndGradeZip(exerciseId, studentIdentifier, studentName, file);
+    const studentIds = Array.isArray(rawStudentId) ? rawStudentId : [rawStudentId];
+
+    return this.submissionsService.uploadAndGradeZip(exerciseId, studentIds, file);
   }
 
   @Get()

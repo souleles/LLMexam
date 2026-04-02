@@ -5,6 +5,7 @@ import { NewExercisePage } from './pages/NewExercisePage';
 import { ExerciseDetailPage } from './pages/ExerciseDetailPage';
 import { StudentExercisesPage } from './pages/StudentExercisesPage';
 import { ExercisesPage } from './pages/ExercisesPage';
+import { StudentsPage } from './pages/StudentsPage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="exercises/new" element={<NewExercisePage />} />
           <Route path="exercises/:exerciseId" element={<ExerciseDetailPage />} />
           <Route path="student-exercises" element={<StudentExercisesPage />} />
+          <Route path="students" element={<StudentsPage />} />
         </Route>
       </Routes>
     </Box>

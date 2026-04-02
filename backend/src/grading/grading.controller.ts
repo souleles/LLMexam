@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Param, Query, Body } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, Patch } from '@nestjs/common';
 import { GradingService } from './grading.service';
-import { GradingResultResponseDto, ExerciseGradingResultsDto, CheckpointResultDto } from './dto/grading.dto';
+import { GradingResultResponseDto, ExerciseGradingResultsDto, CheckpointResultDto, UpdateTeacherScoreDto } from './dto/grading.dto';
 
 @Controller('grading')
 export class GradingController {
@@ -34,10 +34,17 @@ export class GradingController {
   async getResults(@Query('exerciseId') exerciseId: string): Promise<CheckpointResultDto[]> {
     return this.gradingService.getAllResults(exerciseId);
   }
-
   @Post('results')
   async saveResults(@Body() results: CheckpointResultDto[]): Promise<{ message: string }> {
     await this.gradingService.saveResults(results);
     return { message: 'Results saved successfully' };
+  }
+
+  @Patch('submission/:submissionId/teacher-score')
+  async updateTeacherScore(
+    @Param('submissionId') submissionId: string,
+    @Body() dto: UpdateTeacherScoreDto,
+  ): Promise<GradingResultResponseDto> {
+    return this.gradingService.updateTeacherScore(submissionId, dto);
   }
 }

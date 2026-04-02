@@ -1,6 +1,6 @@
 import { Box, Container, Flex, Heading, Button, HStack } from '@chakra-ui/react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { FiFileText, FiUpload } from 'react-icons/fi';
+import { FiFileText, FiUpload, FiUsers } from 'react-icons/fi';
 
 export function Header() {
   const location = useLocation();
@@ -42,6 +42,16 @@ export function Header() {
                 size="sm"
               >
                 Βαθμολόγηση Φοιτητών
+              </Button>
+              <Button
+                as={RouterLink}
+                to="/students"
+                variant={isActive('/students') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
+                colorScheme={isActive('/students') && !isActive('/student-exercises') ? 'brand' : 'gray'}
+                leftIcon={<FiUsers />}
+                size="sm"
+              >
+                Φοιτητές
               </Button>
             </HStack>
           </HStack>

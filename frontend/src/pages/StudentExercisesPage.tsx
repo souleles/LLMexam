@@ -15,50 +15,73 @@ import {
   Code,
   Divider,
   FormControl,
+  FormHelperText,
   FormLabel,
   Heading,
   HStack,
-  Input,
+  NumberDecrementStepper,
+  NumberIncrementStepper,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
   Select,
   Text,
   useToast,
   VStack,
 } from '@chakra-ui/react';
+import ReactSelect from 'react-select';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
-  const [studentId, setStudentId] = useState('');
-  const [studentName, setStudentName] = useState('');
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Array<{ value: string; label: string }>>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [results, setResults] = useState<GradingResult[]>([]);
+  const [gradingResults, setGradingResults] = useState<GradingResult[]>([]);
+  const [teacherPassed, setTeacherPassed] = useState<number>(0);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const toast = useToast();
+
   const { data: exercises = [] } = useQuery({
     queryKey: ['exercises'],
     queryFn: api.exercises.list,
-  }); const gradeMutation = useMutation({
-    mutationFn: async ({
+  });
+
+  const { data: students = [] } = useQuery({
+    queryKey: ['students'],
+    queryFn: api.students.list,
+  });
+
+  const gradeMutation = useMutation({
+    mutationFn: ({
       exerciseId,
+      studentIds,
       file,
-      studentId,
-      studentName,
     }: {
       exerciseId: string;
+      studentIds: Array<{ value: string; label: string }>;
       file: File;
-      studentId: string;
-      studentName: string;
-    }) => {
-      // Upload and grade in one call
-      const gradingResults = await api.submissions.uploadAndGrade(exerciseId, studentId, studentName, file);
-      return gradingResults;
-    },
-    onSuccess: (data) => {
-      setResults(data);
+    }) =>
+      api.submissions.uploadAndGrade(
+        exerciseId,
+        studentIds.map((s) => s.value),
+        file,
+      ),
+    onSuccess: (data: any) => {
+      // data is the response from uploadAndGrade endpoint
+      if (data.submissionId) {
+        setSubmissionId(data.submissionId);
+      }
+      if (data.checkpoints) {
+        setGradingResults(data.checkpoints);
+        setTeacherPassed(data.checkpoints.filter((r: any) => r.matched).length);
+      }
+      queryClient.invalidateQueries({ queryKey: ['submissions'] });
+      const n = selectedStudentIds.length;
       toast({
         title: 'Ολοκληρώθηκε η βαθμολόγηση',
-        description: 'Τα αποτελέσματα εμφανίζονται παρακάτω',
+        description: n === 1 ? 'Βαθμολογήθηκε 1 φοιτητής' : `Βαθμολογήθηκαν ${n} φοιτητές`,
         status: 'success',
         duration: 3000,
       });
@@ -73,62 +96,50 @@ export function StudentExercisesPage() {
     },
   });
 
-  const saveResultsMutation = useMutation({
-    mutationFn: api.grading.saveResults,
+  const saveScoreMutation = useMutation({
+    mutationFn: () => {
+      if (!submissionId) {
+        throw new Error('No submission ID available');
+      }
+      return api.grading.updateTeacherScore(submissionId, teacherPassed);
+    },
     onSuccess: () => {
       toast({
-        title: 'Αποθηκεύτηκαν τα αποτελέσματα',
-        description: 'Τα αποτελέσματα βαθμολόγησης αποθηκεύτηκαν στη βάση δεδομένων',
+        title: 'Επιτυχής αποθήκευση',
+        description: 'Ο βαθμός του εκπαιδευτικού αποθηκεύτηκε',
         status: 'success',
         duration: 3000,
       });
-      queryClient.invalidateQueries({ queryKey: ['grading'] });
+      queryClient.invalidateQueries({ queryKey: ['submissions'] });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: 'Σφάλμα',
-        description: 'Αποτυχία αποθήκευσης αποτελεσμάτων',
+        description: error.message || 'Αποτυχία αποθήκευσης βαθμού',
         status: 'error',
-        duration: 3000,
+        duration: 5000,
       });
     },
   });
 
+  const studentOptions = students.map((s) => ({
+    value: s.id,
+    label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
+  }));
+
   const handleFindResults = () => {
-    if (!selectedExerciseId || !file || !studentId.trim() || !studentName.trim()) {
+    if (!selectedExerciseId || !file || selectedStudentIds.length === 0) {
       toast({
         title: 'Λείπουν πληροφορίες',
-        description: 'Παρακαλώ συμπληρώστε όλα τα υποχρεωτικά πεδία',
+        description: 'Παρακαλώ επιλέξτε άσκηση, φοιτητή/ές και αρχείο',
         status: 'warning',
         duration: 3000,
       });
       return;
     }
 
-    gradeMutation.mutate({
-      exerciseId: selectedExerciseId,
-      file,
-      studentId,
-      studentName,
-    });
+    gradeMutation.mutate({ exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file });
   };
-
-  const handleSaveResults = () => {
-    if (results.length === 0) {
-      toast({
-        title: 'Δεν υπάρχουν αποτελέσματα',
-        description: 'Παρακαλώ βαθμολογήστε πρώτα μια εργασία',
-        status: 'warning',
-        duration: 3000,
-      });
-      return;
-    }
-
-    saveResultsMutation.mutate(results as any);
-  };
-
-  const passedCount = results.filter((r) => r.matched).length;
-  const totalCount = results.length;
 
   return (
     <Box>
@@ -136,7 +147,7 @@ export function StudentExercisesPage() {
         <VStack align="start" spacing={1}>
           <Heading size="lg">Βαθμολόγηση Εργασίας Φοιτητή</Heading>
           <Text color="gray.600">
-            Ανεβάστε το αρχείο εργασίας ενός φοιτητή και ελέγξτε έναντι των σημείων ελέγχου
+            Ανεβάστε το αρχείο εργασίας και ελέγξτε έναντι των σημείων ελέγχου
           </Text>
         </VStack>
 
@@ -161,34 +172,35 @@ export function StudentExercisesPage() {
                 </Select>
               </FormControl>
 
-              <HStack spacing={4} w="full">
-                <FormControl isRequired flex={1}>
-                  <FormLabel>Αριθμός Μητρώου </FormLabel>
-                  <Input
-                    placeholder="π.χ. 2019030001"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                  />
-                </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Επιλογή Φοιτητή/ών</FormLabel>
+                <ReactSelect
+                  isMulti
+                  options={studentOptions}
+                  value={selectedStudentIds}
+                  onChange={(opts) => setSelectedStudentIds(opts as Array<{ value: string; label: string }>)}
+                  placeholder="Επιλέξτε φοιτητές..."
+                  noOptionsMessage={() => 'Δεν βρέθηκαν φοιτητές'}
+                  hideSelectedOptions={false}
+                  closeMenuOnSelect={false}
+                />
+                {selectedStudentIds.length > 0 && (
+                  <FormHelperText>
+                    <strong>{selectedStudentIds.length} επιλεγμένοι</strong>
+                  </FormHelperText>
+                )}
+              </FormControl>
 
-                <FormControl isRequired flex={1}>
-                  <FormLabel>Ονοματεπώνυμο</FormLabel>
-                  <Input
-                    placeholder="π.χ. Γιάννης Παπαδόπουλος"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                  />
-                </FormControl>
-              </HStack>              <FormControl isRequired>
-                <FormLabel>Αρχείο Εργασίας Φοιτητή (.zip ή μεμονωμένο αρχείο)</FormLabel>
+              <FormControl isRequired>
+                <FormLabel>Αρχείο Εργασίας (.zip ή μεμονωμένο αρχείο)</FormLabel>
                 <FileUploader
                   accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip"
                   maxFiles={1}
                   onFilesSelected={(files) => setFile(files[0] || null)}
                 />
-                <Text fontSize="sm" color="gray.500" mt={2}>
-                  Μπορείτε να ανεβάσετε ένα ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
-                </Text>
+                <FormHelperText>
+                  ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
+                </FormHelperText>
               </FormControl>
 
               <Button
@@ -207,37 +219,28 @@ export function StudentExercisesPage() {
         </Card>
 
         {/* Results */}
-        {results.length > 0 && (
-          <>
+        {gradingResults.length > 0 && (() => {
+          const passedCount = gradingResults.filter((r) => r.matched).length;
+          const totalCount = gradingResults.length;
+          return (
             <Card>
               <CardBody>
                 <VStack align="stretch" spacing={4}>
-                  <HStack justify="space-between">
+                  <VStack align="stretch" spacing={2}>
                     <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
-                    <HStack>
-                      <Text fontWeight="bold">
-                        Βαθμός: {passedCount}/{totalCount}
-                      </Text>
-                      <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
-                        {Math.round((passedCount / totalCount) * 100)}%
-                      </Badge>
-                    </HStack>
-                  </HStack>
-
-                  <Divider />
+                    <Text fontSize="sm" color="gray.500">
+                      {selectedStudentIds.map((s) => s.label).join(' · ')}
+                    </Text>
+                  </VStack>
 
                   <Accordion allowMultiple>
-                    {results.map((result, index) => (
+                    {gradingResults.map((result, index) => (
                       <AccordionItem key={result.checkpointId}>
                         <h2>
                           <AccordionButton>
                             <Box flex="1" textAlign="left">
                               <HStack>
-                                {result.matched ? (
-                                  <FiCheck color="green" />
-                                ) : (
-                                  <FiX color="red" />
-                                )}
+                                {result.matched ? <FiCheck color="green" /> : <FiX color="red" />}
                                 <Text fontWeight="medium">
                                   Checkpoint {index + 1}: {result.checkpointDescription}
                                 </Text>
@@ -273,11 +276,53 @@ export function StudentExercisesPage() {
                       </AccordionItem>
                     ))}
                   </Accordion>
+
+                  <VStack align="stretch" spacing={2}>
+                    <HStack spacing={8} pt={1}>
+                      <HStack>
+                        <Text fontWeight="medium" color="gray.600">LLM Βαθμός:</Text>
+                        <Text fontWeight="bold">{passedCount}/{totalCount}</Text>
+                        <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
+                          {Math.round((passedCount / totalCount) * 100)}%
+                        </Badge>
+                      </HStack>
+                      <HStack>
+                        <Text fontWeight="medium" color="gray.600">Βαθμός Εκπαιδευτικού:</Text>
+                        <NumberInput
+                          value={teacherPassed}
+                          min={0}
+                          max={totalCount}
+                          size="sm"
+                          w="80px"
+                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
+                        >
+                          <NumberInputField />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper />
+                            <NumberDecrementStepper />
+                          </NumberInputStepper>
+                        </NumberInput>
+                        <Text fontWeight="bold">/{totalCount}</Text>
+                        <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
+                          {Math.round((teacherPassed / totalCount) * 100)}%
+                        </Badge>
+                      </HStack>
+                    </HStack>
+                  </VStack>
+                  <Button
+                    colorScheme="green"
+                    onClick={() => saveScoreMutation.mutate()}
+                    isLoading={saveScoreMutation.isPending}
+                    isDisabled={!submissionId}
+                  >
+                    Αποθήκευση βαθμολογίας
+                  </Button>
+
                 </VStack>
               </CardBody>
             </Card>
-          </>
-        )}
+          );
+        })()}
       </VStack>
     </Box>
   );

@@ -18,112 +18,95 @@ export interface CheckpointMatch {
   }>;
 }
 
+export interface UploadAndGradeResult {
+  submissionId: string;
+  checkpoints: CheckpointMatch[];
+}
+
+const SUBMISSION_INCLUDE = {
+  submissionStudents: {
+    include: { student: true },
+  },
+  gradingResult: true,
+} as const;
+
 @Injectable()
 export class SubmissionsService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async uploadAndGradeZip(
     exerciseId: string,
-    studentIdentifier: string,
-    studentName: string,
+    studentIds: string[],
     file: Express.Multer.File,
-  ): Promise<CheckpointMatch[]> {
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string }> {
     // 1. Verify exercise exists and is approved
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
-      include: {
-        checkpoints: {
-          orderBy: { order: 'asc' },
-        },
-      },
+      include: { checkpoints: { orderBy: { order: 'asc' } } },
     });
 
     if (!exercise) {
       throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
     }
-
     if (exercise.status !== 'APPROVED') {
       throw new BadRequestException('Exercise must be approved before accepting submissions');
     }
-
     if (exercise.checkpoints.length === 0) {
       throw new BadRequestException('Exercise has no checkpoints defined');
     }
 
-    // 2. Extract ZIP file
+    // 2. Verify all students exist
+    const students = await this.prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    if (students.length !== studentIds.length) {
+      throw new BadRequestException('One or more student IDs are invalid');
+    }
+
+    // 3. Extract file contents
     let extractedFiles: Array<{ relativePath: string; content: string }> = [];
-    
+
     try {
       if (file.originalname.endsWith('.zip')) {
         const zip = new AdmZip(file.path);
-        const zipEntries = zip.getEntries();
-
-        for (const entry of zipEntries) {
+        for (const entry of zip.getEntries()) {
           if (entry.isDirectory) continue;
-
           const ext = path.extname(entry.entryName).toLowerCase();
           if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
-
-          const content = entry.getData().toString('utf8');
           extractedFiles.push({
             relativePath: entry.entryName,
-            content,
+            content: entry.getData().toString('utf8'),
           });
         }
       } else {
-        // Single file upload (not zip)
         const ext = path.extname(file.originalname).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
           throw new BadRequestException(`File type ${ext} is not allowed`);
         }
-
-        const content = fs.readFileSync(file.path, 'utf8');
         extractedFiles.push({
           relativePath: file.originalname,
-          content,
+          content: fs.readFileSync(file.path, 'utf8'),
         });
       }
     } catch (error) {
       throw new BadRequestException(`Failed to extract files: ${error.message}`);
     } finally {
-      // Clean up uploaded file
-      try {
-        fs.unlinkSync(file.path);
-      } catch (err) {
-        console.error('Failed to delete uploaded file:', err);
-      }
+      try { fs.unlinkSync(file.path); } catch { /* ignore */ }
     }
 
     if (extractedFiles.length === 0) {
       throw new BadRequestException('No valid files found in the uploaded ZIP');
     }
 
-    // 3. Combine all file contents for submission storage
     const combinedContent = extractedFiles
       .map(f => `// File: ${f.relativePath}\n${f.content}`)
       .join('\n\n');
 
-    // 4. Create submission record
-    const submission = await this.prisma.submission.upsert({
-      where: {
-        exerciseId_studentIdentifier: {
-          exerciseId,
-          studentIdentifier,
-        }
-      },
-      create: {
+    // 4. Create one submission row
+    const submission = await this.prisma.submission.create({
+      data: {
         exerciseId,
-        studentIdentifier,
-        studentName,
-        fileName: file.originalname,
-        fileUrl: `/uploads/submissions/${file.filename}`,
-        fileType: path.extname(file.originalname),
-        content: combinedContent,
-      },
-      update: {
-        studentName,
         fileName: file.originalname,
         fileUrl: `/uploads/submissions/${file.filename}`,
         fileType: path.extname(file.originalname),
@@ -131,7 +114,13 @@ export class SubmissionsService {
       },
     });
 
-    // 5. Perform regex matching for each checkpoint
+    // 5. Create mapping rows for all selected students
+    await this.prisma.submissionStudent.createMany({
+      data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
+      skipDuplicates: true,
+    });
+
+    // 6. Regex matching for each checkpoint
     const checkpointMatches: CheckpointMatch[] = [];
 
     for (const checkpoint of exercise.checkpoints) {
@@ -151,60 +140,36 @@ export class SubmissionsService {
         const flags = checkpoint.caseSensitive ? 'g' : 'gi';
         const regex = new RegExp(checkpoint.pattern, flags);
 
-        // Search in all extracted files
-        for (const file of extractedFiles) {
-          const lines = file.content.split('\n');
-          
-          lines.forEach((line, index) => {
+        for (const f of extractedFiles) {
+          f.content.split('\n').forEach((line, index) => {
             if (regex.test(line)) {
               match.matched = true;
-              match.matchedSnippets.push({
-                file: file.relativePath,
-                line: index + 1,
-                snippet: line.trim(),
-              });
+              match.matchedSnippets.push({ file: f.relativePath, line: index + 1, snippet: line.trim() });
             }
           });
         }
       } catch (error) {
         console.error(`Invalid regex pattern for checkpoint ${checkpoint.id}:`, error.message);
-        // Continue with other checkpoints
       }
 
       checkpointMatches.push(match);
     }
 
-    // 6. Save grading results to database
+    // 7. Save grading result
     const passedCheckpoints = checkpointMatches.filter(m => m.matched).length;
     const totalCheckpoints = checkpointMatches.length;
     const score = (passedCheckpoints / totalCheckpoints) * 100;
-    const passed = score >= 50; // 50% threshold
 
     const gradingResult = await this.prisma.gradingResult.upsert({
-      where: {
-        submissionId: submission.id,
-      },
+      where: { submissionId: submission.id },
       create: {
-        submission: {
-          connect: {
-            id: submission.id,
-          }
-        },
+        submission: { connect: { id: submission.id } },
         totalCheckpoints,
         passedCheckpoints,
         score,
-        passed
+        passed: score >= 50,
       },
-      update: {
-        totalCheckpoints,
-        passedCheckpoints,
-        score,
-        passed
-      },
-    });
-
-    await this.prisma.checkpointResult.deleteMany({
-      where: { gradingResultId: gradingResult.id },
+      update: { totalCheckpoints, passedCheckpoints, score, passed: score >= 50 },
     });
 
     await this.prisma.checkpointResult.createMany({
@@ -216,68 +181,59 @@ export class SubmissionsService {
       })),
     });
 
-    // 7. Return the checkpoint matches
-    return checkpointMatches;
+    return {
+      checkpoints: checkpointMatches,
+      submissionId: submission.id
+    };
   }
 
   async findByExercise(exerciseId: string): Promise<SubmissionResponseDto[]> {
     const submissions = await this.prisma.submission.findMany({
       where: { exerciseId },
-      include: {
-        gradingResult: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      include: SUBMISSION_INCLUDE,
+      orderBy: { createdAt: 'desc' },
     });
-
-    return submissions.map((submission) => this.mapToResponseDto(submission));
+    return submissions.map(this.mapToResponseDto);
   }
 
   async findAll(): Promise<SubmissionResponseDto[]> {
     const submissions = await this.prisma.submission.findMany({
-      include: {
-        gradingResult: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      include: SUBMISSION_INCLUDE,
+      orderBy: { createdAt: 'desc' },
     });
-
-    return submissions.map(s => this.mapToResponseDto(s));
+    return submissions.map(this.mapToResponseDto);
   }
 
   async findOne(id: string): Promise<SubmissionResponseDto> {
     const submission = await this.prisma.submission.findUnique({
       where: { id },
-      include: {
-        gradingResult: true,
-      },
+      include: SUBMISSION_INCLUDE,
     });
-
     if (!submission) {
       throw new NotFoundException(`Submission with ID ${id} not found`);
     }
-
     return this.mapToResponseDto(submission);
   }
 
   async remove(id: string): Promise<void> {
     try {
-      await this.prisma.submission.delete({
-        where: { id },
-      });
-    } catch (error) {
+      await this.prisma.submission.delete({ where: { id } });
+    } catch {
       throw new NotFoundException(`Submission with ID ${id} not found`);
     }
   }
 
   private mapToResponseDto(submission: any): SubmissionResponseDto {
-    const response: SubmissionResponseDto = {
+    const dto: SubmissionResponseDto = {
       id: submission.id,
       exerciseId: submission.exerciseId,
-      studentIdentifier: submission.studentIdentifier,
-      studentName: submission.studentName,
+      students: (submission.submissionStudents ?? []).map((ss: any) => ({
+        studentId: ss.student.id,
+        studentIdentifier: ss.student.studentIdentifier,
+        firstName: ss.student.firstName,
+        lastName: ss.student.lastName,
+        email: ss.student.email,
+      })),
       fileName: submission.fileName,
       fileUrl: submission.fileUrl,
       fileType: submission.fileType,
@@ -287,7 +243,7 @@ export class SubmissionsService {
     };
 
     if (submission.gradingResult) {
-      response.gradingResult = {
+      dto.gradingResult = {
         id: submission.gradingResult.id,
         score: submission.gradingResult.score,
         passed: submission.gradingResult.passed,
@@ -296,6 +252,6 @@ export class SubmissionsService {
       };
     }
 
-    return response;
+    return dto;
   }
 }

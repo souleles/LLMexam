@@ -5,6 +5,7 @@ import {
   ExerciseGradingResultsDto,
   CheckpointResultDto,
   StudentGradingResultDto,
+  UpdateTeacherScoreDto,
 } from './dto/grading.dto';
 
 @Injectable()
@@ -130,6 +131,7 @@ export class GradingService {
       include: {
         submissions: {
           include: {
+            submissionStudents: { include: { student: true } },
             gradingResult: {
               include: {
                 checkpointResults: {
@@ -152,20 +154,25 @@ export class GradingService {
     const totalSubmissions = exercise.submissions.length;
 
     let totalScore = 0;
-    let passedCount = 0;    const results: StudentGradingResultDto[] = gradedSubmissions.map((submission) => {
+    let passedCount = 0;    
+    const results: StudentGradingResultDto[] = gradedSubmissions.map((submission) => {
       const result = submission.gradingResult!;
       totalScore += result.score;
       if (result.passed) passedCount++;
 
       return {
-        studentName: submission.studentName,
+        students: submission.submissionStudents.map((ss: any) => ({
+          studentIdentifier: ss.student.studentIdentifier,
+          firstName: ss.student.firstName,
+          lastName: ss.student.lastName,
+        })),
         submissionId: submission.id,
         fileName: submission.fileName,
         score: result.score,
         passed: result.passed,
         totalCheckpoints: result.totalCheckpoints,
         passedCheckpoints: result.passedCheckpoints,
-        checkpointResults: result.checkpointResults.map((cr) => ({
+        checkpointResults: result.checkpointResults.map((cr: any) => ({
           id: cr.id,
           submissionId: submission.id,
           checkpointId: cr.checkpointId,
@@ -269,7 +276,6 @@ export class GradingService {
       },
     }));
   }
-
   async saveResults(results: CheckpointResultDto[]): Promise<void> {
     // This is a bulk save operation for manually adjusted results
     // For now, we'll update existing checkpoint results
@@ -288,6 +294,39 @@ export class GradingService {
       })
     );
   }
+
+  async updateTeacherScore(submissionId: string, dto: UpdateTeacherScoreDto): Promise<GradingResultResponseDto> {
+    // Find the grading result for this submission
+    const gradingResult = await this.prisma.gradingResult.findUnique({
+      where: { submissionId },
+      include: {
+        checkpointResults: {
+          include: {
+            checkpoint: true,
+          },
+        },
+      },
+    });
+
+    if (!gradingResult) {
+      throw new NotFoundException(`Grading result for submission ${submissionId} not found`);
+    }
+
+    // Update the teacher score
+    const updated = await this.prisma.gradingResult.update({
+      where: { id: gradingResult.id },
+      data: { teacherScore: dto.teacherScore },
+      include: {
+        checkpointResults: {
+          include: {
+            checkpoint: true,
+          },
+        },
+      },
+    });
+
+    return this.mapToResponseDto(updated);
+  }
   private mapToResponseDto(gradingResult: any): GradingResultResponseDto {
     return {
       id: gradingResult.id,
@@ -295,6 +334,7 @@ export class GradingService {
       totalCheckpoints: gradingResult.totalCheckpoints,
       passedCheckpoints: gradingResult.passedCheckpoints,
       score: gradingResult.score,
+      teacherScore: gradingResult.teacherScore,
       passed: gradingResult.passed,
       gradedAt: gradingResult.gradedAt,
       checkpointResults: gradingResult.checkpointResults.map((cr: any) => ({

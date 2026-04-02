@@ -190,7 +190,12 @@ export function GradingResultsPage() {
                               : 0;
                           return (
                             <Tr key={submission.id}>
-                              <Td fontWeight="medium">{submission.studentIdentifier}</Td>
+                              <Td fontWeight="medium">
+                                {submission.student.lastName} {submission.student.firstName}
+                                <Text as="span" fontSize="xs" color="gray.500" ml={1}>
+                                  ({submission.student.studentIdentifier})
+                                </Text>
+                              </Td>
                               <Td>
                                 {totalMatched} / {totalCheckpoints}
                               </Td>
@@ -232,7 +237,9 @@ export function GradingResultsPage() {
                         <AccordionButton>
                           <Box flex="1" textAlign="left">
                             <HStack>
-                              <Text fontWeight="bold">{submission.studentIdentifier}</Text>
+                              <Text fontWeight="bold">
+                                {submission.student.lastName} {submission.student.firstName} ({submission.student.studentIdentifier})
+                              </Text>
                               <Badge>
                                 {checkpointResults.filter((cr) => cr.result?.matched).length} /{' '}
                                 {checkpointResults.length}

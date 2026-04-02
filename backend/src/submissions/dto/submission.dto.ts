@@ -7,14 +7,6 @@ export class CreateSubmissionDto {
 
   @IsString()
   @IsNotEmpty()
-  studentIdentifier: string;
-
-  @IsString()
-  @IsNotEmpty()
-  studentName: string;
-
-  @IsString()
-  @IsNotEmpty()
   fileName: string;
 
   @IsString()
@@ -33,8 +25,13 @@ export class CreateSubmissionDto {
 export class SubmissionResponseDto {
   id: string;
   exerciseId: string;
-  studentIdentifier: string;
-  studentName: string;
+  students: Array<{
+    studentId: string;
+    studentIdentifier: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+  }>;
   fileName: string;
   fileUrl: string;
   fileType: string;

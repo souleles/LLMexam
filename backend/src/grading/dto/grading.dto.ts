@@ -1,9 +1,18 @@
+import { IsNumber, Min } from 'class-validator';
+
+export class UpdateTeacherScoreDto {
+  @IsNumber()
+  @Min(0)
+  teacherScore: number;
+}
+
 export class GradingResultResponseDto {
   id: string;
   submissionId: string;
   totalCheckpoints: number;
   passedCheckpoints: number;
   score: number;
+  teacherScore?: number;
   passed: boolean;
   gradedAt: Date;
   checkpointResults: CheckpointResultDto[];
@@ -39,7 +48,7 @@ export class ExerciseGradingResultsDto {
 }
 
 export class StudentGradingResultDto {
-  studentName: string;
+  students: Array<{ studentIdentifier: string; firstName: string; lastName: string }>;
   submissionId: string;
   fileName: string;
   score: number;

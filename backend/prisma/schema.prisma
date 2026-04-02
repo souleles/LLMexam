@@ -52,23 +52,34 @@ model Conversation {
 }
 
 model Submission {
-  id                String         @id @default(uuid())
-  exerciseId        String
-  studentName       String
-  fileName          String
-  fileUrl           String
-  fileType          String
-  content           String
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  studentIdentifier String
-  gradingResult     GradingResult?
-  exercise          Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(uuid())
+  exerciseId         String
+  fileName           String
+  fileUrl            String
+  fileType           String
+  content            String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  gradingResult      GradingResult?
+  exercise           Exercise            @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  submissionStudents SubmissionStudent[]
 
-  @@unique([exerciseId, studentIdentifier], map: "submissions_un")
   @@index([exerciseId])
-  @@index([studentIdentifier])
   @@map("submissions")
+}
+
+model SubmissionStudent {
+  id           String     @id @default(uuid())
+  submissionId String
+  studentId    String
+  createdAt    DateTime   @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, studentId])
+  @@index([submissionId])
+  @@index([studentId])
+  @@map("submission_students")
 }
 
 model GradingResult {
@@ -79,6 +90,7 @@ model GradingResult {
   score             Float
   passed            Boolean
   gradedAt          DateTime           @default(now())
+  teacherScore      Float?
   checkpointResults CheckpointResult[]
   submission        Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
@@ -98,6 +110,19 @@ model CheckpointResult {
   @@index([gradingResultId])
   @@index([checkpointId])
   @@map("checkpoint_results")
+}
+
+model Student {
+  id                 String              @id @default(uuid())
+  studentIdentifier  String              @unique
+  firstName          String
+  lastName           String
+  email              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  submissionStudents SubmissionStudent[]
+
+  @@map("students")
 }
 
 enum ExerciseStatus {
