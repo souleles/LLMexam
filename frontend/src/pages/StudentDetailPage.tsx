@@ -1,10 +1,5 @@
 import { api } from '@/lib/api';
 import {
-  Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
   Badge,
   Box,
   Button,
@@ -15,18 +10,12 @@ import {
   Icon,
   Skeleton,
   Stack,
-  Table,
-  Tbody,
-  Td,
   Text,
-  Th,
-  Thead,
-  Tr,
   VStack,
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiDownload, FiFile, FiX, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronRight, FiFile, FiUser } from 'react-icons/fi';
 
 export function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -43,13 +32,6 @@ export function StudentDetailPage() {
     queryFn: () => api.students.getSubmissions(studentId!),
     enabled: !!studentId,
   });
-
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName;
-    link.click();
-  };
 
   if (studentLoading) {
     return (
@@ -129,33 +111,41 @@ export function StudentDetailPage() {
 
               {submissionsLoading ? (
                 <Stack spacing={3}>
-                  <Skeleton height="100px" />
-                  <Skeleton height="100px" />
+                  <Skeleton height="60px" />
+                  <Skeleton height="60px" />
                 </Stack>
               ) : submissions.length === 0 ? (
                 <Box textAlign="center" py={8}>
                   <Text color="gray.500">Δεν υπάρχουν υποβολές για αυτόν τον φοιτητή</Text>
                 </Box>
               ) : (
-                <Accordion allowMultiple>
+                <VStack align="stretch" spacing={2}>
                   {submissions.map((submission) => (
-                    <AccordionItem key={submission.id}>
-                      <h2>
-                        <AccordionButton>
-                          <Box flex="1" textAlign="left">
-                            <HStack>
-                              <Icon as={FiFile} color="gray.500" />
-                              <VStack align="start" spacing={0}>
-                                <Text fontWeight="medium">{submission.exerciseTitle}</Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {new Date(submission.createdAt).toLocaleDateString('el-GR')} •{' '}
-                                  {submission.fileName}
-                                </Text>
-                              </VStack>
-                            </HStack>
-                          </Box>
+                    <Box
+                      key={submission.id}
+                      p={4}
+                      borderWidth="1px"
+                      borderRadius="md"
+                      cursor="pointer"
+                      _hover={{ bg: 'gray.50', borderColor: 'brand.300' }}
+                      onClick={() =>
+                        navigate(`/student-exercises/${submission.id}`, { state: { submission } })
+                      }
+                    >
+                      <HStack justify="space-between">
+                        <HStack spacing={3}>
+                          <Icon as={FiFile} color="gray.500" />
+                          <VStack align="start" spacing={0}>
+                            <Text fontWeight="medium">{submission.exerciseTitle}</Text>
+                            <Text fontSize="sm" color="gray.600">
+                              {new Date(submission.createdAt).toLocaleDateString('el-GR')} •{' '}
+                              {submission.fileName}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                        <HStack spacing={2}>
                           {submission.gradingResult && (
-                            <HStack spacing={2} mr={2}>
+                            <>
                               <Badge
                                 colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
                                 textTransform="none"
@@ -164,7 +154,7 @@ export function StudentDetailPage() {
                                 {submission.gradingResult.totalCheckpoints}
                               </Badge>
                               {submission.gradingResult.teacherScore !== null &&
-                                submission.gradingResult.teacherScore !== undefined ? (
+                              submission.gradingResult.teacherScore !== undefined ? (
                                 <Badge colorScheme="blue" textTransform="none">
                                   Καθηγητής: {submission.gradingResult.teacherScore}/
                                   {submission.gradingResult.totalCheckpoints}
@@ -174,160 +164,14 @@ export function StudentDetailPage() {
                                   {Math.round(submission.gradingResult.score)}%
                                 </Text>
                               )}
-                            </HStack>
+                            </>
                           )}
-                          <AccordionIcon />
-                        </AccordionButton>
-                      </h2>
-                      <AccordionPanel pb={4}>
-                        <VStack align="stretch" spacing={4}>
-                          {/* File Info */}
-                          <Box>
-                            <HStack justify="space-between">
-                              <VStack align="start" spacing={1}>
-                                <Text fontSize="sm" fontWeight="medium">
-                                  Αρχείο Υποβολής
-                                </Text>
-                                <Text fontSize="sm" color="gray.600">
-                                  {submission.fileName} ({submission.fileType})
-                                </Text>
-                              </VStack>
-                              <Button
-                                leftIcon={<FiDownload />}
-                                size="sm"
-                                colorScheme="blue"
-                                variant="ghost"
-                                onClick={() => handleDownload(submission.fileUrl, submission.fileName)}
-                              >
-                                Λήψη
-                              </Button>
-                            </HStack>
-                          </Box>
-
-                          {/* Participating Students */}
-                          {submission.students.length > 1 && (
-                            <Box>
-                              <Text fontSize="sm" fontWeight="medium" mb={2}>
-                                Συμμετέχοντες Φοιτητές
-                              </Text>
-                              <HStack flexWrap="wrap" gap={2}>
-                                {submission.students.map((s) => (
-                                  <Badge key={s.id} colorScheme="purple">
-                                    {s.lastName} {s.firstName} - {s.studentIdentifier}
-                                  </Badge>
-                                ))}
-                              </HStack>
-                            </Box>
-                          )}
-
-                          {/* Grading Results */}
-                          {submission.gradingResult ? (
-                            <Box>
-                              <Text fontSize="sm" fontWeight="medium" mb={3}>
-                                Αποτελέσματα Βαθμολόγησης
-                              </Text>
-
-                              {/* Summary */}
-                              <HStack spacing={6} mb={4} p={3} bg="gray.50" borderRadius="md">
-                                <VStack align="start" spacing={0}>
-                                  <Text fontSize="xs" color="gray.600">
-                                    Βαθμός LLM
-                                  </Text>
-                                  <HStack>
-                                    <Text fontWeight="bold">
-                                      {submission.gradingResult.passedCheckpoints}/
-                                      {submission.gradingResult.totalCheckpoints}
-                                    </Text>
-                                    <Badge
-                                      colorScheme={
-                                        submission.gradingResult.score >= 50 ? 'green' : 'red'
-                                      }
-                                    >
-                                      {Math.round(submission.gradingResult.score)}%
-                                    </Badge>
-                                  </HStack>
-                                </VStack>
-                                {submission.gradingResult.teacherScore !== null &&
-                                  submission.gradingResult.teacherScore !== undefined && (
-                                    <VStack align="start" spacing={0}>
-                                      <Text fontSize="xs" color="gray.600">
-                                        Βαθμός Καθηγητή
-                                      </Text>
-                                      <HStack>
-                                        <Text fontWeight="bold">
-                                          {submission.gradingResult.teacherScore}/
-                                          {submission.gradingResult.totalCheckpoints}
-                                        </Text>
-                                        <Badge colorScheme="blue">
-                                          {Math.round(
-                                            (submission.gradingResult.teacherScore /
-                                              submission.gradingResult.totalCheckpoints) *
-                                            100,
-                                          )}
-                                          %
-                                        </Badge>
-                                      </HStack>
-                                    </VStack>
-                                  )}                                <VStack align="start" spacing={0}>
-                                  <Text fontSize="xs" color="gray.600">
-                                    Κατάσταση
-                                  </Text>
-                                  <Badge
-                                    colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
-                                    textTransform="none"
-                                  >
-                                    {submission.gradingResult.passed ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                                  </Badge>
-                                </VStack>
-                              </HStack>
-
-                              {/* Checkpoint Results Table */}
-                              <Table size="sm" variant="simple">
-                                <Thead>
-                                  <Tr>
-                                    <Th w="50px">#</Th>
-                                    <Th>Checkpoint</Th>
-                                    <Th w="100px" textAlign="center">
-                                      Κατάσταση
-                                    </Th>
-                                  </Tr>
-                                </Thead>
-                                <Tbody>
-                                  {submission.gradingResult.checkpointResults.map((cr) => (
-                                    <Tr key={cr.id}>
-                                      <Td>{cr.checkpointOrder}</Td>
-                                      <Td>
-                                        <Text fontSize="sm">{cr.checkpointDescription}</Text>
-                                        {cr.matched && cr.matchedSnippets.length > 0 && (
-                                          <Text fontSize="xs" color="gray.600" mt={1}>
-                                            {cr.matchedSnippets.length} αντιστοιχίσεις
-                                          </Text>
-                                        )}
-                                      </Td>
-                                      <Td textAlign="center">
-                                        {cr.matched ? (
-                                          <Icon as={FiCheck} color="green.500" boxSize={5} />
-                                        ) : (
-                                          <Icon as={FiX} color="red.500" boxSize={5} />
-                                        )}
-                                      </Td>
-                                    </Tr>
-                                  ))}
-                                </Tbody>
-                              </Table>
-                            </Box>
-                          ) : (
-                            <Box p={4} bg="yellow.50" borderRadius="md">
-                              <Text fontSize="sm" color="yellow.800">
-                                Η εργασία δεν έχει βαθμολογηθεί ακόμα
-                              </Text>
-                            </Box>
-                          )}
-                        </VStack>
-                      </AccordionPanel>
-                    </AccordionItem>
+                          <Icon as={FiChevronRight} color="gray.400" />
+                        </HStack>
+                      </HStack>
+                    </Box>
                   ))}
-                </Accordion>
+                </VStack>
               )}
             </VStack>
           </CardBody>

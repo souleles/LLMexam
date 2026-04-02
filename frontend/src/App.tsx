@@ -7,6 +7,7 @@ import { StudentExercisesPage } from './pages/StudentExercisesPage';
 import { ExercisesPage } from './pages/ExercisesPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { StudentDetailPage } from './pages/StudentDetailPage';
+import { StudentSubmissionDetailPage } from './pages/StudentSubmissionDetailPage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="exercises" element={<ExercisesPage />} />          <Route path="exercises/new" element={<NewExercisePage />} />
           <Route path="exercises/:exerciseId" element={<ExerciseDetailPage />} />
           <Route path="student-exercises" element={<StudentExercisesPage />} />
+          <Route path="student-exercises/:submissionId" element={<StudentSubmissionDetailPage />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="students/:studentId" element={<StudentDetailPage />} />
         </Route>
