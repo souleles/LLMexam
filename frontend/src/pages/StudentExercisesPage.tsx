@@ -13,7 +13,6 @@ import {
   Card,
   CardBody,
   Code,
-  Divider,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -24,15 +23,15 @@ import {
   NumberInput,
   NumberInputField,
   NumberInputStepper,
-  Select,
   Text,
   useToast,
-  VStack,
+  VStack
 } from '@chakra-ui/react';
-import ReactSelect from 'react-select';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
+import ReactSelect from 'react-select';
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
@@ -52,6 +51,18 @@ export function StudentExercisesPage() {
     queryKey: ['students'],
     queryFn: api.students.list,
   });
+
+  const exerciseOptions = exercises
+    .filter((ex) => ex.status === 'approved')
+    .map((ex) => ({
+      value: ex.id,
+      label: ex.title,
+    }));
+
+  const studentOptions = students.map((s) => ({
+    value: s.id,
+    label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
+  }));
 
   const gradeMutation = useMutation({
     mutationFn: ({
@@ -86,10 +97,10 @@ export function StudentExercisesPage() {
         duration: 3000,
       });
     },
-    onError: (error: Error) => {
+    onError: (error: AxiosError<Error>) => {
       toast({
         title: 'Σφάλμα',
-        description: error.message || 'Αποτυχία βαθμολόγησης εργασίας',
+        description: error.response?.data?.message || 'Αποτυχία βαθμολόγησης εργασίας',
         status: 'error',
         duration: 5000,
       });
@@ -122,11 +133,6 @@ export function StudentExercisesPage() {
     },
   });
 
-  const studentOptions = students.map((s) => ({
-    value: s.id,
-    label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
-  }));
-
   const handleFindResults = () => {
     if (!selectedExerciseId || !file || selectedStudentIds.length === 0) {
       toast({
@@ -137,8 +143,7 @@ export function StudentExercisesPage() {
       });
       return;
     }
-
-    gradeMutation.mutate({ exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file });
+    gradeMutation.mutateAsync({ exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file });
   };
 
   return (
@@ -157,19 +162,14 @@ export function StudentExercisesPage() {
             <VStack spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Επιλογή Άσκησης</FormLabel>
-                <Select
+                <ReactSelect
+                  options={exerciseOptions}
+                  value={exerciseOptions.find((opt) => opt.value === selectedExerciseId) || null}
+                  onChange={(opt) => setSelectedExerciseId(opt?.value || '')}
                   placeholder="Επιλέξτε άσκηση..."
-                  value={selectedExerciseId}
-                  onChange={(e) => setSelectedExerciseId(e.target.value)}
-                >
-                  {exercises
-                    .filter((ex) => ex.status === 'approved')
-                    .map((exercise) => (
-                      <option key={exercise.id} value={exercise.id}>
-                        {exercise.title}
-                      </option>
-                    ))}
-                </Select>
+                  noOptionsMessage={() => 'Δεν βρέθηκαν ασκήσεις'}
+                  isClearable
+                />
               </FormControl>
 
               <FormControl isRequired>
@@ -278,15 +278,15 @@ export function StudentExercisesPage() {
                   </Accordion>
 
                   <VStack align="stretch" spacing={2}>
-                    <HStack spacing={8} pt={1}>
-                      <HStack>
+                    <HStack spacing={4} pt={1} w="full">
+                      <HStack flex="1">
                         <Text fontWeight="medium" color="gray.600">LLM Βαθμός:</Text>
                         <Text fontWeight="bold">{passedCount}/{totalCount}</Text>
                         <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
                           {Math.round((passedCount / totalCount) * 100)}%
                         </Badge>
                       </HStack>
-                      <HStack>
+                      <HStack flex="1">
                         <Text fontWeight="medium" color="gray.600">Βαθμός Εκπαιδευτικού:</Text>
                         <NumberInput
                           value={teacherPassed}

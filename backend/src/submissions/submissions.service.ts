@@ -64,7 +64,75 @@ export class SubmissionsService {
       throw new BadRequestException('One or more student IDs are invalid');
     }
 
-    // 3. Extract file contents
+    // 3. Check for existing submissions for these students in this exercise
+    const existingSubmissionStudents = await this.prisma.submissionStudent.findMany({
+      where: {
+        studentId: { in: studentIds },
+        submission: { exerciseId },
+      },
+      include: {
+        submission: true,
+        student: true,
+      },
+    });
+
+    let existingSubmissionId: string | null = null;
+
+    if (existingSubmissionStudents.length > 0) {
+      // Group by submission ID
+      const submissionGroups = new Map<string, string[]>();
+      existingSubmissionStudents.forEach((ss) => {
+        if (!submissionGroups.has(ss.submissionId)) {
+          submissionGroups.set(ss.submissionId, []);
+        }
+        submissionGroups.get(ss.submissionId)!.push(ss.studentId);
+      });
+
+      // Check if all requested students belong to the SAME submission
+      if (submissionGroups.size === 1) {
+        const [submissionId, requestedStudentsInSubmission] = Array.from(submissionGroups.entries())[0];
+        
+        // Fetch ALL students in that submission (not just the requested ones)
+        const allStudentsInSubmission = await this.prisma.submissionStudent.findMany({
+          where: { submissionId },
+          select: { studentId: true },
+        });
+        
+        const allStudentIdsInSubmission = allStudentsInSubmission.map(ss => ss.studentId);
+        
+        // Check if EXACTLY the same group of students
+        const requestedStudentIdsSet = new Set(studentIds);
+        const existingStudentIdsSet = new Set(allStudentIdsInSubmission);
+        
+        const sameStudents = 
+          requestedStudentIdsSet.size === existingStudentIdsSet.size &&
+          [...requestedStudentIdsSet].every(id => existingStudentIdsSet.has(id));
+
+        if (sameStudents) {
+          // Exact same group - allow update
+          existingSubmissionId = submissionId;
+        } else {
+          // Different group composition - reject
+          const studentsWithSubmissions = existingSubmissionStudents.map(
+            (ss) => `${ss.student.lastName} ${ss.student.firstName} (${ss.student.studentIdentifier})`,
+          );
+          throw new BadRequestException(
+            `Έχει ήδη υποβληθεί άσκηση για τον/τους μαθητή/ές: ${studentsWithSubmissions.join(', ')}. ` +
+            `Δεν μπορείτε να αλλάξετε την ομάδα μετά την υποβολή.`,
+          );
+        }
+      } else {
+        // Students belong to DIFFERENT submissions - reject
+        const studentsWithSubmissions = existingSubmissionStudents.map(
+          (ss) => `${ss.student.lastName} ${ss.student.firstName} (${ss.student.studentIdentifier})`,
+        );
+        throw new BadRequestException(
+          `Έχει ήδη υποβληθεί άσκηση για τον/τους μαθητή/ές: ${studentsWithSubmissions.join(', ')}`,
+        );
+      }
+    }
+
+    // 4. Extract file contents
     let extractedFiles: Array<{ relativePath: string; content: string }> = [];
 
     try {
@@ -103,22 +171,44 @@ export class SubmissionsService {
       .map(f => `// File: ${f.relativePath}\n${f.content}`)
       .join('\n\n');
 
-    // 4. Create one submission row
-    const submission = await this.prisma.submission.create({
-      data: {
-        exerciseId,
-        fileName: file.originalname,
-        fileUrl: `/uploads/submissions/${file.filename}`,
-        fileType: path.extname(file.originalname),
-        content: combinedContent,
-      },
-    });
+    // 5. Create or update submission
+    let submission: any;
+    
+    if (existingSubmissionId) {
+      // Update existing submission
+      submission = await this.prisma.submission.update({
+        where: { id: existingSubmissionId },
+        data: {
+          fileName: file.originalname,
+          fileUrl: `/uploads/submissions/${file.filename}`,
+          fileType: path.extname(file.originalname),
+          content: combinedContent,
+          updatedAt: new Date(),
+        },
+      });
 
-    // 5. Create mapping rows for all selected students
-    await this.prisma.submissionStudent.createMany({
-      data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
-      skipDuplicates: true,
-    });
+      // Delete old grading results and checkpoint results
+      await this.prisma.gradingResult.deleteMany({
+        where: { submissionId: existingSubmissionId },
+      });
+    } else {
+      // Create new submission
+      submission = await this.prisma.submission.create({
+        data: {
+          exerciseId,
+          fileName: file.originalname,
+          fileUrl: `/uploads/submissions/${file.filename}`,
+          fileType: path.extname(file.originalname),
+          content: combinedContent,
+        },
+      });
+
+      // Create mapping rows for all selected students
+      await this.prisma.submissionStudent.createMany({
+        data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
+        skipDuplicates: true,
+      });
+    }
 
     // 6. Regex matching for each checkpoint
     const checkpointMatches: CheckpointMatch[] = [];
