@@ -28,13 +28,13 @@ import {
   AccordionIcon,
 } from '@chakra-ui/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiCheck, FiX, FiSave } from 'react-icons/fi';
 import { api, GradingResult, Checkpoint } from '@/lib/api';
-import { queryClient } from '@/lib/queryClient';
 import { useState, useEffect } from 'react';
 
 export function GradingResultsPage() {
+  const queryClient = useQueryClient();
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
   const toast = useToast();

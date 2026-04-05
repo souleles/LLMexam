@@ -13,18 +13,18 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { api, Exercise } from '@/lib/api';
-import { queryClient } from '@/lib/queryClient';
 import { FileUploader } from '@/components/FileUploader';
 
 export function NewExercisePage() {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const toast = useToast();
-  const navigate = useNavigate(); const createMutation = useMutation({
+  const navigate = useNavigate();
+  const queryClient = useQueryClient(); const createMutation = useMutation({
     mutationFn: ({ file, title }: { file: File; title: string }) =>
       api.exercises.create(file, title),
     onSuccess: (exercise: Exercise) => {

@@ -1,6 +1,5 @@
 import { FileUploader } from '@/components/FileUploader';
 import { api, GradingResult } from '@/lib/api';
-import { queryClient } from '@/lib/queryClient';
 import {
   Accordion,
   AccordionButton,
@@ -27,7 +26,7 @@ import {
   useToast,
   VStack
 } from '@chakra-ui/react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
@@ -41,6 +40,7 @@ export function StudentExercisesPage() {
   const [teacherPassed, setTeacherPassed] = useState<number>(0);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const { data: exercises = [] } = useQuery({
     queryKey: ['exercises'],

@@ -168,7 +168,8 @@ export const api = {
       const { data } = await httpClient.get(`/api/conversations?exerciseId=${exerciseId}&type=${type}`);
       return data;
     },
-  },  submissions: {
+  },  
+  submissions: {
     uploadAndGrade: async (
       exerciseId: string,
       studentIds: string[],
@@ -187,7 +188,8 @@ export const api = {
       const { data } = await httpClient.get(`/api/submissions?exerciseId=${exerciseId}`);
       return data;
     },
-  },  students: {
+  },  
+  students: {
     list: async (): Promise<Student[]> => {
       const { data } = await httpClient.get('/api/students');
       return data;

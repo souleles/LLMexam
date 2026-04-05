@@ -19,17 +19,17 @@ import {
   VStack,
   IconButton,
 } from '@chakra-ui/react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { FiUpload, FiEye } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { queryClient } from '@/lib/queryClient';
 
 export function StudentsPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students'],

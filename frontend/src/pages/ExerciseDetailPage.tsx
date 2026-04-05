@@ -35,13 +35,12 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { api, Checkpoint, ConversationMessage, ExerciseStatus } from '@/lib/api';
 import { useLlmStream } from '@/hooks/useLlmStream';
 import { parseMessageContent } from '@/lib/parseMessageContent';
-import { queryClient } from '@/lib/queryClient';
 
 // ── InlineChat ─────────────────────────────────────────────────────────────────
 
@@ -56,6 +55,7 @@ interface InlineChatProps {
 
 function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = [], isReadOnly = false, onAccepted }: InlineChatProps) {
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const defaultInput =
     mode === 'checkpoints'
@@ -280,6 +280,7 @@ export function ExerciseDetailPage() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
 

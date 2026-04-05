@@ -18,14 +18,14 @@ import {
   Skeleton,
   Stack,
 } from '@chakra-ui/react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiPlus, FiTrash2, FiEye } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { api, ExerciseStatus } from '@/lib/api';
-import { queryClient } from '@/lib/queryClient';
 
 export function ExercisesPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ['exercises'],
