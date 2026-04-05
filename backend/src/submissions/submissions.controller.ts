@@ -9,12 +9,14 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { SubmissionResponseDto } from './dto/submission.dto';
 import { CheckpointMatch, SubmissionsService } from './submissions.service';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.pdf', '.docx', '.js', '.ts', '.tsx', '.zip'];
 
@@ -49,6 +51,7 @@ const multerConfig = {
 };
 
 @Controller('submissions')
+@UseGuards(AuthGuard)
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 

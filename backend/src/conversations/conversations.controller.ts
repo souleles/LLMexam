@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { ConversationResponseDto, CreateConversationDto } from './dto/conversation.dto';
 import { ConversationType } from '@prisma/client';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('conversations')
+@UseGuards(AuthGuard)
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 

@@ -6,15 +6,18 @@ import {
   Param,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { StudentResponseDto } from './dto/student.dto';
 import { StudentsService } from './students.service';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
 
 @Controller('students')
+@UseGuards(AuthGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 

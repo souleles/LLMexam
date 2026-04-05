@@ -9,6 +9,7 @@ import {
   Post,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -20,8 +21,10 @@ import * as fs from 'fs';
 import * as FormData from 'form-data';
 import { CreateExerciseDto, ExerciseResponseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { ExercisesService } from './exercises.service';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('exercises')
+@UseGuards(AuthGuard)
 export class ExercisesController {
   private readonly pythonServiceUrl: string;
 

@@ -7,11 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CheckpointsService } from './checkpoints.service';
 import { CreateCheckpointDto, UpdateCheckpointDto, CheckpointResponseDto } from './dto/checkpoint.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('checkpoints')
+@UseGuards(AuthGuard)
 export class CheckpointsController {
   constructor(private readonly checkpointsService: CheckpointsService) {}
 

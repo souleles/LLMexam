@@ -1,8 +1,10 @@
-import { Controller, Post, Get, Param, Query, Body, Patch } from '@nestjs/common';
+import { Controller, Post, Get, Param, Query, Body, Patch, UseGuards } from '@nestjs/common';
 import { GradingService } from './grading.service';
 import { GradingResultResponseDto, CheckpointResultDto, UpdateTeacherScoreDto } from './dto/grading.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('grading')
+@UseGuards(AuthGuard)
 export class GradingController {
   constructor(private readonly gradingService: GradingService) {}
 

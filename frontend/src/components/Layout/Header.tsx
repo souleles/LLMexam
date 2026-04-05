@@ -75,7 +75,7 @@ export function Header() {
               >
                 Βαθμολόγηση Φοιτητών
               </Button>
-              <Button
+              {/* <Button
                 as={RouterLink}
                 to="/student-exercises"
                 variant={isActive('/student-exercises') ? 'solid' : 'ghost'}
@@ -84,7 +84,7 @@ export function Header() {
                 size="sm"
               >
                 Στατιστικά
-              </Button>
+              </Button> */}
             </HStack>
           </HStack>
 

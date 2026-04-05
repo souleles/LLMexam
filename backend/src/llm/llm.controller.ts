@@ -4,12 +4,15 @@ import {
   Query,
   Sse,
   MessageEvent,
+  UseGuards,
 } from '@nestjs/common';
 import { Observable, from } from 'rxjs';
 import { concatMap } from 'rxjs/operators';
 import { LlmService } from './llm.service';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('llm')
+@UseGuards(AuthGuard)
 export class LlmController {
   constructor(private readonly llmService: LlmService) {}
 
