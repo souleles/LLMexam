@@ -10,13 +10,14 @@ import { StudentDetailPage } from './pages/StudentDetailPage';
 import { StudentSubmissionDetailPage } from './pages/StudentSubmissionDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import UnprotectedRoute from './components/Auth/UnprotectedRoute';
 
 function App() {
   return (
     <Box minH="100vh" bg="gray.50">
       <Routes>
-        <Route path="login" element={<LoginPage />} />
-        <Route path="/" element={<><Layout /></>}>
+        <Route path="login" element={<UnprotectedRoute><LoginPage /></UnprotectedRoute>} />
+        <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/exercises" replace />} />
           <Route path="exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
           <Route path="exercises/new" element={<ProtectedRoute><NewExercisePage /></ProtectedRoute>} />
