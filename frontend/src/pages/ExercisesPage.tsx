@@ -99,11 +99,11 @@ export function ExercisesPage() {
             <Table variant="simple">
               <Thead>
                 <Tr>
-                  <Th>Τίτλος</Th>
-                  <Th>Κατάσταση</Th>
-                  <Th>Δημιουργήθηκε</Th>
-                  <Th>Ενημερώθηκε</Th>
-                  <Th width="100px">Ενέργειες</Th>
+                  <Th>Τιτλος</Th>
+                  <Th>Κατασταση</Th>
+                  <Th>Δημιουργηθηκε</Th>
+                  <Th>Ενημερωθηκε</Th>
+                  <Th width="100px">Ενεργειες</Th>
                 </Tr>
               </Thead>
               <Tbody>

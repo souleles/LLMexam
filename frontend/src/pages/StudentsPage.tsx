@@ -141,10 +141,10 @@ export function StudentsPage() {
               <Thead>
                 <Tr>
                   <Th>ΑΜ</Th>
-                  <Th>Επώνυμο</Th>
-                  <Th>Όνομα</Th>
+                  <Th>Επωνυμο</Th>
+                  <Th>Ονομα</Th>
                   <Th>Email</Th>
-                  <Th>Εισαγωγή</Th>
+                  <Th>Εισαγωγη</Th>
                   <Th w="100px"></Th>
                 </Tr>
               </Thead>
