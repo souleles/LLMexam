@@ -9,9 +9,17 @@ import { GradingModule } from './grading/grading.module';
 import { LlmModule } from './llm/llm.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { StudentsModule } from './students/students.module';
+import { AuthController } from './auth/auth.controller';
+import { AuthModule } from './auth/auth.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
+    // jwt
+    JwtModule.register({
+      global: true,
+      secret: process.env.JWT_SECRET,
+    }),
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
@@ -32,6 +40,7 @@ import { StudentsModule } from './students/students.module';
     LlmModule,
     ConversationsModule,
     StudentsModule,
+    AuthModule
   ],
 })
 export class AppModule {}

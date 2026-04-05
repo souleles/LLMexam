@@ -6,13 +6,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { queryClient } from '@/lib/queryClient';
 import { theme } from '@/theme';
 import App from './App';
+import { AuthProvider } from './contexts/use-auth';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ChakraProvider theme={theme}>
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </BrowserRouter>
       </ChakraProvider>
     </QueryClientProvider>
