@@ -608,13 +608,17 @@ function MessageContent({ content }: { content: string }) {
   flushText();
   flushList();
 
+  let listCounter = 0;
   return (
     <VStack align="start" spacing={2}>
-      {segments.map((seg, i) =>
-        seg.type === 'text' ? (
-          <Text key={i} whiteSpace="pre-wrap" fontSize="sm">{seg.value}</Text>
-        ) : (
-          <OrderedList key={i} spacing={1} pl={4}>
+      {segments.map((seg, i) => {
+        if (seg.type === 'text') {
+          return <Text key={i} whiteSpace="pre-wrap" fontSize="sm">{seg.value}</Text>;
+        }
+        const start = listCounter + 1;
+        listCounter += seg.items.length;
+        return (
+          <OrderedList key={i} spacing={1} pl={4} start={start}>
             {seg.items.map((item, j) => {
               const match = item.match(/^\d+\.\s+(.+)/);
               return (
@@ -624,8 +628,8 @@ function MessageContent({ content }: { content: string }) {
               );
             })}
           </OrderedList>
-        )
-      )}
+        );
+      })}
     </VStack>
   );
 }

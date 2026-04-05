@@ -16,10 +16,8 @@ from prompts.checkpoint_prompts import (
     USER_PROMPT_REFINEMENT,
 )
 from prompts.patterns_prompts import (
-    SYSTEM_PROMPT_PATTERNS_INITIAL,
-    USER_PROMPT_PATTERNS_INITIAL,
-    SYSTEM_PROMPT_PATTERNS_REFINEMENT,
-    USER_PROMPT_PATTERNS_REFINEMENT,
+    SYSTEM_PROMPT_PATTERNS,
+    USER_PROMPT_PATTERNS,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,7 +49,8 @@ def build_messages(request: GenerateCheckpointsRequest) -> list[SystemMessage | 
     else:
         # Refinement conversation
         system_content = SYSTEM_PROMPT_REFINEMENT.format(
-            current_checkpoints=request.current_checkpoints or "[]"
+            current_checkpoints=request.current_checkpoints or "[]",
+            extracted_text=request.text,
         )
         messages.append(SystemMessage(content=system_content))
         
@@ -172,21 +171,9 @@ def _build_pattern_messages(request: GeneratePatternsRequest) -> list:
         indent=2,
     )
 
-    if is_initial:
-        messages.append(SystemMessage(content=SYSTEM_PROMPT_PATTERNS_INITIAL))
-        user_content = USER_PROMPT_PATTERNS_INITIAL.format(
-            checkpoints_json=checkpoints_json,
-            message=request.message,
-        )
-        messages.append(HumanMessage(content=user_content))
-    else:
-        current_patterns = json.dumps(
-            [{"order": cp.order, "description": cp.description, "pattern": cp.current_pattern} for cp in request.checkpoints],
-            ensure_ascii=False,
-            indent=2,
-        )
-        messages.append(SystemMessage(content=SYSTEM_PROMPT_PATTERNS_REFINEMENT.format(current_patterns=current_patterns)))
+    messages.append(SystemMessage(content=SYSTEM_PROMPT_PATTERNS))
 
+    if not is_initial:
         history_to_include = request.history[-6:] if len(request.history) > 6 else request.history
         for msg in history_to_include:
             if msg.role == "professor":
@@ -194,7 +181,12 @@ def _build_pattern_messages(request: GeneratePatternsRequest) -> list:
             else:
                 messages.append(AIMessage(content=msg.content))
 
-        messages.append(HumanMessage(content=USER_PROMPT_PATTERNS_REFINEMENT.format(message=request.message)))
+    user_content = USER_PROMPT_PATTERNS.format(
+        checkpoints=checkpoints_json,
+        extracted_text=request.extracted_text,
+        message=request.message,
+    )
+    messages.append(HumanMessage(content=user_content))
 
     logger.info(f"Built {len(messages)} messages for pattern generation (initial={is_initial})")
     return messages

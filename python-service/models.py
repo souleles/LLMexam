@@ -29,6 +29,7 @@ class CheckpointInfo(BaseModel):
 class GeneratePatternsRequest(BaseModel):
     """Request body for /generate-patterns endpoint."""
     checkpoints: list[CheckpointInfo] = Field(..., description="List of checkpoints to generate patterns for")
+    extracted_text: str = Field(default="", description="Original exercise text for context")
     history: list[Message] = Field(default_factory=list, description="Pattern conversation history")
     message: str = Field(..., description="Current professor message")
 
@@ -61,3 +62,41 @@ class HealthResponse(BaseModel):
     """Health check response."""
     status: str
     version: str
+
+
+# Grading models
+
+class CheckpointPattern(BaseModel):
+    """A single checkpoint with its regex pattern."""
+    id: str
+    pattern: str
+    case_sensitive: bool = False
+
+
+class FileContent(BaseModel):
+    """A single extracted file with its content."""
+    relative_path: str
+    content: str
+
+
+class GradeRequest(BaseModel):
+    """Request body for /grade endpoint."""
+    checkpoints: list[CheckpointPattern]
+    files: list[FileContent]
+
+
+class MatchedSnippet(BaseModel):
+    file: str
+    line: int
+    snippet: str
+
+
+class CheckpointResult(BaseModel):
+    checkpoint_id: str
+    matched: bool
+    matched_snippets: list[MatchedSnippet]
+
+
+class GradeResponse(BaseModel):
+    """Response for /grade endpoint."""
+    results: list[CheckpointResult]

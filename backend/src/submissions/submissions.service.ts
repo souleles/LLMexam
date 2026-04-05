@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmissionResponseDto } from './dto/submission.dto';
 import * as AdmZip from 'adm-zip';
 import * as fs from 'fs';
 import * as path from 'path';
+import { firstValueFrom } from 'rxjs';
 
 const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cs', '.php', '.rb', '.go'];
 
@@ -32,7 +35,15 @@ const SUBMISSION_INCLUDE = {
 
 @Injectable()
 export class SubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly pythonServiceUrl: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
+  }
 
   async uploadAndGradeZip(
     exerciseId: string,
@@ -90,7 +101,7 @@ export class SubmissionsService {
 
       // Check if all requested students belong to the SAME submission
       if (submissionGroups.size === 1) {
-        const [submissionId, requestedStudentsInSubmission] = Array.from(submissionGroups.entries())[0];
+        const [submissionId] = Array.from(submissionGroups.entries())[0];
         
         // Fetch ALL students in that submission (not just the requested ones)
         const allStudentsInSubmission = await this.prisma.submissionStudent.findMany({
@@ -210,40 +221,30 @@ export class SubmissionsService {
       });
     }
 
-    // 6. Regex matching for each checkpoint
-    const checkpointMatches: CheckpointMatch[] = [];
+    // 6. Regex matching via Python service (supports full PCRE + (?i) inline flags)
+    const gradeResponse = await firstValueFrom(
+      this.httpService.post(`${this.pythonServiceUrl}/grade`, {
+        checkpoints: exercise.checkpoints.map((cp) => ({
+          id: cp.id,
+          pattern: cp.pattern,
+          case_sensitive: cp.caseSensitive,
+        })),
+        files: extractedFiles.map((f) => ({
+          relative_path: f.relativePath,
+          content: f.content,
+        })),
+      }),
+    );
 
-    for (const checkpoint of exercise.checkpoints) {
-      const match: CheckpointMatch = {
-        checkpointId: checkpoint.id,
-        checkpointDescription: checkpoint.description,
-        matched: false,
-        matchedSnippets: [],
+    const checkpointMatches: CheckpointMatch[] = gradeResponse.data.results.map((r: any) => {
+      const cp = exercise.checkpoints.find((c) => c.id === r.checkpoint_id)!;
+      return {
+        checkpointId: r.checkpoint_id,
+        checkpointDescription: cp.description,
+        matched: r.matched,
+        matchedSnippets: r.matched_snippets,
       };
-
-      if (!checkpoint.pattern || checkpoint.pattern.trim() === '') {
-        checkpointMatches.push(match);
-        continue;
-      }
-
-      try {
-        const flags = checkpoint.caseSensitive ? 'g' : 'gi';
-        const regex = new RegExp(checkpoint.pattern, flags);
-
-        for (const f of extractedFiles) {
-          f.content.split('\n').forEach((line, index) => {
-            if (regex.test(line)) {
-              match.matched = true;
-              match.matchedSnippets.push({ file: f.relativePath, line: index + 1, snippet: line.trim() });
-            }
-          });
-        }
-      } catch (error) {
-        console.error(`Invalid regex pattern for checkpoint ${checkpoint.id}:`, error.message);
-      }
-
-      checkpointMatches.push(match);
-    }
+    });
 
     // 7. Save grading result
     const passedCheckpoints = checkpointMatches.filter(m => m.matched).length;

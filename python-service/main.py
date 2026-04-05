@@ -16,10 +16,13 @@ from models import (
     SqlParseRequest,
     SqlParseResponse,
     HealthResponse,
+    GradeRequest,
+    GradeResponse,
 )
 from services.pdf_service import extract_text_from_pdf
 from services.llm_service import stream_checkpoint_generation, stream_pattern_generation
 from services.sql_service import parse_sql
+from services.grading_service import grade_submission
 
 # Load environment variables
 load_dotenv()
@@ -138,6 +141,16 @@ async def generate_patterns(request: GeneratePatternsRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/grade", response_model=GradeResponse)
+async def grade(request: GradeRequest):
+    """
+    Grade student submission files against checkpoint regex patterns.
+    Uses Python's re module — supports (?i) inline flags and full PCRE syntax.
+    """
+    logger.info(f"Received grading request: {len(request.checkpoints)} checkpoints, {len(request.files)} files")
+    return grade_submission(request)
 
 
 @app.post("/parse-sql", response_model=SqlParseResponse)
