@@ -20,6 +20,7 @@ export interface Checkpoint {
   exerciseId: string;
   description: string;
   pattern: string;
+  patternDescription?: string;
   caseSensitive: boolean;
   order: number;
 }
@@ -151,14 +152,14 @@ export const api = {
     },
     bulkReplace: async (
       exerciseId: string,
-      checkpoints: Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive'>[],
+      checkpoints: Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive' | 'patternDescription'>[],
     ): Promise<Checkpoint[]> => {
       const { data } = await httpClient.post(`/api/checkpoints/bulk/${exerciseId}`, checkpoints);
       return data;
     },
     bulkUpdatePatterns: async (
       exerciseId: string,
-      patterns: { order: number; pattern: string }[],
+      patterns: { order: number; pattern: string; patternDescription: string }[],
     ): Promise<Checkpoint[]> => {
       const { data } = await httpClient.patch(`/api/checkpoints/bulk-patterns/${exerciseId}`, patterns);
       return data;

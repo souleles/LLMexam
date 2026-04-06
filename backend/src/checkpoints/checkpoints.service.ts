@@ -23,11 +23,9 @@ export class CheckpointsService {
       throw new BadRequestException(`Invalid regex pattern: ${error.message}`);
     }
 
-    const checkpoint = await this.prisma.checkpoint.create({
+    return await this.prisma.checkpoint.create({
       data: createCheckpointDto,
     });
-
-    return checkpoint;
   }
 
   async createMany(exerciseId: string, checkpoints: Omit<CreateCheckpointDto, 'exerciseId'>[]): Promise<CheckpointResponseDto[]> {
@@ -55,7 +53,7 @@ export class CheckpointsService {
     });
 
     // Create new checkpoints
-    const createdCheckpoints = await Promise.all(
+    return await Promise.all(
       checkpoints.map((checkpoint) =>
         this.prisma.checkpoint.create({
           data: {
@@ -65,8 +63,6 @@ export class CheckpointsService {
         }),
       ),
     );
-
-    return createdCheckpoints;
   }
 
   async findByExercise(exerciseId: string): Promise<CheckpointResponseDto[]> {
@@ -132,7 +128,7 @@ export class CheckpointsService {
 
   async bulkUpdatePatterns(
     exerciseId: string,
-    patterns: { order: number; pattern: string }[],
+    patterns: { order: number; pattern: string; patternDescription?: string }[],
   ): Promise<CheckpointResponseDto[]> {
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -143,10 +139,10 @@ export class CheckpointsService {
     }
 
     await this.prisma.$transaction(
-      patterns.map(({ order, pattern }) =>
+      patterns.map(({ order, pattern, patternDescription }) =>
         this.prisma.checkpoint.updateMany({
           where: { exerciseId, order },
-          data: { pattern },
+          data: { pattern, patternDescription },
         }),
       ),
     );

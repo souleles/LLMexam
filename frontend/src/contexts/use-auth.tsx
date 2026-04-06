@@ -22,7 +22,7 @@ export const AuthContext = createContext<AuthContent>({
 });
 
 export const AuthProvider = ({ children }: any) => {
-  const { data: user, isLoading, refetch } = useGetProfile();
+  const { data: user, isLoading } = useGetProfile();
   const { mutateAsync: logoutUser } = useLogoutProfile();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -30,11 +30,8 @@ export const AuthProvider = ({ children }: any) => {
   const login = async (access_token: string) => {
     try {
       const decodedToken = jose.decodeJwt(access_token || '');
-      console.log(decodedToken);
-
       const userInfo = decodedToken.userInfo;
       queryClient.setQueryData(['profile'], () => userInfo);
-      // refetch();
       navigate('/', { replace: true });
     } catch (error) {
       console.error(error);

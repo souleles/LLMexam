@@ -131,12 +131,13 @@ async def stream_checkpoint_generation(request: GenerateCheckpointsRequest) -> A
         normalized = []
         for i, cp in enumerate(raw_checkpoints):
             patterns = cp.get("patterns", [])
-            pattern = "|".join(patterns) if patterns else ""
+            pattern = "|".join(patterns) if patterns else cp.get("pattern", "")
             normalized.append({
-                "order": cp.get("order_index", i + 1),
+                "order": cp.get("order_index", cp.get("order", i + 1)),
                 "description": cp.get("description", ""),
                 "pattern": pattern,
-                "caseSensitive": cp.get("case_sensitive", False),
+                "patternDescription": cp.get("patternDescription", ""),
+                "caseSensitive": cp.get("case_sensitive", cp.get("caseSensitive", False)),
             })
 
         count = len(normalized)
@@ -244,6 +245,7 @@ async def stream_pattern_generation(request: GeneratePatternsRequest) -> AsyncIt
                 "order": item.get("order", i + 1),
                 "pattern": item.get("pattern", ""),
                 "description": item.get("description", ""),
+                "patternDescription": item.get("patternDescription", ""),
             })
 
         count = len(normalized)

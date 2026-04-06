@@ -17,6 +17,9 @@ export class CreateCheckpointDto {
   @IsNotEmpty()
   pattern: string;
 
+  @IsString()
+  patternDescription: string;
+
   @IsBoolean()
   @IsOptional()
   caseSensitive?: boolean;
@@ -36,6 +39,10 @@ export class UpdateCheckpointDto {
   @IsOptional()
   pattern?: string;
 
+  @IsString()
+  @IsOptional()
+  patternDescription?: string;
+
   @IsBoolean()
   @IsOptional()
   caseSensitive?: boolean;
@@ -47,6 +54,7 @@ export class CheckpointResponseDto {
   order: number;
   description: string;
   pattern: string;
+  patternDescription: string;
   caseSensitive: boolean;
   createdAt: Date;
   updatedAt: Date;

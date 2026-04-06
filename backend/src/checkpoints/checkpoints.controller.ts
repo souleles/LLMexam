@@ -61,7 +61,7 @@ export class CheckpointsController {
   @Patch('bulk-patterns/:exerciseId')
   bulkUpdatePatterns(
     @Param('exerciseId') exerciseId: string,
-    @Body() patterns: { order: number; pattern: string }[],
+    @Body() patterns: { order: number; pattern: string; patternDescription?: string }[],
   ): Promise<CheckpointResponseDto[]> {
     return this.checkpointsService.bulkUpdatePatterns(exerciseId, patterns);
   }

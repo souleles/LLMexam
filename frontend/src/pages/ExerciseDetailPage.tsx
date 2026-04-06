@@ -42,6 +42,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { api, Checkpoint, ConversationMessage, ExerciseStatus } from '@/lib/api';
 import { useLlmStream } from '@/hooks/useLlmStream';
 import { parseMessageContent } from '@/lib/parseMessageContent';
+import { useAuthContext } from '@/contexts/use-auth';
 
 // ── InlineChat ─────────────────────────────────────────────────────────────────
 
@@ -70,8 +71,9 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   const seeded = useRef(false);
   const initialScrollDone = useRef(false);
 
-  const { buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns } =
-    useLlmStream(exerciseId, mode);
+  const {
+    buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns
+  } = useLlmStream(exerciseId, mode);
 
   const conversationType = mode === 'checkpoints' ? 'CHECKPOINT' : 'PATTERN';
 
@@ -86,6 +88,8 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   useEffect(() => {
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
+      console.log('Seeding messages from DB:', dbMessages);
+
       setMessages(dbMessages.map((m) => ({ ...m, content: parseMessageContent(m.content) || m.content })));
     }
   }, [dbMessages]);
@@ -114,6 +118,8 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   const prevStreaming = useRef(false);
   useEffect(() => {
     if (prevStreaming.current && !streaming && buffer) {
+      console.log('here');
+
       setMessages((prev) => [
         ...prev,
         {
@@ -152,7 +158,7 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     mutationFn: () =>
       api.checkpoints.bulkUpdatePatterns(
         exerciseId,
-        pendingPatterns.map((p) => ({ order: p.order, pattern: p.pattern })),
+        pendingPatterns.map((p) => ({ order: p.order, pattern: p.pattern, patternDescription: p.patternDescription })),
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
@@ -198,6 +204,7 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     mode === 'checkpoints'
       ? 'Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση'
       : 'Ζητήστε από την AI να δημιουργήσει regex patterns για τα checkpoints';
+  console.log({ messages, pendingPatterns, pendingCheckpoints });
 
   return (
     <VStack align="stretch" spacing={4}>
@@ -218,7 +225,7 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
       )}
 
       {/* Messages area */}
-      <Box ref={messagesBoxRef} h="400px" overflowY="auto" px={1} bg="gray.850" borderRadius="md">
+      <Box ref={messagesBoxRef} h="400px" overflowY="auto" p={2} bg="gray.850" borderRadius="md">
         <VStack spacing={4} align="stretch">
           {messages.length === 0 && !streaming && (
             <Box textAlign="center" py={8}>
@@ -362,218 +369,223 @@ export function ExerciseDetailPage() {
 
   return (
     <PageTransition>
-    <Box>
-      <Button
-        leftIcon={<FiArrowLeft />}
-        variant="ghost"
-        mb={6}
-        onClick={() => navigate('/exercises')}
-      >
-        Πίσω στις Ασκήσεις
-      </Button>
+      <Box>
+        <Button
+          leftIcon={<FiArrowLeft />}
+          variant="ghost"
+          mb={6}
+          onClick={() => navigate('/exercises')}
+        >
+          Πίσω στις Ασκήσεις
+        </Button>
 
-      <VStack align="stretch" spacing={6}>
-        {/* Header */}
-        <HStack justify="space-between">
-          <VStack align="start" spacing={2}>
-            <Heading size="lg">{exercise.title}</Heading>
-            <HStack>
-              <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
-                {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
-              </Badge>
-              <Text color="gray.400" fontSize="sm">
-                Δημιουργήθηκε {new Date(exercise.createdAt).toLocaleDateString('el-GR')}
-              </Text>
-            </HStack>
-          </VStack>
-          <HStack>
-            {exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every(cp => cp.pattern) && (
-              <Button
-                leftIcon={<FiCheck />}
-                colorScheme="green"
-                variant="solid"
-                onClick={handleApproveExercise}
-                isLoading={approveMutation.isPending}
-              >
-                Έγκριση Άσκησης
-              </Button>
-            )}
-            <Button
-              leftIcon={<FiTrash2 />}
-              colorScheme="red"
-              variant="solid"
-              onClick={onDeleteOpen}
-              isLoading={deleteMutation.isPending}
-            >
-              Διαγραφή
-            </Button>
-          </HStack>
-        </HStack>
-
-        <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
-          {/* PDF Info */}
-          <GridItem>
-            <Card h="full">
-              <CardBody>
-                <VStack align="start" spacing={4}>
-                  <HStack>
-                    <FiFileText size={24} />
-                    <Heading size="md">Ανεβασμένο Αρχείο</Heading>
-                  </HStack>
-                  <Divider />
-                  <VStack align="start" spacing={2} w="full">
-                    <Text fontWeight="medium">Διαδρομή PDF:</Text>
-                    <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                      {exercise.originalPdfPath}
-                    </Text>
-                  </VStack>
-                  {exercise.extractedText && (
-                    <VStack align="start" spacing={2} w="full">
-                      <Text fontWeight="medium">Προεπισκόπηση Εξαγμένου Κειμένου:</Text>
-                      <Box
-                        p={4}
-                        bg="gray.900"
-                        borderRadius="md"
-                        w="full"
-                        maxH="300px"
-                        overflowY="auto"
-                        border="1px solid"
-                        borderColor="gray.700"
-                      >
-                        <Text fontSize="sm" whiteSpace="pre-wrap">
-                          {exercise.extractedText.substring(0, 500)}
-                          {exercise.extractedText.length > 500 && '...'}
-                        </Text>
-                      </Box>
-                    </VStack>
-                  )}
-                </VStack>
-              </CardBody>
-            </Card>
-          </GridItem>
-
-          {/* Checkpoints */}
-          <GridItem>
-            <Card h="full">
-              <CardBody>
-                <VStack align="start" spacing={4}>
-                  <HStack>
-                    <FiCheckCircle size={24} />
-                    <Heading size="md">Εξαγμένα Checkpoints</Heading>
-                  </HStack>
-                  <Divider />
-                  {checkpoints.length === 0 ? (
-                    <Box textAlign="center" py={8} w="full">
-                      <Text color="gray.400">
-                        Δεν έχουν εξαχθεί checkpoints ακόμα. Χρησιμοποιήστε το chat παρακάτω.
-                      </Text>
-                    </Box>
-                  ) : (
-                    <List spacing={3} w="full">
-                      {checkpoints.map((checkpoint, index) => (
-                        <ListItem key={checkpoint.id}>
-                          <HStack align="start">
-                            <ListIcon as={FiCheckCircle} color="green.500" mt={1} />
-                            <VStack align="start" spacing={1} flex={1}>
-                              <Text fontWeight="medium">
-                                {index + 1}. {checkpoint.description}
-                              </Text>
-                              {checkpoint.pattern && (
-                                <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                                  {checkpoint.pattern}
-                                </Text>
-                              )}
-                            </VStack>
-                          </HStack>
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </VStack>
-              </CardBody>
-            </Card>
-          </GridItem>
-        </Grid>
-
-        {/* Chat Tabs */}
-        <Card>
-          <CardBody>
-            <Heading size="md" mb={4}>
-              Συνομιλία & Εξαγωγή
-              {exercise.status !== ExerciseStatus.DRAFT && (
-                <Badge ml={2} colorScheme="green" textTransform="none">
-                  Μόνο ανάγνωση
+        <VStack align="stretch" spacing={6}>
+          {/* Header */}
+          <HStack justify="space-between">
+            <VStack align="start" spacing={2}>
+              <Heading size="lg">{exercise.title}</Heading>
+              <HStack>
+                <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
+                  {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
                 </Badge>
+                <Text color="gray.400" fontSize="sm">
+                  Δημιουργήθηκε {new Date(exercise.createdAt).toLocaleDateString('el-GR')}
+                </Text>
+              </HStack>
+            </VStack>
+            <HStack>
+              {exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every(cp => cp.pattern) && (
+                <Button
+                  leftIcon={<FiCheck />}
+                  colorScheme="green"
+                  variant="solid"
+                  onClick={handleApproveExercise}
+                  isLoading={approveMutation.isPending}
+                >
+                  Έγκριση Άσκησης
+                </Button>
               )}
-            </Heading>
-            <Divider mb={4} />
-            <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior='unmount'>
-              <TabList>
-                <Tab>Checkpoints</Tab>
-                <Tab isDisabled={checkpoints.length === 0}>
-                  Patterns
-                  {checkpoints.length === 0 && (
-                    <Text as="span" fontSize="xs" color="gray.400" ml={2}>
-                      (αποδεχτείτε checkpoints πρώτα)
-                    </Text>
-                  )}
-                </Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel px={0} pt={4}>
-                  <InlineChat
-                    exerciseId={exerciseId!}
-                    mode="checkpoints"
-                    checkpoints={checkpoints}
-                    isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
-                    onAccepted={handleAccepted}
-                  />
-                </TabPanel>
-                <TabPanel px={0} pt={4}>
-                  <InlineChat
-                    exerciseId={exerciseId!}
-                    mode="patterns"
-                    patternsEnabled={checkpoints.length > 0}
-                    checkpoints={checkpoints}
-                    isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
-                    onAccepted={handleAccepted}
-                  />
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </CardBody>
-        </Card>
-      </VStack>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        isOpen={isDeleteOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={onDeleteClose}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Διαγραφή Άσκησης
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              Είστε σίγουροι ότι θέλετε να διαγράψετε την άσκηση "{exercise.title}";
-              Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={onDeleteClose}>
-                Ακύρωση
-              </Button>
-              <Button colorScheme="red" onClick={handleDelete} ml={3}>
+              <Button
+                leftIcon={<FiTrash2 />}
+                colorScheme="red"
+                variant="solid"
+                onClick={onDeleteOpen}
+                isLoading={deleteMutation.isPending}
+              >
                 Διαγραφή
               </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-    </Box>
+            </HStack>
+          </HStack>
+
+          <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
+            {/* PDF Info */}
+            <GridItem>
+              <Card h="full">
+                <CardBody>
+                  <VStack align="start" spacing={4}>
+                    <HStack>
+                      <FiFileText size={24} />
+                      <Heading size="md">Ανεβασμένο Αρχείο</Heading>
+                    </HStack>
+                    <Divider />
+                    <VStack align="start" spacing={2} w="full">
+                      <Text fontWeight="medium">Διαδρομή PDF:</Text>
+                      <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                        {exercise.originalPdfPath}
+                      </Text>
+                    </VStack>
+                    {exercise.extractedText && (
+                      <VStack align="start" spacing={2} w="full">
+                        <Text fontWeight="medium">Προεπισκόπηση Εξαγμένου Κειμένου:</Text>
+                        <Box
+                          p={4}
+                          bg="gray.900"
+                          borderRadius="md"
+                          w="full"
+                          maxH="300px"
+                          overflowY="auto"
+                          border="1px solid"
+                          borderColor="gray.700"
+                        >
+                          <Text fontSize="sm" whiteSpace="pre-wrap">
+                            {exercise.extractedText.substring(0, 500)}
+                            {exercise.extractedText.length > 500 && '...'}
+                          </Text>
+                        </Box>
+                      </VStack>
+                    )}
+                  </VStack>
+                </CardBody>
+              </Card>
+            </GridItem>
+
+            {/* Checkpoints */}
+            <GridItem>
+              <Card h="full">
+                <CardBody>
+                  <VStack align="start" spacing={4}>
+                    <HStack>
+                      <FiCheckCircle size={24} />
+                      <Heading size="md">Εξαγμένα Checkpoints</Heading>
+                    </HStack>
+                    <Divider />
+                    {checkpoints.length === 0 ? (
+                      <Box textAlign="center" py={8} w="full">
+                        <Text color="gray.400">
+                          Δεν έχουν εξαχθεί checkpoints ακόμα. Χρησιμοποιήστε το chat παρακάτω.
+                        </Text>
+                      </Box>
+                    ) : (
+                      <List spacing={3} w="full">
+                        {checkpoints.map((checkpoint, index) => (
+                          <ListItem key={checkpoint.id}>
+                            <HStack align="start">
+                              <ListIcon as={FiCheckCircle} color="green.500" mt={1} />
+                              <VStack align="start" spacing={1} flex={1}>
+                                <Text fontWeight="medium">
+                                  {index + 1}. {checkpoint.description}
+                                </Text>
+                                {checkpoint.pattern && (
+                                  <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                                    {checkpoint.pattern}
+                                  </Text>
+                                )}
+                                {checkpoint.patternDescription && (
+                                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                                    {checkpoint.patternDescription}
+                                  </Text>
+                                )}
+                              </VStack>
+                            </HStack>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </VStack>
+                </CardBody>
+              </Card>
+            </GridItem>
+          </Grid>
+
+          {/* Chat Tabs */}
+          <Card>
+            <CardBody>
+              <Heading size="md" mb={4}>
+                Συνομιλία & Εξαγωγή
+                {exercise.status !== ExerciseStatus.DRAFT && (
+                  <Badge ml={2} colorScheme="green" textTransform="none">
+                    Μόνο ανάγνωση
+                  </Badge>
+                )}
+              </Heading>
+              <Divider mb={4} />
+              <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior='unmount'>
+                <TabList>
+                  <Tab>Checkpoints</Tab>
+                  <Tab isDisabled={checkpoints.length === 0}>
+                    Patterns
+                    {checkpoints.length === 0 && (
+                      <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                        (αποδεχτείτε checkpoints πρώτα)
+                      </Text>
+                    )}
+                  </Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel px={0} pt={4}>
+                    <InlineChat
+                      exerciseId={exerciseId!}
+                      mode="checkpoints"
+                      checkpoints={checkpoints}
+                      isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
+                      onAccepted={handleAccepted}
+                    />
+                  </TabPanel>
+                  <TabPanel px={0} pt={4}>
+                    <InlineChat
+                      exerciseId={exerciseId!}
+                      mode="patterns"
+                      patternsEnabled={checkpoints.length > 0}
+                      checkpoints={checkpoints}
+                      isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
+                      onAccepted={handleAccepted}
+                    />
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </CardBody>
+          </Card>
+        </VStack>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog
+          isOpen={isDeleteOpen}
+          leastDestructiveRef={cancelRef}
+          onClose={onDeleteClose}
+        >
+          <AlertDialogOverlay>
+            <AlertDialogContent>
+              <AlertDialogHeader fontSize="lg" fontWeight="bold">
+                Διαγραφή Άσκησης
+              </AlertDialogHeader>
+
+              <AlertDialogBody>
+                Είστε σίγουροι ότι θέλετε να διαγράψετε την άσκηση "{exercise.title}";
+                Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
+              </AlertDialogBody>
+
+              <AlertDialogFooter>
+                <Button ref={cancelRef} onClick={onDeleteClose}>
+                  Ακύρωση
+                </Button>
+                <Button colorScheme="red" onClick={handleDelete} ml={3}>
+                  Διαγραφή
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialogOverlay>
+        </AlertDialog>
+      </Box>
     </PageTransition>
   );
 }
@@ -647,10 +659,10 @@ interface MessageBubbleProps {
 
 function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
   const isProfessor = message.role === 'professor';
-
+  const { user } = useAuthContext();
   return (
     <HStack align="start" alignSelf={isProfessor ? 'flex-end' : 'flex-start'} maxW="80%" spacing={3}>
-      {!isProfessor && <Avatar size="sm" name="AI Assistant" bg="brand.500" />}
+      {!isProfessor && <Avatar size="sm" name="Artificial Intelligence" bg="brand.500" />}
       <Box
         bg={isProfessor ? 'brand.600' : 'gray.700'}
         color={isProfessor ? 'white' : 'gray.100'}
@@ -678,7 +690,7 @@ function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
           />
         )}
       </Box>
-      {isProfessor && <Avatar size="sm" name="Professor" bg="gray.500" />}
+      {isProfessor && <Avatar size="sm" name={user?.username} bg="gray.500" />}
     </HStack>
   );
 }

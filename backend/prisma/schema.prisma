@@ -23,16 +23,17 @@ model Exercise {
 }
 
 model Checkpoint {
-  id                String             @id @default(uuid())
-  exerciseId        String
-  order             Int
-  description       String
-  pattern           String
-  caseSensitive     Boolean            @default(false)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  checkpointResults CheckpointResult[]
-  exercise          Exercise           @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(uuid())
+  exerciseId         String
+  order              Int
+  description        String
+  pattern            String
+  caseSensitive      Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  patternDescription String
+  checkpointResults  CheckpointResult[]
+  exercise           Exercise           @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([exerciseId])
   @@map("checkpoints")
@@ -124,6 +125,15 @@ model Student {
   submissionStudents SubmissionStudent[]
 
   @@map("students")
+}
+
+model users {
+  id        String   @id
+  username  String   @unique
+  password  String
+  role      String   @default("teacher")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
 }
 
 enum ExerciseStatus {

@@ -11,7 +11,7 @@ export class AuthService {
   ) {}
 
   async login(body: { username: string; password: string }): Promise<{ access_token: string }> {
-    const user = await this.prismaService.user.findUnique({
+    const user = await this.prismaService.users.findUnique({
       where: { username: body.username },
     });
     if (!user) throw new NotFoundException('Ο χρήστης δεν βρέθηκε!');
