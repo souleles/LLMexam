@@ -30,7 +30,7 @@ export function Header() {
   };
 
   return (
-    <Box bg="white" borderBottom="1px" borderColor="gray.200" py={4} shadow="sm">
+    <Box bg="gray.800" borderBottom="1px" borderColor="gray.700" py={4}>
       <Container maxW="container.xl">
         <Flex justify="space-between" align="center">
           <HStack spacing={8}>
@@ -38,43 +38,32 @@ export function Header() {
               as={RouterLink}
               to="/exercises"
               size="lg"
-              color="brand.600"
+              color="brand.400"
               cursor="pointer"
-              _hover={{ color: 'brand.700' }}
+              _hover={{ color: 'brand.300' }}
             >
               ExamChecker
             </Heading>
-            <HStack spacing={4}>
-              <Button
-                as={RouterLink}
-                to="/students"
-                variant={isActive('/students') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
-                colorScheme={isActive('/students') && !isActive('/student-exercises') ? 'brand' : 'gray'}
-                leftIcon={<FiUsers />}
-                size="sm"
-              >
-                Φοιτητές
-              </Button>
-              <Button
-                as={RouterLink}
-                to="/exercises"
-                variant={isActive('/exercises') && !isActive('/student-exercises') ? 'solid' : 'ghost'}
-                colorScheme={isActive('/exercises') && !isActive('/student-exercises') ? 'brand' : 'gray'}
-                leftIcon={<FiFileText />}
-                size="sm"
-              >
-                Ασκήσεις
-              </Button>
-              <Button
-                as={RouterLink}
-                to="/student-exercises"
-                variant={isActive('/student-exercises') ? 'solid' : 'ghost'}
-                colorScheme={isActive('/student-exercises') ? 'brand' : 'gray'}
-                leftIcon={<FiUpload />}
-                size="sm"
-              >
-                Βαθμολόγηση Φοιτητών
-              </Button>
+            <HStack spacing={1}>
+              {[
+                { to: '/students', label: 'Φοιτητές', icon: <FiUsers />, active: isActive('/students') && !isActive('/student-exercises') },
+                { to: '/exercises', label: 'Ασκήσεις', icon: <FiFileText />, active: isActive('/exercises') && !isActive('/student-exercises') },
+                { to: '/student-exercises', label: 'Βαθμολόγηση Φοιτητών', icon: <FiUpload />, active: isActive('/student-exercises') },
+              ].map(({ to, label, icon, active }) => (
+                <Button
+                  key={to}
+                  as={RouterLink}
+                  to={to}
+                  variant={active ? 'solid' : 'ghost'}
+                  colorScheme={active ? 'brand' : undefined}
+                  color={active ? undefined : 'whiteAlpha.900'}
+                  leftIcon={icon}
+                  size="sm"
+                  _hover={{ bg: active ? undefined : 'whiteAlpha.200' }}
+                >
+                  {label}
+                </Button>
+              ))}
               {/* <Button
                 as={RouterLink}
                 to="/student-exercises"
@@ -104,8 +93,8 @@ export function Header() {
                 </HStack>
               }
               variant="ghost"
-              _hover={{ bg: 'gray.100' }}
-              _active={{ bg: 'gray.200' }}
+              _hover={{ bg: 'gray.700' }}
+              _active={{ bg: 'gray.600' }}
               aria-label="User menu"
             />
             <MenuList>
@@ -121,8 +110,8 @@ export function Header() {
               <MenuItem
                 icon={<FiLogOut />}
                 onClick={handleLogout}
-                color="red.500"
-                _hover={{ bg: 'red.50' }}
+                color="red.400"
+                _hover={{ bg: 'red.900' }}
               >
                 Αποσύνδεση
               </MenuItem>

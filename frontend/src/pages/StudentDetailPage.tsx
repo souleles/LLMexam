@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { PageTransition } from '@/components/PageTransition';
 import {
   Badge,
   Box,
@@ -50,7 +51,7 @@ export function StudentDetailPage() {
   if (!student) {
     return (
       <Box textAlign="center" py={12}>
-        <Text fontSize="lg" color="gray.600">
+        <Text fontSize="lg" color="gray.400">
           Ο φοιτητής δεν βρέθηκε
         </Text>
         <Button mt={4} onClick={() => navigate('/students')}>
@@ -61,6 +62,7 @@ export function StudentDetailPage() {
   }
 
   return (
+    <PageTransition>
     <Box>
       <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate('/students')}>
         Πίσω στους Φοιτητές
@@ -73,7 +75,7 @@ export function StudentDetailPage() {
             <HStack spacing={4}>
               <Box
                 p={4}
-                bg="brand.50"
+                bg="brand.900"
                 borderRadius="full"
                 display="flex"
                 alignItems="center"
@@ -86,11 +88,11 @@ export function StudentDetailPage() {
                   {student.lastName} {student.firstName}
                 </Heading>
                 <HStack spacing={4}>
-                  <Text color="gray.600">
+                  <Text color="gray.400">
                     <strong>ΑΜ:</strong> {student.studentIdentifier}
                   </Text>
                   {student.email && (
-                    <Text color="gray.600">
+                    <Text color="gray.400">
                       <strong>Email:</strong> {student.email}
                     </Text>
                   )}
@@ -127,7 +129,7 @@ export function StudentDetailPage() {
                       borderWidth="1px"
                       borderRadius="md"
                       cursor="pointer"
-                      _hover={{ bg: 'gray.50', borderColor: 'brand.300' }}
+                      _hover={{ bg: 'gray.700', borderColor: 'brand.400' }}
                       onClick={() =>
                         navigate(`/student-exercises/${submission.id}`, { state: { submission } })
                       }
@@ -137,7 +139,7 @@ export function StudentDetailPage() {
                           <Icon as={FiFile} color="gray.500" />
                           <VStack align="start" spacing={0}>
                             <Text fontWeight="medium">{submission.exerciseTitle}</Text>
-                            <Text fontSize="sm" color="gray.600">
+                            <Text fontSize="sm" color="gray.400">
                               {new Date(submission.createdAt).toLocaleDateString('el-GR')} •{' '}
                               {submission.fileName}
                             </Text>
@@ -178,5 +180,6 @@ export function StudentDetailPage() {
         </Card>
       </VStack>
     </Box>
+    </PageTransition>
   );
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,6 +36,7 @@ const SUBMISSION_INCLUDE = {
 @Injectable()
 export class SubmissionsService {
   private readonly pythonServiceUrl: string;
+  private readonly logger = new Logger(SubmissionsService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -222,6 +223,9 @@ export class SubmissionsService {
     }
 
     // 6. Regex matching via Python service (supports full PCRE + (?i) inline flags)
+    this.logger.log(
+      `Sending grading request: ${exercise.checkpoints.length} checkpoints, ${extractedFiles.length} files`,
+    );
     const gradeResponse = await firstValueFrom(
       this.httpService.post(`${this.pythonServiceUrl}/grade`, {
         checkpoints: exercise.checkpoints.map((cp) => ({
@@ -238,6 +242,12 @@ export class SubmissionsService {
 
     const checkpointMatches: CheckpointMatch[] = gradeResponse.data.results.map((r: any) => {
       const cp = exercise.checkpoints.find((c) => c.id === r.checkpoint_id)!;
+      this.logger.debug(
+        `Checkpoint "${cp.description}" (${r.checkpoint_id}): matched=${r.matched}, snippets=${r.matched_snippets?.length ?? 0}`,
+      );
+      for (const s of r.matched_snippets ?? []) {
+        this.logger.debug(`  -> ${s.file}:${s.line} | ${String(s.snippet).slice(0, 120)}`);
+      }
       return {
         checkpointId: r.checkpoint_id,
         checkpointDescription: cp.description,
@@ -246,8 +256,11 @@ export class SubmissionsService {
       };
     });
 
+    const passed = checkpointMatches.filter((m) => m.matched).length;
+    this.logger.log(`Grading result: ${passed}/${checkpointMatches.length} checkpoints passed`);
+
     // 7. Save grading result
-    const passedCheckpoints = checkpointMatches.filter(m => m.matched).length;
+    const passedCheckpoints = passed;
     const totalCheckpoints = checkpointMatches.length;
     const score = (passedCheckpoints / totalCheckpoints) * 100;
 
@@ -268,9 +281,13 @@ export class SubmissionsService {
         gradingResultId: gradingResult.id,
         checkpointId: match.checkpointId,
         matched: match.matched,
-        matchedSnippets: match.matchedSnippets.map(s => `${s.file}:${s.line} - ${s.snippet}`),
+        // Store as JSON strings so file path and line number can be recovered on read
+        matchedSnippets: match.matchedSnippets.map(s =>
+          JSON.stringify({ file: s.file, line: s.line, snippet: s.snippet }),
+        ),
       })),
     });
+    this.logger.log(`Saved grading result ${gradingResult.id} for submission ${submission.id}`);
 
     return {
       checkpoints: checkpointMatches,

@@ -26,6 +26,7 @@ export class CheckpointResultDto {
   confidence: number;
   matchedPatterns: string[];
   matchedSnippets: Array<{
+    file?: string;
     line: number;
     snippet: string;
   }>;

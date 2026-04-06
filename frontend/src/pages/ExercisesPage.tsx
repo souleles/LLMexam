@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   Box,
   Button,
@@ -50,7 +51,7 @@ export function ExercisesPage() {
         <HStack justify="space-between" mb={8}>
           <VStack align="start" spacing={1}>
             <Heading size="lg">Ασκήσεις</Heading>
-            <Text color="gray.600">Διαχείριση των ασκήσεων και των σημείων ελέγχου βαθμολόγησης</Text>
+            <Text color="gray.400">Διαχείριση των ασκήσεων και των σημείων ελέγχου βαθμολόγησης</Text>
           </VStack>
         </HStack>
         <Card>
@@ -67,11 +68,12 @@ export function ExercisesPage() {
   }
 
   return (
+    <PageTransition>
     <Box>
       <HStack justify="space-between" mb={8}>
         <VStack align="start" spacing={1}>
           <Heading size="lg">Ασκήσεις</Heading>
-          <Text color="gray.600">Διαχείριση των ασκήσεων και των σημείων ελέγχου βαθμολόγησης</Text>
+          <Text color="gray.400">Διαχείριση των ασκήσεων και των σημείων ελέγχου βαθμολόγησης</Text>
         </VStack>
         <Button
           leftIcon={<FiPlus />}
@@ -86,10 +88,11 @@ export function ExercisesPage() {
         <Card>
           <CardBody textAlign="center" py={12}>
             <VStack spacing={4}>
-              <Text fontSize="lg" color="gray.600">
+              <Text fontSize="lg" color="gray.400">
                 Δεν υπάρχουν ασκήσεις ακόμα
               </Text>
               <Text color="gray.500">Ξεκινήστε ανεβάζοντας την πρώτη σας άσκηση</Text>
+
             </VStack>
           </CardBody>
         </Card>
@@ -110,7 +113,7 @@ export function ExercisesPage() {
                 {exercises.map((exercise) => (
                   <Tr
                     key={exercise.id}
-                    _hover={{ bg: 'gray.50' }}
+                    _hover={{ bg: 'gray.700' }}
                     cursor="pointer"
                     onClick={() => navigate(`/exercises/${exercise.id}`)}
                   >                    <Td fontWeight="medium">{exercise.title}</Td>
@@ -119,10 +122,10 @@ export function ExercisesPage() {
                         {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
                       </Badge>
                     </Td>
-                    <Td color="gray.600">
+                    <Td color="gray.400">
                       {new Date(exercise.createdAt).toLocaleDateString('el-GR')}
                     </Td>
-                    <Td color="gray.600">
+                    <Td color="gray.400">
                       {new Date(exercise.updatedAt).toLocaleDateString('el-GR')}
                     </Td>
                     <Td>
@@ -159,5 +162,6 @@ export function ExercisesPage() {
         </Card>
       )}
     </Box>
+    </PageTransition>
   );
 }

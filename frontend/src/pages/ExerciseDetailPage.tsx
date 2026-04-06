@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -217,11 +218,11 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
       )}
 
       {/* Messages area */}
-      <Box ref={messagesBoxRef} h="400px" overflowY="auto" px={1}>
+      <Box ref={messagesBoxRef} h="400px" overflowY="auto" px={1} bg="gray.850" borderRadius="md">
         <VStack spacing={4} align="stretch">
           {messages.length === 0 && !streaming && (
             <Box textAlign="center" py={8}>
-              <Text color="gray.500">{emptyLabel}</Text>
+              <Text color="gray.500" fontSize="sm">{emptyLabel}</Text>
             </Box>
           )}
 
@@ -349,7 +350,7 @@ export function ExerciseDetailPage() {
   if (!exercise) {
     return (
       <Box textAlign="center" py={12}>
-        <Text fontSize="lg" color="gray.600">
+        <Text fontSize="lg" color="gray.400">
           Η άσκηση δεν βρέθηκε
         </Text>
         <Button mt={4} onClick={() => navigate('/exercises')}>
@@ -360,6 +361,7 @@ export function ExerciseDetailPage() {
   }
 
   return (
+    <PageTransition>
     <Box>
       <Button
         leftIcon={<FiArrowLeft />}
@@ -379,7 +381,7 @@ export function ExerciseDetailPage() {
               <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
                 {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
               </Badge>
-              <Text color="gray.500" fontSize="sm">
+              <Text color="gray.400" fontSize="sm">
                 Δημιουργήθηκε {new Date(exercise.createdAt).toLocaleDateString('el-GR')}
               </Text>
             </HStack>
@@ -421,7 +423,7 @@ export function ExerciseDetailPage() {
                   <Divider />
                   <VStack align="start" spacing={2} w="full">
                     <Text fontWeight="medium">Διαδρομή PDF:</Text>
-                    <Text fontSize="sm" color="gray.600" wordBreak="break-all">
+                    <Text fontSize="sm" color="gray.400" wordBreak="break-all">
                       {exercise.originalPdfPath}
                     </Text>
                   </VStack>
@@ -430,11 +432,13 @@ export function ExerciseDetailPage() {
                       <Text fontWeight="medium">Προεπισκόπηση Εξαγμένου Κειμένου:</Text>
                       <Box
                         p={4}
-                        bg="gray.50"
+                        bg="gray.900"
                         borderRadius="md"
                         w="full"
                         maxH="300px"
                         overflowY="auto"
+                        border="1px solid"
+                        borderColor="gray.700"
                       >
                         <Text fontSize="sm" whiteSpace="pre-wrap">
                           {exercise.extractedText.substring(0, 500)}
@@ -460,7 +464,7 @@ export function ExerciseDetailPage() {
                   <Divider />
                   {checkpoints.length === 0 ? (
                     <Box textAlign="center" py={8} w="full">
-                      <Text color="gray.500">
+                      <Text color="gray.400">
                         Δεν έχουν εξαχθεί checkpoints ακόμα. Χρησιμοποιήστε το chat παρακάτω.
                       </Text>
                     </Box>
@@ -475,7 +479,7 @@ export function ExerciseDetailPage() {
                                 {index + 1}. {checkpoint.description}
                               </Text>
                               {checkpoint.pattern && (
-                                <Text fontSize="xs" color="gray.500" fontFamily="mono">
+                                <Text fontSize="xs" color="gray.400" fontFamily="mono">
                                   {checkpoint.pattern}
                                 </Text>
                               )}
@@ -570,6 +574,7 @@ export function ExerciseDetailPage() {
         </AlertDialogOverlay>
       </AlertDialog>
     </Box>
+    </PageTransition>
   );
 }
 
@@ -647,8 +652,8 @@ function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
     <HStack align="start" alignSelf={isProfessor ? 'flex-end' : 'flex-start'} maxW="80%" spacing={3}>
       {!isProfessor && <Avatar size="sm" name="AI Assistant" bg="brand.500" />}
       <Box
-        bg={isProfessor ? 'brand.500' : 'gray.100'}
-        color={isProfessor ? 'white' : 'gray.800'}
+        bg={isProfessor ? 'brand.600' : 'gray.700'}
+        color={isProfessor ? 'white' : 'gray.100'}
         px={4}
         py={3}
         borderRadius="lg"

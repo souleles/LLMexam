@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   Box,
   Button,
@@ -62,6 +63,7 @@ export function NewExercisePage() {
   };
 
   return (
+    <PageTransition>
     <Box>
       <Button
         leftIcon={<FiArrowLeft />}
@@ -75,7 +77,7 @@ export function NewExercisePage() {
       <VStack align="start" spacing={6} >
         <VStack align="start" spacing={1}>
           <Heading size="lg">Δημιουργία Νέας Άσκησης</Heading>
-          <Text color="gray.600">
+          <Text color="gray.400">
             Ανεβάστε ένα PDF άσκησης και θα σας βοηθήσουμε να εξάγετε τα σημεία ελέγχου βαθμολόγησης
           </Text>
         </VStack>
@@ -120,5 +122,6 @@ export function NewExercisePage() {
         </Card>
       </VStack>
     </Box>
+    </PageTransition>
   );
 }

@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   Badge,
   Box,
@@ -35,7 +36,7 @@ export function StudentSubmissionDetailPage() {
   if (!submission) {
     return (
       <Box textAlign="center" py={12}>
-        <Text fontSize="lg" color="gray.600">
+        <Text fontSize="lg" color="gray.400">
           Δεν βρέθηκαν δεδομένα υποβολής
         </Text>
         <Button mt={4} onClick={() => navigate(-1)}>
@@ -46,6 +47,7 @@ export function StudentSubmissionDetailPage() {
   }
 
   return (
+    <PageTransition>
     <Box>
       <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate(-1)}>
         Πίσω στον Φοιτητή
@@ -60,7 +62,7 @@ export function StudentSubmissionDetailPage() {
             <HStack justify="space-between">
               <VStack align="start" spacing={1}>
                 <Text fontWeight="medium">Αρχείο Υποβολής</Text>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="gray.400">
                   {submission.fileName} ({submission.fileType}) •{' '}
                   {new Date(submission.createdAt).toLocaleDateString('el-GR')}
                 </Text>
@@ -104,9 +106,9 @@ export function StudentSubmissionDetailPage() {
                 <Text fontWeight="medium">Αποτελέσματα Βαθμολόγησης</Text>
 
                 {/* Summary */}
-                <HStack spacing={6} p={3} bg="gray.50" borderRadius="md">
+                <HStack spacing={6} p={3} bg="gray.700" borderRadius="md">
                   <VStack align="start" spacing={0}>
-                    <Text fontSize="xs" color="gray.600">
+                    <Text fontSize="xs" color="gray.400">
                       Βαθμός LLM
                     </Text>
                     <HStack>
@@ -124,7 +126,7 @@ export function StudentSubmissionDetailPage() {
                   {submission.gradingResult.teacherScore !== null &&
                     submission.gradingResult.teacherScore !== undefined && (
                       <VStack align="start" spacing={0}>
-                        <Text fontSize="xs" color="gray.600">
+                        <Text fontSize="xs" color="gray.400">
                           Βαθμός Καθηγητή
                         </Text>
                         <HStack>
@@ -144,7 +146,7 @@ export function StudentSubmissionDetailPage() {
                       </VStack>
                     )}
                   <VStack align="start" spacing={0}>
-                    <Text fontSize="xs" color="gray.600">
+                    <Text fontSize="xs" color="gray.400">
                       Κατάσταση
                     </Text>
                     <Badge
@@ -177,7 +179,7 @@ export function StudentSubmissionDetailPage() {
                             <VStack align="start" spacing={1} mt={2}>
                               {cr.matchedSnippets.map((snippet: any, idx: number) => (
                                 <Box key={idx}>
-                                  <Text fontSize="xs" color="gray.600">
+                                  <Text fontSize="xs" color="gray.400">
                                     Γραμμή {snippet.line}:
                                   </Text>
                                   <Code fontSize="xs" p={1} borderRadius="md" display="block">
@@ -203,13 +205,14 @@ export function StudentSubmissionDetailPage() {
             </CardBody>
           </Card>
         ) : (
-          <Box p={4} bg="yellow.50" borderRadius="md">
-            <Text fontSize="sm" color="yellow.800">
+          <Box p={4} bg="yellow.900" borderRadius="md">
+            <Text fontSize="sm" color="yellow.300">
               Η εργασία δεν έχει βαθμολογηθεί ακόμα
             </Text>
           </Box>
         )}
       </VStack>
     </Box>
+    </PageTransition>
   );
 }

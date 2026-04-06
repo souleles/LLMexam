@@ -14,7 +14,7 @@ import UnprotectedRoute from './components/Auth/UnprotectedRoute';
 
 function App() {
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="gray.900">
       <Routes>
         <Route path="login" element={<UnprotectedRoute><LoginPage /></UnprotectedRoute>} />
         <Route path="/" element={<Layout />}>

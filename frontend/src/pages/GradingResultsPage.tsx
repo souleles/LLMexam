@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   Box,
   Button,
@@ -115,6 +116,7 @@ export function GradingResultsPage() {
   });
 
   return (
+    <PageTransition>
     <Box>
       <HStack justify="space-between" mb={6}>
         <HStack spacing={4}>
@@ -127,7 +129,7 @@ export function GradingResultsPage() {
           </Button>
           <VStack align="start" spacing={0}>
             <Heading size="lg">{exercise.title}</Heading>
-            <Text color="gray.600" fontSize="sm">
+            <Text color="gray.400" fontSize="sm">
               Αποτελέσματα βαθμολόγησης και αναλυτικά στοιχεία
             </Text>
           </VStack>
@@ -152,7 +154,7 @@ export function GradingResultsPage() {
             </Text>
           ) : submissions.length === 0 ? (
             <VStack py={12} spacing={4}>
-              <Text fontSize="lg" color="gray.600">
+              <Text fontSize="lg" color="gray.400">
                 Δεν υπάρχουν υποβολές ακόμα
               </Text>
               <Button
@@ -274,13 +276,16 @@ export function GradingResultsPage() {
                                   {result?.matchedSnippets &&
                                     result.matchedSnippets.length > 0 && (
                                       <VStack align="stretch" spacing={2} mt={3}>
-                                        <Text fontSize="xs" fontWeight="medium" color="gray.600">
+                                        <Text fontSize="xs" fontWeight="medium" color="gray.400">
                                           Βρέθηκε στη:
                                         </Text>
                                         {result.matchedSnippets.map((snippet, sIdx) => (
                                           <Box key={sIdx}>
                                             <Text fontSize="xs" color="gray.500" mb={1}>
-                                              Γραμμή {snippet.line}:
+                                              {snippet.file
+                                                ? `${snippet.file} — Γραμμή ${snippet.line}`
+                                                : `Γραμμή ${snippet.line}`}
+                                              :
                                             </Text>
                                             <Code
                                               display="block"
@@ -309,5 +314,6 @@ export function GradingResultsPage() {
         </CardBody>
       </Card>
     </Box>
+    </PageTransition>
   );
 }

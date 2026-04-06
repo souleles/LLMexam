@@ -1,4 +1,5 @@
 import { FileUploader } from '@/components/FileUploader';
+import { PageTransition } from '@/components/PageTransition';
 import { api, GradingResult } from '@/lib/api';
 import {
   Accordion,
@@ -31,6 +32,42 @@ import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
 import ReactSelect from 'react-select';
+
+const darkSelectStyles = {
+  control: (base: any) => ({
+    ...base,
+    backgroundColor: '#2D3748',
+    borderColor: '#4A5568',
+    color: '#E2E8F0',
+    '&:hover': { borderColor: '#718096' },
+    boxShadow: 'none',
+  }),
+  menu: (base: any) => ({
+    ...base,
+    backgroundColor: '#2D3748',
+    border: '1px solid #4A5568',
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    backgroundColor: state.isFocused ? '#4A5568' : '#2D3748',
+    color: '#E2E8F0',
+    '&:active': { backgroundColor: '#4A5568' },
+  }),
+  singleValue: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  multiValue: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
+  multiValueLabel: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  multiValueRemove: (base: any) => ({
+    ...base,
+    color: '#A0AEC0',
+    '&:hover': { backgroundColor: '#718096', color: 'white' },
+  }),
+  placeholder: (base: any) => ({ ...base, color: '#718096' }),
+  input: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  noOptionsMessage: (base: any) => ({ ...base, color: '#718096' }),
+  clearIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
+  dropdownIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
+  indicatorSeparator: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
+};
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
@@ -147,183 +184,189 @@ export function StudentExercisesPage() {
   };
 
   return (
-    <Box>
-      <VStack align="stretch" spacing={6}>
-        <VStack align="start" spacing={1}>
-          <Heading size="lg">Βαθμολόγηση Εργασίας Φοιτητή</Heading>
-          <Text color="gray.600">
-            Ανεβάστε το αρχείο εργασίας και ελέγξτε έναντι των σημείων ελέγχου
-          </Text>
-        </VStack>
+    <PageTransition>
+      <Box>
+        <VStack align="stretch" spacing={6}>
+          <VStack align="start" spacing={1}>
+            <Heading size="lg">Βαθμολόγηση Εργασίας Φοιτητή</Heading>
+            <Text color="gray.400">
+              Ανεβάστε το αρχείο εργασίας και ελέγξτε έναντι των σημείων ελέγχου
+            </Text>
+          </VStack>
 
-        {/* Upload Form */}
-        <Card>
-          <CardBody>
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel>Επιλογή Άσκησης</FormLabel>
-                <ReactSelect
-                  options={exerciseOptions}
-                  value={exerciseOptions.find((opt) => opt.value === selectedExerciseId) || null}
-                  onChange={(opt) => setSelectedExerciseId(opt?.value || '')}
-                  placeholder="Επιλέξτε άσκηση..."
-                  noOptionsMessage={() => 'Δεν βρέθηκαν ασκήσεις'}
-                  isClearable
-                />
-              </FormControl>
+          {/* Upload Form */}
+          <Card>
+            <CardBody>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Επιλογή Άσκησης</FormLabel>
+                  <ReactSelect
+                    options={exerciseOptions}
+                    value={exerciseOptions.find((opt) => opt.value === selectedExerciseId) || null}
+                    onChange={(opt) => setSelectedExerciseId(opt?.value || '')}
+                    placeholder="Επιλέξτε άσκηση..."
+                    noOptionsMessage={() => 'Δεν βρέθηκαν ασκήσεις'}
+                    isClearable
+                    styles={darkSelectStyles}
+                  />
+                </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Επιλογή Φοιτητή/ών</FormLabel>
-                <ReactSelect
-                  isMulti
-                  options={studentOptions}
-                  value={selectedStudentIds}
-                  onChange={(opts) => setSelectedStudentIds(opts as Array<{ value: string; label: string }>)}
-                  placeholder="Επιλέξτε φοιτητές..."
-                  noOptionsMessage={() => 'Δεν βρέθηκαν φοιτητές'}
-                  hideSelectedOptions={false}
-                  closeMenuOnSelect={false}
-                />
-                {selectedStudentIds.length > 0 && (
+                <FormControl isRequired>
+                  <FormLabel>Επιλογή Φοιτητή/ών</FormLabel>
+                  <ReactSelect
+                    isMulti
+                    options={studentOptions}
+                    value={selectedStudentIds}
+                    onChange={(opts) => setSelectedStudentIds(opts as Array<{ value: string; label: string }>)}
+                    placeholder="Επιλέξτε φοιτητές..."
+                    noOptionsMessage={() => 'Δεν βρέθηκαν φοιτητές'}
+                    hideSelectedOptions={false}
+                    closeMenuOnSelect={false}
+                    styles={darkSelectStyles}
+                  />
+                  {selectedStudentIds.length > 0 && (
+                    <FormHelperText>
+                      <strong>{selectedStudentIds.length} επιλεγμένοι</strong>
+                    </FormHelperText>
+                  )}
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel>Αρχείο Εργασίας (.zip ή μεμονωμένο αρχείο)</FormLabel>
+                  <FileUploader
+                    accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip"
+                    maxFiles={1}
+                    onFilesSelected={(files) => setFile(files[0] || null)}
+                  />
                   <FormHelperText>
-                    <strong>{selectedStudentIds.length} επιλεγμένοι</strong>
+                    ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
                   </FormHelperText>
-                )}
-              </FormControl>
+                </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Αρχείο Εργασίας (.zip ή μεμονωμένο αρχείο)</FormLabel>
-                <FileUploader
-                  accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip"
-                  maxFiles={1}
-                  onFilesSelected={(files) => setFile(files[0] || null)}
-                />
-                <FormHelperText>
-                  ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
-                </FormHelperText>
-              </FormControl>
+                <Button
+                  leftIcon={<FiUpload />}
+                  colorScheme="brand"
+                  size="lg"
+                  w="full"
+                  onClick={handleFindResults}
+                  isLoading={gradeMutation.isPending}
+                  loadingText="Βαθμολόγηση..."
+                >
+                  Εύρεση Αποτελεσμάτων
+                </Button>
+              </VStack>
+            </CardBody>
+          </Card>
 
-              <Button
-                leftIcon={<FiUpload />}
-                colorScheme="brand"
-                size="lg"
-                w="full"
-                onClick={handleFindResults}
-                isLoading={gradeMutation.isPending}
-                loadingText="Βαθμολόγηση..."
-              >
-                Εύρεση Αποτελεσμάτων
-              </Button>
-            </VStack>
-          </CardBody>
-        </Card>
+          {/* Results */}
+          {gradingResults.length > 0 && (() => {
+            const passedCount = gradingResults.filter((r) => r.matched).length;
+            const totalCount = gradingResults.length;
+            return (
+              <Card>
+                <CardBody>
+                  <VStack align="stretch" spacing={4}>
+                    <VStack align="stretch" spacing={2}>
+                      <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
+                      <Text fontSize="sm" color="gray.500">
+                        {selectedStudentIds.map((s) => s.label).join(' · ')}
+                      </Text>
+                    </VStack>
 
-        {/* Results */}
-        {gradingResults.length > 0 && (() => {
-          const passedCount = gradingResults.filter((r) => r.matched).length;
-          const totalCount = gradingResults.length;
-          return (
-            <Card>
-              <CardBody>
-                <VStack align="stretch" spacing={4}>
-                  <VStack align="stretch" spacing={2}>
-                    <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
-                    <Text fontSize="sm" color="gray.500">
-                      {selectedStudentIds.map((s) => s.label).join(' · ')}
-                    </Text>
-                  </VStack>
-
-                  <Accordion allowMultiple>
-                    {gradingResults.map((result, index) => (
-                      <AccordionItem key={result.checkpointId}>
-                        <h2>
-                          <AccordionButton>
-                            <Box flex="1" textAlign="left">
-                              <HStack>
-                                {result.matched ? <FiCheck color="green" /> : <FiX color="red" />}
-                                <Text fontWeight="medium">
-                                  Checkpoint {index + 1}: {result.checkpointDescription}
-                                </Text>
-                              </HStack>
-                            </Box>
-                            <Badge colorScheme={result.matched ? 'green' : 'red'} mr={2}>
-                              {result.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                            </Badge>
-                            <AccordionIcon />
-                          </AccordionButton>
-                        </h2>
-                        <AccordionPanel pb={4}>
-                          {result.matched && result.matchedSnippets.length > 0 ? (
-                            <VStack align="stretch" spacing={3}>
-                              <Text fontWeight="medium">Βρέθηκε στις γραμμές:</Text>
-                              {result.matchedSnippets.map((snippet, idx) => (
-                                <Box key={idx}>
-                                  <Text fontSize="sm" color="gray.600" mb={1}>
-                                    Γραμμή {snippet.line}:
+                    <Accordion allowMultiple>
+                      {gradingResults.map((result, index) => (
+                        <AccordionItem key={result.checkpointId}>
+                          <h2>
+                            <AccordionButton>
+                              <Box flex="1" textAlign="left">
+                                <HStack>
+                                  {result.matched ? <FiCheck color="green" /> : <FiX color="red" />}
+                                  <Text fontWeight="medium">
+                                    Checkpoint {index + 1}: {result.checkpointDescription}
                                   </Text>
-                                  <Code p={2} borderRadius="md" display="block">
-                                    {snippet.snippet}
-                                  </Code>
-                                </Box>
-                              ))}
-                            </VStack>
-                          ) : (
-                            <Text color="gray.500">
-                              Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
-                            </Text>
-                          )}
-                        </AccordionPanel>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
+                                </HStack>
+                              </Box>
+                              <Badge colorScheme={result.matched ? 'green' : 'red'} mr={2}>
+                                {result.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
+                              </Badge>
+                              <AccordionIcon />
+                            </AccordionButton>
+                          </h2>
+                          <AccordionPanel pb={4}>
+                            {result.matched && result.matchedSnippets.length > 0 ? (
+                              <VStack align="stretch" spacing={3}>
+                                <Text fontWeight="medium">Βρέθηκε στις γραμμές:</Text>
+                                {result.matchedSnippets.map((snippet, idx) => (
+                                  <Box key={idx}>
+                                    <Text fontSize="sm" color="gray.400" mb={1}>
+                                      {snippet.file
+                                        ? `${snippet.file} — Γραμμή ${snippet.line}`
+                                        : `Γραμμή ${snippet.line}`}:
+                                    </Text>
+                                    <Code p={2} borderRadius="md" display="block">
+                                      {snippet.snippet}
+                                    </Code>
+                                  </Box>
+                                ))}
+                              </VStack>
+                            ) : (
+                              <Text color="gray.500">
+                                Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
+                              </Text>
+                            )}
+                          </AccordionPanel>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
 
-                  <VStack align="stretch" spacing={2}>
-                    <HStack spacing={4} pt={1} w="full">
-                      <HStack flex="1">
-                        <Text fontWeight="medium" color="gray.600">LLM Βαθμός:</Text>
-                        <Text fontWeight="bold">{passedCount}/{totalCount}</Text>
-                        <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
-                          {Math.round((passedCount / totalCount) * 100)}%
-                        </Badge>
+                    <VStack align="stretch" spacing={2}>
+                      <HStack spacing={4} pt={1} w="full">
+                        <HStack flex="1">
+                          <Text fontWeight="medium" color="gray.400">LLM Βαθμός:</Text>
+                          <Text fontWeight="bold">{passedCount}/{totalCount}</Text>
+                          <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
+                            {Math.round((passedCount / totalCount) * 100)}%
+                          </Badge>
+                        </HStack>
+                        <HStack flex="1">
+                          <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
+                          <NumberInput
+                            value={teacherPassed}
+                            min={0}
+                            max={totalCount}
+                            size="sm"
+                            w="80px"
+                            onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                          <Text fontWeight="bold">/{totalCount}</Text>
+                          <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
+                            {Math.round((teacherPassed / totalCount) * 100)}%
+                          </Badge>
+                        </HStack>
                       </HStack>
-                      <HStack flex="1">
-                        <Text fontWeight="medium" color="gray.600">Βαθμός Εκπαιδευτικού:</Text>
-                        <NumberInput
-                          value={teacherPassed}
-                          min={0}
-                          max={totalCount}
-                          size="sm"
-                          w="80px"
-                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
-                        >
-                          <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
-                        </NumberInput>
-                        <Text fontWeight="bold">/{totalCount}</Text>
-                        <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
-                          {Math.round((teacherPassed / totalCount) * 100)}%
-                        </Badge>
-                      </HStack>
-                    </HStack>
+                    </VStack>
+                    <Button
+                      colorScheme="green"
+                      onClick={() => saveScoreMutation.mutate()}
+                      isLoading={saveScoreMutation.isPending}
+                      isDisabled={!submissionId}
+                    >
+                      Αποθήκευση βαθμολογίας
+                    </Button>
+
                   </VStack>
-                  <Button
-                    colorScheme="green"
-                    onClick={() => saveScoreMutation.mutate()}
-                    isLoading={saveScoreMutation.isPending}
-                    isDisabled={!submissionId}
-                  >
-                    Αποθήκευση βαθμολογίας
-                  </Button>
-
-                </VStack>
-              </CardBody>
-            </Card>
-          );
-        })()}
-      </VStack>
-    </Box>
+                </CardBody>
+              </Card>
+            );
+          })()}
+        </VStack>
+      </Box>
+    </PageTransition>
   );
 }

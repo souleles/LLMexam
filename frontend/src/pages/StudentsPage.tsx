@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/PageTransition';
 import {
   Box,
   Button,
@@ -74,7 +75,7 @@ export function StudentsPage() {
         <HStack justify="space-between" mb={8}>
           <VStack align="start" spacing={1}>
             <Heading size="lg">Φοιτητές</Heading>
-            <Text color="gray.600">Κατάλογος φοιτητών</Text>
+            <Text color="gray.400">Κατάλογος φοιτητών</Text>
           </VStack>
         </HStack>
         <Card>
@@ -91,14 +92,16 @@ export function StudentsPage() {
   }
 
   return (
+    <PageTransition>
     <Box>
       <HStack justify="space-between" mb={8}>
         <VStack align="start" spacing={1}>
           <Heading size="lg">Φοιτητές</Heading>
-          <Text color="gray.600">
+          <Text color="gray.400">
             {students.length > 0
               ? `${students.length} φοιτητές στον κατάλογο`
               : 'Εισάγετε φοιτητές από CSV ή Excel'}
+
           </Text>
         </VStack>
         <Box>
@@ -125,7 +128,7 @@ export function StudentsPage() {
         <Card>
           <CardBody textAlign="center" py={12}>
             <VStack spacing={4}>
-              <Text fontSize="lg" color="gray.600">
+              <Text fontSize="lg" color="gray.400">
                 Δεν υπάρχουν φοιτητές ακόμα
               </Text>
               <Text color="gray.500">
@@ -150,12 +153,12 @@ export function StudentsPage() {
               </Thead>
               <Tbody>
                 {students.map((student) => (
-                  <Tr key={student.id} _hover={{ bg: 'gray.50' }}>
+                  <Tr key={student.id} _hover={{ bg: 'gray.700' }}>
                     <Td fontWeight="medium">{student.studentIdentifier}</Td>
                     <Td>{student.lastName}</Td>
                     <Td>{student.firstName}</Td>
-                    <Td color="gray.600">{student.email ?? '—'}</Td>
-                    <Td color="gray.600">
+                    <Td color="gray.400">{student.email ?? '—'}</Td>
+                    <Td color="gray.400">
                       {new Date(student.createdAt).toLocaleDateString('el-GR')}
                     </Td>
                     <Td>
@@ -176,5 +179,6 @@ export function StudentsPage() {
         </Card>
       )}
     </Box>
+    </PageTransition>
   );
 }

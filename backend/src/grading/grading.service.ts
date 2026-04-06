@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   GradingResultResponseDto,
@@ -6,11 +6,32 @@ import {
   UpdateTeacherScoreDto,
 } from './dto/grading.dto';
 
+/** Parse a stored matchedSnippet string back to {file, line, snippet}. */
+function parseSnippet(raw: string): { file?: string; line: number; snippet: string } {
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && 'line' in parsed) {
+      return { file: parsed.file, line: Number(parsed.line), snippet: String(parsed.snippet ?? '') };
+    }
+  } catch {
+    // Fall through to legacy format handling
+  }
+  // Legacy format: "file.sql:42 - snippet text"
+  const legacyMatch = raw.match(/^(.+):(\d+) - (.*)$/s);
+  if (legacyMatch) {
+    return { file: legacyMatch[1], line: Number(legacyMatch[2]), snippet: legacyMatch[3] };
+  }
+  return { line: 0, snippet: raw };
+}
+
 @Injectable()
 export class GradingService {
+  private readonly logger = new Logger(GradingService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllResults(exerciseId: string): Promise<CheckpointResultDto[]> {
+    this.logger.log(`Loading all grading results for exercise ${exerciseId}`);
     const results = await this.prisma.checkpointResult.findMany({
       where: {
         gradingResult: {
@@ -25,41 +46,50 @@ export class GradingService {
       },
     });
 
-    return results.map((cr) => ({
-      id: cr.id,
-      submissionId: cr.gradingResult.submissionId,
-      checkpointId: cr.checkpointId,
-      matched: cr.matched,
-      confidence: cr.matched ? 1.0 : 0.0,
-      matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
-      matchedSnippets: cr.matchedSnippets.map((snippet, idx) => ({
-        line: idx + 1,
-        snippet: snippet,
-      })),
-      checkpoint: {
-        order: cr.checkpoint.order,
-        description: cr.checkpoint.description,
-        pattern: cr.checkpoint.pattern,
-        caseSensitive: cr.checkpoint.caseSensitive,
-      },
-    }));
+    this.logger.log(`Found ${results.length} checkpoint result(s) for exercise ${exerciseId}`);
+    return results.map((cr) => {
+      const matchedSnippets = cr.matchedSnippets.map((raw) => {
+        const parsed = parseSnippet(raw);
+        this.logger.debug(
+          `Checkpoint ${cr.checkpointId} snippet -> file=${parsed.file ?? '?'}, line=${parsed.line}, snippet=${parsed.snippet.slice(0, 80)}`,
+        );
+        return parsed;
+      });
+      return {
+        id: cr.id,
+        submissionId: cr.gradingResult.submissionId,
+        checkpointId: cr.checkpointId,
+        matched: cr.matched,
+        confidence: cr.matched ? 1.0 : 0.0,
+        matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
+        matchedSnippets,
+        checkpoint: {
+          order: cr.checkpoint.order,
+          description: cr.checkpoint.description,
+          pattern: cr.checkpoint.pattern,
+          caseSensitive: cr.checkpoint.caseSensitive,
+        },
+      };
+    });
   }
   async saveResults(results: CheckpointResultDto[]): Promise<void> {
-    // This is a bulk save operation for manually adjusted results
-    // For now, we'll update existing checkpoint results
+    this.logger.log(`Saving ${results.length} checkpoint result(s)`);
     await Promise.all(
       results.map((result) => {
-        // Extract just the snippet strings from the enhanced format
-        const snippets = result.matchedSnippets.map(ms => ms.snippet);
-        
+        const matchedSnippets = result.matchedSnippets.map((ms) =>
+          JSON.stringify({ file: ms.file, line: ms.line, snippet: ms.snippet }),
+        );
+        this.logger.debug(
+          `Saving checkpoint result ${result.id}: matched=${result.matched}, snippets=${matchedSnippets.length}`,
+        );
         return this.prisma.checkpointResult.update({
           where: { id: result.id },
           data: {
             matched: result.matched,
-            matchedSnippets: snippets,
+            matchedSnippets,
           },
         });
-      })
+      }),
     );
   }
 
@@ -112,9 +142,7 @@ export class GradingService {
         matched: cr.matched,
         confidence: cr.matched ? 1.0 : 0.0,
         matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
-        matchedSnippets: (cr.matchedSnippets as any[]).map((snippet: any, idx: number) =>
-          typeof snippet === 'string' ? { line: idx + 1, snippet } : snippet
-        ),
+        matchedSnippets: (cr.matchedSnippets as string[]).map((raw) => parseSnippet(raw)),
         checkpoint: {
           order: cr.checkpoint.order,
           description: cr.checkpoint.description,

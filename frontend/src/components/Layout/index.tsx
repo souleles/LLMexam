@@ -4,7 +4,7 @@ import { Header } from './Header';
 
 export function Layout() {
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="gray.900">
       <Header />
       <Container maxW="container.xl" py={8}>
         <Outlet />

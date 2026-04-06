@@ -74,20 +74,20 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
       <label htmlFor="file-upload">
         <Box
           border="2px dashed"
-          borderColor={dragActive ? 'brand.500' : 'gray.300'}
+          borderColor={dragActive ? 'brand.400' : 'gray.600'}
           borderRadius="lg"
           p={8}
           textAlign="center"
           cursor="pointer"
-          bg={dragActive ? 'brand.50' : 'white'}
+          bg={dragActive ? 'gray.700' : 'gray.750'}
           transition="all 0.2s"
-          _hover={{ borderColor: 'brand.500', bg: 'brand.50' }}
+          _hover={{ borderColor: 'brand.400', bg: 'gray.700' }}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >          <VStack spacing={3}>
-            <Icon as={FiUpload} boxSize={10} color="gray.400" />
+            <Icon as={FiUpload} boxSize={10} color="gray.500" />
             <Text fontWeight="medium">
               Σύρετε αρχεία εδώ ή κάντε κλικ για αναζήτηση
             </Text>
@@ -113,7 +113,7 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
             <Box
               key={idx}
               p={3}
-              bg="gray.50"
+              bg="gray.700"
               borderRadius="md"
               w="full"
               display="flex"
@@ -123,7 +123,7 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
               <Text fontSize="sm" flex={1}>
                 {file.name}
               </Text>
-              <Text fontSize="xs" color="gray.500">
+              <Text fontSize="xs" color="gray.400">
                 {(file.size / 1024).toFixed(1)} KB
               </Text>
             </Box>
