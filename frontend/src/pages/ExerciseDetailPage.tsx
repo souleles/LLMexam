@@ -1,4 +1,8 @@
 import { PageTransition } from '@/components/PageTransition';
+import { useAuthContext } from '@/contexts/use-auth';
+import { useLlmStream } from '@/hooks/useLlmStream';
+import { api, ConversationMessage, ExerciseStatus } from '@/lib/api';
+import { ContentBlock, parseMessageContent } from '@/lib/parseMessageContent';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -6,58 +10,52 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
+  Avatar,
+  Badge,
   Box,
   Button,
   Card,
   CardBody,
-  Heading,
-  HStack,
-  VStack,
-  Text,
-  Badge,
+  Divider,
   Grid,
   GridItem,
-  Divider,
-  List,
-  ListItem,
-  ListIcon,
-  Skeleton,
-  Stack,
+  Heading,
+  HStack,
   Input,
-  Spinner,
-  Avatar,
+  List,
+  ListIcon,
+  ListItem,
   OrderedList,
+  Skeleton,
+  Spinner,
+  Stack,
   Tab,
   TabList,
   TabPanel,
   TabPanels,
   Tabs,
+  Text,
   useDisclosure,
   useToast,
+  VStack,
 } from '@chakra-ui/react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck, FiTrash2 } from 'react-icons/fi';
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { api, Checkpoint, ConversationMessage, ExerciseStatus } from '@/lib/api';
-import { useLlmStream } from '@/hooks/useLlmStream';
-import { parseMessageContent, ContentBlock } from '@/lib/parseMessageContent';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { FiArrowLeft, FiCheck, FiCheckCircle, FiFileText, FiSend, FiTrash2 } from 'react-icons/fi';
+import { useNavigate, useParams } from 'react-router-dom';
 
 type ChatMessage = Omit<ConversationMessage, 'content'> & { content: string | ContentBlock[] };
-import { useAuthContext } from '@/contexts/use-auth';
 
 // ── InlineChat ─────────────────────────────────────────────────────────────────
-
 interface InlineChatProps {
   exerciseId: string;
   mode: 'checkpoints' | 'patterns';
   patternsEnabled?: boolean;
-  checkpoints?: Checkpoint[];
   isReadOnly?: boolean;
   onAccepted: () => void;
 }
 
-function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = [], isReadOnly = false, onAccepted }: InlineChatProps) {
+function InlineChat({ exerciseId, mode, patternsEnabled = true, isReadOnly = false, onAccepted }: InlineChatProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -566,7 +564,6 @@ export function ExerciseDetailPage() {
                     <InlineChat
                       exerciseId={exerciseId!}
                       mode="checkpoints"
-                      checkpoints={checkpoints}
                       isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
                       onAccepted={handleAccepted}
                     />
@@ -576,7 +573,6 @@ export function ExerciseDetailPage() {
                       exerciseId={exerciseId!}
                       mode="patterns"
                       patternsEnabled={checkpoints.length > 0}
-                      checkpoints={checkpoints}
                       isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
                       onAccepted={handleAccepted}
                     />

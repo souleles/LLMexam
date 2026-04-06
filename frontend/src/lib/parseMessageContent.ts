@@ -31,14 +31,14 @@ export function parseMessageContent(raw: string): ParsedContent {
       }
 
       if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
-        blocks = (parsed.data as { order: number; description: string; pattern: string; patternDescription: string }[]).map(
-          (p, i) => ({
+        blocks = (parsed.data as { order: number; description: string; pattern: string; patternDescription: string }[])
+        .map((p) => ({
             title: p.description,
             content: [
               { title: 'Pattern', description: p.pattern },
               { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
-            ],
-          }),
+            ]
+          })
         );
         continue;
       }
