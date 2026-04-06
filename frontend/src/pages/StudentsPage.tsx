@@ -1,30 +1,24 @@
 import { PageTransition } from '@/components/PageTransition';
+import { DataTable } from '@/components/DataTable';
+import { api } from '@/lib/api';
 import {
   Box,
   Button,
-  Card,
-  CardBody,
   Heading,
   HStack,
+  IconButton,
   Input,
-  Skeleton,
-  Stack,
-  Table,
-  Tbody,
   Td,
   Text,
-  Th,
-  Thead,
   Tr,
   useToast,
   VStack,
-  IconButton,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { FiUpload, FiEye } from 'react-icons/fi';
+import { FiEye, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { StudentColumns } from '@/lib/columns';
 
 export function StudentsPage() {
   const toast = useToast();
@@ -62,123 +56,69 @@ export function StudentsPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      uploadMutation.mutate(file);
-    }
-    // Reset so same file can be re-selected
+    if (file) uploadMutation.mutate(file);
     e.target.value = '';
   };
 
-  if (isLoading) {
-    return (
+  return (
+    <PageTransition>
       <Box>
         <HStack justify="space-between" mb={8}>
           <VStack align="start" spacing={1}>
             <Heading size="lg">Φοιτητές</Heading>
-            <Text color="gray.400">Κατάλογος φοιτητών</Text>
+            <Text color="gray.400">
+              {students.length > 0
+                ? `${students.length} φοιτητές στον κατάλογο`
+                : 'Εισάγετε φοιτητές από CSV ή Excel'}
+            </Text>
           </VStack>
+          <Box>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              display="none"
+              onChange={handleFileChange}
+            />
+            <Button
+              leftIcon={<FiUpload />}
+              colorScheme="brand"
+              onClick={() => fileInputRef.current?.click()}
+              isLoading={uploadMutation.isPending}
+              loadingText="Εισαγωγή..."
+            >
+              Εισαγωγή CSV / Excel
+            </Button>
+          </Box>
         </HStack>
-        <Card>
-          <CardBody>
-            <Stack spacing={3}>
-              <Skeleton height="40px" />
-              <Skeleton height="40px" />
-              <Skeleton height="40px" />
-            </Stack>
-          </CardBody>
-        </Card>
+
+        <DataTable
+          columns={StudentColumns}
+          data={students}
+          isLoading={isLoading}
+          emptyText="Δεν υπάρχουν φοιτητές ακόμα"
+          emptySubtext="Ανεβάστε ένα αρχείο CSV ή Excel με στήλες: AM, firstName, lastName, email"
+          renderRow={(student) => (
+            <Tr key={student.id} _hover={{ bg: 'gray.700' }}>
+              <Td fontWeight="medium">{student.studentIdentifier}</Td>
+              <Td>{student.lastName}</Td>
+              <Td>{student.firstName}</Td>
+              <Td color="gray.400">{student.email ?? '—'}</Td>
+              <Td color="gray.400">{new Date(student.createdAt).toLocaleDateString('el-GR')}</Td>
+              <Td>
+                <IconButton
+                  aria-label="Προβολή φοιτητή"
+                  icon={<FiEye />}
+                  size="sm"
+                  variant="ghost"
+                  colorScheme="blue"
+                  onClick={() => navigate(`/students/${student.id}`)}
+                />
+              </Td>
+            </Tr>
+          )}
+        />
       </Box>
-    );
-  }
-
-  return (
-    <PageTransition>
-    <Box>
-      <HStack justify="space-between" mb={8}>
-        <VStack align="start" spacing={1}>
-          <Heading size="lg">Φοιτητές</Heading>
-          <Text color="gray.400">
-            {students.length > 0
-              ? `${students.length} φοιτητές στον κατάλογο`
-              : 'Εισάγετε φοιτητές από CSV ή Excel'}
-
-          </Text>
-        </VStack>
-        <Box>
-          <Input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            display="none"
-            onChange={handleFileChange}
-          />
-          <Button
-            leftIcon={<FiUpload />}
-            colorScheme="brand"
-            onClick={() => fileInputRef.current?.click()}
-            isLoading={uploadMutation.isPending}
-            loadingText="Εισαγωγή..."
-          >
-            Εισαγωγή CSV / Excel
-          </Button>
-        </Box>
-      </HStack>
-
-      {students.length === 0 ? (
-        <Card>
-          <CardBody textAlign="center" py={12}>
-            <VStack spacing={4}>
-              <Text fontSize="lg" color="gray.400">
-                Δεν υπάρχουν φοιτητές ακόμα
-              </Text>
-              <Text color="gray.500">
-                Ανεβάστε ένα αρχείο CSV ή Excel με στήλες: AM, firstName, lastName, email
-              </Text>
-            </VStack>
-          </CardBody>
-        </Card>
-      ) : (
-        <Card>
-          <CardBody p={0}>
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>ΑΜ</Th>
-                  <Th>Επωνυμο</Th>
-                  <Th>Ονομα</Th>
-                  <Th>Email</Th>
-                  <Th>Εισαγωγη</Th>
-                  <Th w="100px"></Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {students.map((student) => (
-                  <Tr key={student.id} _hover={{ bg: 'gray.700' }}>
-                    <Td fontWeight="medium">{student.studentIdentifier}</Td>
-                    <Td>{student.lastName}</Td>
-                    <Td>{student.firstName}</Td>
-                    <Td color="gray.400">{student.email ?? '—'}</Td>
-                    <Td color="gray.400">
-                      {new Date(student.createdAt).toLocaleDateString('el-GR')}
-                    </Td>
-                    <Td>
-                      <IconButton
-                        aria-label="Προβολή φοιτητή"
-                        icon={<FiEye />}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="blue"
-                        onClick={() => navigate(`/students/${student.id}`)}
-                      />
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </CardBody>
-        </Card>
-      )}
-    </Box>
     </PageTransition>
   );
 }

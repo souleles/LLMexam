@@ -1,8 +1,7 @@
 import { PageTransition } from '@/components/PageTransition';
-import { useAuthContext } from '@/contexts/use-auth';
-import { useLlmStream } from '@/hooks/useLlmStream';
-import { api, ConversationMessage, ExerciseStatus } from '@/lib/api';
-import { ContentBlock, parseMessageContent } from '@/lib/parseMessageContent';
+import { InlineChat } from '@/components/Chat/InlineChat';
+import { CheckpointsCard } from '@/components/Exercise/CheckpointsCard';
+import { api, ExerciseStatus } from '@/lib/api';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -10,7 +9,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogOverlay,
-  Avatar,
   Badge,
   Box,
   Button,
@@ -21,13 +19,7 @@ import {
   GridItem,
   Heading,
   HStack,
-  Input,
-  List,
-  ListIcon,
-  ListItem,
-  OrderedList,
   Skeleton,
-  Spinner,
   Stack,
   Tab,
   TabList,
@@ -40,277 +32,9 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FiArrowLeft, FiCheck, FiCheckCircle, FiFileText, FiSend, FiTrash2 } from 'react-icons/fi';
+import { useCallback, useRef } from 'react';
+import { FiArrowLeft, FiCheck, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
-
-type ChatMessage = Omit<ConversationMessage, 'content'> & { content: string | ContentBlock[] };
-
-// ── InlineChat ─────────────────────────────────────────────────────────────────
-interface InlineChatProps {
-  exerciseId: string;
-  mode: 'checkpoints' | 'patterns';
-  patternsEnabled?: boolean;
-  isReadOnly?: boolean;
-  onAccepted: () => void;
-}
-
-function InlineChat({ exerciseId, mode, patternsEnabled = true, isReadOnly = false, onAccepted }: InlineChatProps) {
-  const toast = useToast();
-  const queryClient = useQueryClient();
-
-  const defaultInput =
-    mode === 'checkpoints'
-      ? 'Εξήγαγε όλα τα checkpoints βαθμολόγησης από αυτή την άσκηση'
-      : 'Δημιούργησε regex patterns για κάθε checkpoint';
-
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesBoxRef = useRef<HTMLDivElement>(null);
-  const seeded = useRef(false);
-  const initialScrollDone = useRef(false);
-
-  const {
-    buffer, streaming, sendMessage, error, pendingCheckpoints, clearPendingCheckpoints, pendingPatterns, clearPendingPatterns
-  } = useLlmStream(exerciseId, mode);
-
-  const conversationType = mode === 'checkpoints' ? 'CHECKPOINT' : 'PATTERN';
-
-  const { data: dbMessages = [] } = useQuery({
-    queryKey: ['conversations', exerciseId, conversationType],
-    queryFn: () => api.conversations.listByType(exerciseId, conversationType),
-    enabled: !!exerciseId && (mode === 'checkpoints' || patternsEnabled),
-    staleTime: Infinity,
-  });
-
-  // Seed from DB once and scroll to bottom
-  useEffect(() => {
-    if (!seeded.current && dbMessages.length > 0) {
-      seeded.current = true;
-      setMessages(dbMessages.map((m) => {
-        const parsed = parseMessageContent(m.content);
-        return { ...m, content: parsed || m.content };
-      }));
-    }
-  }, [dbMessages]);
-
-  // Initial scroll after messages are rendered (without scrolling the page)
-  useEffect(() => {
-    if (seeded.current && !initialScrollDone.current && messagesBoxRef.current && messages.length > 0) {
-      // Use requestAnimationFrame to ensure DOM is fully rendered
-      requestAnimationFrame(() => {
-        if (messagesBoxRef.current) {
-          messagesBoxRef.current.scrollTop = messagesBoxRef.current.scrollHeight;
-          initialScrollDone.current = true;
-        }
-      });
-    }
-  }, [messages]);
-
-  // Pre-populate input when no history
-  useEffect(() => {
-    if (dbMessages.length === 0 && messages.length === 0) {
-      setInput(defaultInput);
-    }
-  }, [dbMessages.length, messages.length, defaultInput]);
-
-  // Keep latest pending data in refs so the finalize effect doesn't need them as deps
-  const latestPendingPatterns = useRef(pendingPatterns);
-  const latestPendingCheckpoints = useRef(pendingCheckpoints);
-  latestPendingPatterns.current = pendingPatterns;
-  latestPendingCheckpoints.current = pendingCheckpoints;
-
-  // Finalize assistant bubble when streaming ends
-  const prevStreaming = useRef(false);
-  useEffect(() => {
-    if (prevStreaming.current && !streaming) {
-      const patterns = latestPendingPatterns.current;
-      const checkpoints = latestPendingCheckpoints.current;
-      let content: string | ContentBlock[];
-
-      if (mode === 'patterns' && patterns.length > 0) {
-        content = patterns.map((p, i) => ({
-          title: `${p.order ?? i + 1}. ${p.description}`,
-          content: [
-            { title: 'Pattern', description: p.pattern },
-            { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
-          ],
-        }));
-      } else if (mode === 'checkpoints' && checkpoints.length > 0) {
-        content = checkpoints.map((p, i) => ({
-          title: `${p.order ?? i + 1}. ${p.description}`,
-          content: [],
-        }));
-      } else if (buffer) {
-        content = buffer;
-      } else {
-        prevStreaming.current = streaming;
-        return;
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          exerciseId,
-          role: 'assistant' as const,
-          content,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
-    }
-    prevStreaming.current = streaming;
-  }, [streaming, buffer, exerciseId, mode]);
-
-  // Scroll to bottom on new messages (after initial load)
-  useEffect(() => {
-    if (initialScrollDone.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
-  }, [messages.length, streaming]);
-
-  const acceptCheckpointsMutation = useMutation({
-    mutationFn: () => api.checkpoints.bulkReplace(exerciseId, pendingCheckpoints),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
-      clearPendingCheckpoints();
-      onAccepted();
-      toast({ title: 'Checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
-    },
-    onError: () => {
-      toast({ title: 'Σφάλμα αποθήκευσης checkpoints', status: 'error', duration: 3000 });
-    },
-  });
-
-  const acceptPatternsMutation = useMutation({
-    mutationFn: () =>
-      api.checkpoints.bulkUpdatePatterns(
-        exerciseId,
-        pendingPatterns.map((p) => ({ order: p.order, pattern: p.pattern, patternDescription: p.patternDescription })),
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
-      clearPendingPatterns();
-      onAccepted();
-      toast({ title: 'Patterns αποθηκεύτηκαν', status: 'success', duration: 3000 });
-    },
-    onError: () => {
-      toast({ title: 'Σφάλμα αποθήκευσης patterns', status: 'error', duration: 3000 });
-    },
-  });
-
-  const handleSend = useCallback(() => {
-    if (!input.trim() || streaming) return;
-    const text = input;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `professor-${Date.now()}`,
-        exerciseId,
-        role: 'professor',
-        content: text,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    sendMessage(text);
-    setInput('');
-  }, [input, streaming, sendMessage, exerciseId]);
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const hasPending = mode === 'checkpoints' ? pendingCheckpoints.length > 0 : pendingPatterns.length > 0;
-  const pendingCount = mode === 'checkpoints' ? pendingCheckpoints.length : pendingPatterns.length;
-  const acceptMutation = mode === 'checkpoints' ? acceptCheckpointsMutation : acceptPatternsMutation;
-  const acceptLabel = mode === 'checkpoints' ? 'Αποδοχή Checkpoints' : 'Αποδοχή Patterns';
-
-  const emptyLabel =
-    mode === 'checkpoints'
-      ? 'Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση'
-      : 'Ζητήστε από την AI να δημιουργήσει regex patterns για τα checkpoints';
-
-  return (
-    <VStack align="stretch" spacing={4}>
-      {!isReadOnly && (
-        <HStack justify="flex-end">
-          {hasPending && (
-            <Button
-              leftIcon={<FiCheck />}
-              colorScheme="green"
-              size="sm"
-              isLoading={acceptMutation.isPending}
-              onClick={() => acceptMutation.mutate()}
-            >
-              {acceptLabel} ({pendingCount})
-            </Button>
-          )}
-        </HStack>
-      )}
-
-      {/* Messages area */}
-      <Box ref={messagesBoxRef} h="400px" overflowY="auto" p={2} bg="gray.850" borderRadius="md">
-        <VStack spacing={4} align="stretch">
-          {messages.length === 0 && !streaming && (
-            <Box textAlign="center" py={8}>
-              <Text color="gray.500" fontSize="sm">{emptyLabel}</Text>
-            </Box>
-          )}
-
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-
-          {streaming && buffer && (
-            <MessageBubble
-              message={{
-                id: 'streaming',
-                exerciseId,
-                role: 'assistant',
-                content: buffer,
-                createdAt: new Date().toISOString(),
-              }}
-              isStreaming
-            />
-          )}
-
-          {error && (
-            <Text fontSize="sm" color="red.500" textAlign="center">{error}</Text>
-          )}
-
-          <div ref={messagesEndRef} />
-        </VStack>
-      </Box>
-
-      {/* Input — hidden when read-only */}
-      {!isReadOnly && (
-        <HStack>
-          <Input
-            placeholder={mode === 'checkpoints' ? 'Ρωτήστε για checkpoints...' : 'Ρωτήστε για patterns...'}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={streaming}
-          />
-          <Button
-            leftIcon={streaming ? <Spinner size="sm" /> : <FiSend />}
-            colorScheme="brand"
-            onClick={handleSend}
-            isDisabled={!input.trim() || streaming}
-          >
-            Αποστολή
-          </Button>
-        </HStack>
-      )}
-    </VStack>
-  );
-}
-
-// ── ExerciseDetailPage ────────────────────────────────────────────────────────
 
 export function ExerciseDetailPage() {
   const { exerciseId } = useParams<{ exerciseId: string }>();
@@ -357,11 +81,7 @@ export function ExerciseDetailPage() {
 
   const handleAccepted = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
-  }, [exerciseId]);
-
-  const handleApproveExercise = useCallback(() => {
-    approveMutation.mutate();
-  }, [approveMutation]);
+  }, [exerciseId, queryClient]);
 
   const handleDelete = () => {
     deleteMutation.mutate();
@@ -385,25 +105,19 @@ export function ExerciseDetailPage() {
   if (!exercise) {
     return (
       <Box textAlign="center" py={12}>
-        <Text fontSize="lg" color="gray.400">
-          Η άσκηση δεν βρέθηκε
-        </Text>
-        <Button mt={4} onClick={() => navigate('/exercises')}>
-          Πίσω στις Ασκήσεις
-        </Button>
+        <Text fontSize="lg" color="gray.400">Η άσκηση δεν βρέθηκε</Text>
+        <Button mt={4} onClick={() => navigate('/exercises')}>Πίσω στις Ασκήσεις</Button>
       </Box>
     );
   }
 
+  const isReadOnly = exercise.status !== ExerciseStatus.DRAFT;
+  const canApprove = !isReadOnly && checkpoints.length > 0 && checkpoints.every((cp) => cp.pattern);
+
   return (
     <PageTransition>
       <Box>
-        <Button
-          leftIcon={<FiArrowLeft />}
-          variant="ghost"
-          mb={6}
-          onClick={() => navigate('/exercises')}
-        >
+        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate('/exercises')}>
           Πίσω στις Ασκήσεις
         </Button>
 
@@ -413,7 +127,10 @@ export function ExerciseDetailPage() {
             <VStack align="start" spacing={2}>
               <Heading size="lg">{exercise.title}</Heading>
               <HStack>
-                <Badge colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'} textTransform="none">
+                <Badge
+                  colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'}
+                  textTransform="none"
+                >
                   {exercise.status === ExerciseStatus.APPROVED ? 'Εγκεκριμένο' : 'Πρόχειρο'}
                 </Badge>
                 <Text color="gray.400" fontSize="sm">
@@ -422,12 +139,11 @@ export function ExerciseDetailPage() {
               </HStack>
             </VStack>
             <HStack>
-              {exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every(cp => cp.pattern) && (
+              {canApprove && (
                 <Button
                   leftIcon={<FiCheck />}
                   colorScheme="green"
-                  variant="solid"
-                  onClick={handleApproveExercise}
+                  onClick={() => approveMutation.mutate()}
                   isLoading={approveMutation.isPending}
                 >
                   Έγκριση Άσκησης
@@ -436,7 +152,6 @@ export function ExerciseDetailPage() {
               <Button
                 leftIcon={<FiTrash2 />}
                 colorScheme="red"
-                variant="solid"
                 onClick={onDeleteOpen}
                 isLoading={deleteMutation.isPending}
               >
@@ -446,7 +161,7 @@ export function ExerciseDetailPage() {
           </HStack>
 
           <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
-            {/* PDF Info */}
+            {/* PDF card */}
             <GridItem>
               <Card h="full">
                 <CardBody>
@@ -487,67 +202,25 @@ export function ExerciseDetailPage() {
               </Card>
             </GridItem>
 
-            {/* Checkpoints */}
+            {/* Checkpoints card */}
             <GridItem>
-              <Card h="full">
-                <CardBody>
-                  <VStack align="start" spacing={4}>
-                    <HStack>
-                      <FiCheckCircle size={24} />
-                      <Heading size="md">Εξαγμένα Checkpoints</Heading>
-                    </HStack>
-                    <Divider />
-                    {checkpoints.length === 0 ? (
-                      <Box textAlign="center" py={8} w="full">
-                        <Text color="gray.400">
-                          Δεν έχουν εξαχθεί checkpoints ακόμα. Χρησιμοποιήστε το chat παρακάτω.
-                        </Text>
-                      </Box>
-                    ) : (
-                      <List spacing={3} w="full">
-                        {checkpoints.map((checkpoint, index) => (
-                          <ListItem key={checkpoint.id}>
-                            <HStack align="start">
-                              <ListIcon as={FiCheckCircle} color="green.500" mt={1} />
-                              <VStack align="start" spacing={1} flex={1}>
-                                <Text fontWeight="medium">
-                                  {index + 1}. {checkpoint.description}
-                                </Text>
-                                {checkpoint.pattern && (
-                                  <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                                    {checkpoint.pattern}
-                                  </Text>
-                                )}
-                                {checkpoint.patternDescription && (
-                                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                                    {checkpoint.patternDescription}
-                                  </Text>
-                                )}
-                              </VStack>
-                            </HStack>
-                          </ListItem>
-                        ))}
-                      </List>
-                    )}
-                  </VStack>
-                </CardBody>
-              </Card>
+              <CheckpointsCard checkpoints={checkpoints} />
             </GridItem>
           </Grid>
 
-          {/* Chat Tabs */}
+          {/* Chat */}
           <Card>
             <CardBody>
               <Heading size="md" mb={4}>
                 Συνομιλία & Εξαγωγή
-                {exercise.status !== ExerciseStatus.DRAFT && (
+                {isReadOnly && (
                   <Badge ml={2} colorScheme="green" textTransform="none">
                     Μόνο ανάγνωση
                   </Badge>
                 )}
               </Heading>
               <Divider mb={4} />
-              <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior='unmount'>
+              <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior="unmount">
                 <TabList>
                   <Tab>Checkpoints</Tab>
                   <Tab isDisabled={checkpoints.length === 0}>
@@ -564,7 +237,7 @@ export function ExerciseDetailPage() {
                     <InlineChat
                       exerciseId={exerciseId!}
                       mode="checkpoints"
-                      isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
+                      isReadOnly={isReadOnly}
                       onAccepted={handleAccepted}
                     />
                   </TabPanel>
@@ -573,7 +246,7 @@ export function ExerciseDetailPage() {
                       exerciseId={exerciseId!}
                       mode="patterns"
                       patternsEnabled={checkpoints.length > 0}
-                      isReadOnly={exercise.status !== ExerciseStatus.DRAFT}
+                      isReadOnly={isReadOnly}
                       onAccepted={handleAccepted}
                     />
                   </TabPanel>
@@ -583,162 +256,25 @@ export function ExerciseDetailPage() {
           </Card>
         </VStack>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog
-          isOpen={isDeleteOpen}
-          leastDestructiveRef={cancelRef}
-          onClose={onDeleteClose}
-        >
+        {/* Delete dialog */}
+        <AlertDialog isOpen={isDeleteOpen} leastDestructiveRef={cancelRef} onClose={onDeleteClose}>
           <AlertDialogOverlay>
             <AlertDialogContent>
               <AlertDialogHeader fontSize="lg" fontWeight="bold">
                 Διαγραφή Άσκησης
               </AlertDialogHeader>
-
               <AlertDialogBody>
                 Είστε σίγουροι ότι θέλετε να διαγράψετε την άσκηση "{exercise.title}";
                 Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.
               </AlertDialogBody>
-
               <AlertDialogFooter>
-                <Button ref={cancelRef} onClick={onDeleteClose}>
-                  Ακύρωση
-                </Button>
-                <Button colorScheme="red" onClick={handleDelete} ml={3}>
-                  Διαγραφή
-                </Button>
+                <Button ref={cancelRef} onClick={onDeleteClose}>Ακύρωση</Button>
+                <Button colorScheme="red" onClick={handleDelete} ml={3}>Διαγραφή</Button>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialogOverlay>
         </AlertDialog>
       </Box>
     </PageTransition>
-  );
-}
-
-// ── Shared rendering helpers ──────────────────────────────────────────────────
-
-function MessageContent({ content }: { content: string | ContentBlock[] }) {
-  if (Array.isArray(content)) {
-    return (
-      <OrderedList spacing={3} pl={2}>
-        {content.map((block, i) => (
-          <ListItem key={i}>
-            <Text fontWeight="semibold" fontSize="sm">{block.title}</Text>
-            {block.content.map((item, j) => (
-              <Box key={j} mt={1} ml={2}>
-                <Text as="span" fontSize="xs" textDecoration="underline" color="gray.300">
-                  {item.title}
-                </Text>
-                <Text fontSize="xs" color="gray.400" mt={0.5} fontFamily={item.title === 'Pattern' ? 'mono' : undefined}>
-                  {item.description}
-                </Text>
-              </Box>
-            ))}
-          </ListItem>
-        ))}
-      </OrderedList>
-    );
-  }
-
-  const lines = content.split('\n');
-  const hasNumbered = lines.some((l) => /^\d+\.\s/.test(l.trim()));
-
-  if (!hasNumbered) {
-    return <Text whiteSpace="pre-wrap" fontSize="sm">{content}</Text>;
-  }
-
-  const segments: Array<{ type: 'text'; value: string } | { type: 'list'; items: string[] }> = [];
-  let textAccum: string[] = [];
-  let listAccum: string[] = [];
-
-  const flushText = () => {
-    const t = textAccum.join('\n').trim();
-    if (t) segments.push({ type: 'text', value: t });
-    textAccum = [];
-  };
-  const flushList = () => {
-    if (listAccum.length) segments.push({ type: 'list', items: [...listAccum] });
-    listAccum = [];
-  };
-
-  for (const line of lines) {
-    if (/^\d+\.\s/.test(line.trim())) {
-      flushText();
-      listAccum.push(line);
-    } else {
-      flushList();
-      textAccum.push(line);
-    }
-  }
-  flushText();
-  flushList();
-
-  let listCounter = 0;
-  return (
-    <VStack align="start" spacing={2}>
-      {segments.map((seg, i) => {
-        if (seg.type === 'text') {
-          return <Text key={i} whiteSpace="pre-wrap" fontSize="sm">{seg.value}</Text>;
-        }
-        const start = listCounter + 1;
-        listCounter += seg.items.length;
-        return (
-          <OrderedList key={i} spacing={1} pl={4} start={start}>
-            {seg.items.map((item, j) => {
-              const match = item.match(/^\d+\.\s+(.+)/);
-              return (
-                <ListItem key={j}>
-                  <Text fontSize="sm" whiteSpace="pre-wrap">{match ? match[1] : item}</Text>
-                </ListItem>
-              );
-            })}
-          </OrderedList>
-        );
-      })}
-    </VStack>
-  );
-}
-
-interface MessageBubbleProps {
-  message: ChatMessage;
-  isStreaming?: boolean;
-}
-
-function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
-  const isProfessor = message.role === 'professor';
-  const { user } = useAuthContext();
-  return (
-    <HStack align="start" alignSelf={isProfessor ? 'flex-end' : 'flex-start'} maxW="80%" spacing={3}>
-      {!isProfessor && <Avatar size="sm" name="Artificial Intelligence" bg="brand.500" />}
-      <Box
-        bg={isProfessor ? 'brand.600' : 'gray.700'}
-        color={isProfessor ? 'white' : 'gray.100'}
-        px={4}
-        py={3}
-        borderRadius="lg"
-        position="relative"
-      >
-        <MessageContent content={message.content} />
-        {isStreaming && (
-          <Box
-            as="span"
-            display="inline-block"
-            w="2px"
-            h="1em"
-            bg="currentColor"
-            ml={1}
-            animation="blink 1s infinite"
-            sx={{
-              '@keyframes blink': {
-                '0%, 100%': { opacity: 1 },
-                '50%': { opacity: 0 },
-              },
-            }}
-          />
-        )}
-      </Box>
-      {isProfessor && <Avatar size="sm" name={user?.username} bg="gray.500" />}
-    </HStack>
   );
 }
