@@ -88,8 +88,6 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   useEffect(() => {
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
-      console.log('Seeding messages from DB:', dbMessages);
-
       setMessages(dbMessages.map((m) => ({ ...m, content: parseMessageContent(m.content) || m.content })));
     }
   }, [dbMessages]);
@@ -118,8 +116,6 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   const prevStreaming = useRef(false);
   useEffect(() => {
     if (prevStreaming.current && !streaming && buffer) {
-      console.log('here');
-
       setMessages((prev) => [
         ...prev,
         {
