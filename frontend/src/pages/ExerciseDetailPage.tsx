@@ -41,7 +41,9 @@ import { FiArrowLeft, FiFileText, FiCheckCircle, FiSend, FiCheck, FiTrash2 } fro
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { api, Checkpoint, ConversationMessage, ExerciseStatus } from '@/lib/api';
 import { useLlmStream } from '@/hooks/useLlmStream';
-import { parseMessageContent } from '@/lib/parseMessageContent';
+import { parseMessageContent, ContentBlock } from '@/lib/parseMessageContent';
+
+type ChatMessage = Omit<ConversationMessage, 'content'> & { content: string | ContentBlock[] };
 import { useAuthContext } from '@/contexts/use-auth';
 
 // ── InlineChat ─────────────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
       : 'Δημιούργησε regex patterns για κάθε checkpoint';
 
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesBoxRef = useRef<HTMLDivElement>(null);
   const seeded = useRef(false);
@@ -88,7 +90,10 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
   useEffect(() => {
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
-      setMessages(dbMessages.map((m) => ({ ...m, content: parseMessageContent(m.content) || m.content })));
+      setMessages(dbMessages.map((m) => {
+        const parsed = parseMessageContent(m.content);
+        return { ...m, content: parsed || m.content };
+      }));
     }
   }, [dbMessages]);
 
@@ -112,23 +117,53 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     }
   }, [dbMessages.length, messages.length, defaultInput]);
 
+  // Keep latest pending data in refs so the finalize effect doesn't need them as deps
+  const latestPendingPatterns = useRef(pendingPatterns);
+  const latestPendingCheckpoints = useRef(pendingCheckpoints);
+  latestPendingPatterns.current = pendingPatterns;
+  latestPendingCheckpoints.current = pendingCheckpoints;
+
   // Finalize assistant bubble when streaming ends
   const prevStreaming = useRef(false);
   useEffect(() => {
-    if (prevStreaming.current && !streaming && buffer) {
+    if (prevStreaming.current && !streaming) {
+      const patterns = latestPendingPatterns.current;
+      const checkpoints = latestPendingCheckpoints.current;
+      let content: string | ContentBlock[];
+
+      if (mode === 'patterns' && patterns.length > 0) {
+        content = patterns.map((p, i) => ({
+          title: `${p.order ?? i + 1}. ${p.description}`,
+          content: [
+            { title: 'Pattern', description: p.pattern },
+            { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
+          ],
+        }));
+      } else if (mode === 'checkpoints' && checkpoints.length > 0) {
+        content = checkpoints.map((p, i) => ({
+          title: `${p.order ?? i + 1}. ${p.description}`,
+          content: [],
+        }));
+      } else if (buffer) {
+        content = buffer;
+      } else {
+        prevStreaming.current = streaming;
+        return;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: `assistant-${Date.now()}`,
           exerciseId,
-          role: 'assistant',
-          content: buffer,
+          role: 'assistant' as const,
+          content,
           createdAt: new Date().toISOString(),
         },
       ]);
     }
     prevStreaming.current = streaming;
-  }, [streaming, buffer, exerciseId]);
+  }, [streaming, buffer, exerciseId, mode]);
 
   // Scroll to bottom on new messages (after initial load)
   useEffect(() => {
@@ -587,7 +622,29 @@ export function ExerciseDetailPage() {
 
 // ── Shared rendering helpers ──────────────────────────────────────────────────
 
-function MessageContent({ content }: { content: string }) {
+function MessageContent({ content }: { content: string | ContentBlock[] }) {
+  if (Array.isArray(content)) {
+    return (
+      <OrderedList spacing={3} pl={2}>
+        {content.map((block, i) => (
+          <ListItem key={i}>
+            <Text fontWeight="semibold" fontSize="sm">{block.title}</Text>
+            {block.content.map((item, j) => (
+              <Box key={j} mt={1} ml={2}>
+                <Text as="span" fontSize="xs" textDecoration="underline" color="gray.300">
+                  {item.title}
+                </Text>
+                <Text fontSize="xs" color="gray.400" mt={0.5} fontFamily={item.title === 'Pattern' ? 'mono' : undefined}>
+                  {item.description}
+                </Text>
+              </Box>
+            ))}
+          </ListItem>
+        ))}
+      </OrderedList>
+    );
+  }
+
   const lines = content.split('\n');
   const hasNumbered = lines.some((l) => /^\d+\.\s/.test(l.trim()));
 
@@ -648,7 +705,7 @@ function MessageContent({ content }: { content: string }) {
 }
 
 interface MessageBubbleProps {
-  message: ConversationMessage;
+  message: ChatMessage;
   isStreaming?: boolean;
 }
 

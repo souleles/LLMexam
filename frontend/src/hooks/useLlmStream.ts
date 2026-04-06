@@ -60,8 +60,10 @@ export function useLlmStream(exerciseId: string, mode: 'checkpoints' | 'patterns
           } catch { /* not JSON */ }
         }
 
-        const text = parseMessageContent(e.data as string);
-        if (text) setBuffer((prev) => prev + (prev ? '\n\n' : '') + text);
+        const parsed = parseMessageContent(e.data as string);
+        if (typeof parsed === 'string' && parsed) {
+          setBuffer((prev) => prev + (prev ? '\n\n' : '') + parsed);
+        }
 
         if (isDone) {
           es.close();
