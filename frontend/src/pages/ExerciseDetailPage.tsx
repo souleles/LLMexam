@@ -200,7 +200,6 @@ function InlineChat({ exerciseId, mode, patternsEnabled = true, checkpoints = []
     mode === 'checkpoints'
       ? 'Ξεκινήστε ζητώντας από την AI να εξάγει checkpoints από την άσκηση'
       : 'Ζητήστε από την AI να δημιουργήσει regex patterns για τα checkpoints';
-  console.log({ messages, pendingPatterns, pendingCheckpoints });
 
   return (
     <VStack align="stretch" spacing={4}>
