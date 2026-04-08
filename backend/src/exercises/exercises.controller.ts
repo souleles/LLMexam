@@ -4,9 +4,11 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
+  Res,
   UploadedFile,
   UseInterceptors,
   UseGuards,
@@ -15,10 +17,11 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join, basename } from 'path';
 import { firstValueFrom } from 'rxjs';
 import * as fs from 'fs';
 import * as FormData from 'form-data';
+import type { Response } from 'express';
 import { CreateExerciseDto, ExerciseResponseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { ExercisesService } from './exercises.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -108,6 +111,17 @@ export class ExercisesController {
   @Get(':id')
   findOne(@Param('id') id: string): Promise<ExerciseResponseDto> {
     return this.exercisesService.findOne(id);
+  }
+
+  @Get(':id/download')
+  async downloadFile(@Param('id') id: string, @Res() res: Response) {
+    const exercise = await this.exercisesService.findOne(id);
+    const filePath = join(process.cwd(), exercise.originalPdfPath);
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('File not found');
+    }
+    const filename = `${exercise.title}.pdf`;
+    (res as any).download(filePath, filename);
   }
 
   @Patch(':id')

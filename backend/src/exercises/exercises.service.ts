@@ -87,7 +87,6 @@ export class ExercisesService {
       id: exercise.id,
       title: exercise.title,
       originalPdfPath: exercise.pdfUrl,
-      extractedText: exercise.extractedText || undefined,
       status: exercise.status.toLowerCase() as 'draft' | 'approved',
       createdAt: exercise.createdAt.toISOString(),
       updatedAt: exercise.updatedAt.toISOString(),

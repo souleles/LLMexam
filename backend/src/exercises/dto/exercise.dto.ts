@@ -36,7 +36,7 @@ export class ExerciseResponseDto {
 
   originalPdfPath: string;
 
-  extractedText?: string;
+  // extractedText?: string;
 
   status: 'draft' | 'approved';
 

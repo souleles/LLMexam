@@ -15,10 +15,9 @@ import {
   Card,
   CardBody,
   Divider,
-  Grid,
-  GridItem,
   Heading,
   HStack,
+  Link,
   Skeleton,
   Stack,
   Tab,
@@ -33,7 +32,7 @@ import {
 } from '@chakra-ui/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { FiArrowLeft, FiCheck, FiFileText, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function ExerciseDetailPage() {
@@ -160,53 +159,35 @@ export function ExerciseDetailPage() {
             </HStack>
           </HStack>
 
-          <Grid templateColumns={{ base: '1fr', lg: '1fr 1fr' }} gap={6}>
-            {/* PDF card */}
-            <GridItem>
-              <Card h="full">
-                <CardBody>
-                  <VStack align="start" spacing={4}>
-                    <HStack>
-                      <FiFileText size={24} />
-                      <Heading size="md">Ανεβασμένο Αρχείο</Heading>
-                    </HStack>
-                    <Divider />
-                    <VStack align="start" spacing={2} w="full">
-                      <Text fontWeight="medium">Διαδρομή PDF:</Text>
-                      <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                        {exercise.originalPdfPath}
-                      </Text>
-                    </VStack>
-                    {exercise.extractedText && (
-                      <VStack align="start" spacing={2} w="full">
-                        <Text fontWeight="medium">Προεπισκόπηση Εξαγμένου Κειμένου:</Text>
-                        <Box
-                          p={4}
-                          bg="gray.900"
-                          borderRadius="md"
-                          w="full"
-                          maxH="300px"
-                          overflowY="auto"
-                          border="1px solid"
-                          borderColor="gray.700"
-                        >
-                          <Text fontSize="sm" whiteSpace="pre-wrap">
-                            {exercise.extractedText.substring(0, 500)}
-                            {exercise.extractedText.length > 500 && '...'}
-                          </Text>
-                        </Box>
-                      </VStack>
-                    )}
-                  </VStack>
-                </CardBody>
-              </Card>
-            </GridItem>
+          {/* PDF card */}
+          <Card>
+            <CardBody>
+              <VStack align="start" spacing={4}>
+                <HStack>
+                  <FiFileText size={24} />
+                  <Heading size="md">Ανεβασμένο Αρχείο</Heading>
+                </HStack>
+                <Divider />
+                <HStack justify="space-between" w="full">
+                  <HStack spacing={2}>
+                    <FiFileText size={16} />
+                    <Text fontSize="sm" color="gray.300">{exercise.title}.pdf</Text>
+                  </HStack>
+                  <Link
+                    href={`${import.meta.env.VITE_API_BASE_URL}/api/exercises/${exercise.id}/download`}
+                    download
+                  >
+                    <Button leftIcon={<FiDownload />} size="sm" variant="outline">
+                      Λήψη
+                    </Button>
+                  </Link>
+                </HStack>
+              </VStack>
+            </CardBody>
+          </Card>
 
-            {/* Checkpoints card */}
-            <GridItem>
-              <CheckpointsCard checkpoints={checkpoints} />
-            </GridItem>
-          </Grid>
+          {/* Checkpoints card */}
+          <CheckpointsCard checkpoints={checkpoints} />
 
           {/* Chat */}
           <Card>
