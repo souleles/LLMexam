@@ -165,6 +165,8 @@ export function StudentDetailPage() {
                       borderRadius="md"
                       borderWidth="1px"
                       borderColor="gray.600"
+                      maxHeight="300px"
+                      overflowY="auto"
                     >
                       <Text fontSize="sm" lineHeight="tall" whiteSpace="pre-wrap" color="gray.200">
                         {displayReport}
