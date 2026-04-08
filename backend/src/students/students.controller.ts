@@ -13,6 +13,8 @@ import { memoryStorage } from 'multer';
 import { StudentResponseDto } from './dto/student.dto';
 import { StudentsService } from './students.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthorizedUser } from '@/auth/dto/AuthorizedUser';
+import { AuthUser } from '@/auth/decorators/AuthUser';
 
 const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
 
@@ -42,16 +44,17 @@ export class StudentsController {
   )
   async upload(
     @UploadedFile() file: Express.Multer.File,
+    @AuthUser() user: AuthorizedUser
   ): Promise<StudentResponseDto[]> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    return this.studentsService.importFromFile(file);
+    return this.studentsService.importFromFile(file, user.sub);
   }
 
   @Get()
-  findAll(): Promise<StudentResponseDto[]> {
-    return this.studentsService.findAll();
+  findAll(@AuthUser() user: AuthorizedUser): Promise<StudentResponseDto[]> {
+    return this.studentsService.findAll(user.sub);
   }
 
   @Get(':id')

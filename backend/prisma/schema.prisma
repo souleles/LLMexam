@@ -15,8 +15,10 @@ model Exercise {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   extractedText String?
+  teacherid     String
   checkpoints   Checkpoint[]
   conversations Conversation[]
+  users         users          @relation(fields: [teacherid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "exercises_fk")
   submissions   Submission[]
 
   @@map("exercises")
@@ -120,22 +122,26 @@ model Student {
   firstName          String
   lastName           String
   email              String?
-  miniReport         String?
-  miniReportAt       DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  miniReport         String?
+  miniReportAt       DateTime?
+  teacherid          String
+  users              users               @relation(fields: [teacherid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "students_fk")
   submissionStudents SubmissionStudent[]
 
   @@map("students")
 }
 
 model users {
-  id        String   @id
-  username  String   @unique
+  id        String     @id
+  username  String     @unique
   password  String
-  role      String   @default("teacher")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  role      String     @default("teacher")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now())
+  exercises Exercise[]
+  students  Student[]
 }
 
 enum ExerciseStatus {

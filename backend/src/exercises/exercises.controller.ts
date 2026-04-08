@@ -25,6 +25,8 @@ import type { Response } from 'express';
 import { CreateExerciseDto, ExerciseResponseDto, UpdateExerciseDto } from './dto/exercise.dto';
 import { ExercisesService } from './exercises.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthorizedUser } from '@/auth/dto/AuthorizedUser';
+import { AuthUser } from '@/auth/decorators/AuthUser';
 
 @Controller('exercises')
 @UseGuards(AuthGuard)
@@ -40,8 +42,11 @@ export class ExercisesController {
   }
 
   @Post()
-  create(@Body() createExerciseDto: CreateExerciseDto): Promise<ExerciseResponseDto> {
-    return this.exercisesService.create(createExerciseDto);
+  create(
+    @AuthUser() user: AuthorizedUser,
+    @Body() createExerciseDto: CreateExerciseDto
+  ): Promise<ExerciseResponseDto> {
+    return this.exercisesService.create(createExerciseDto, user.sub);
   }
 
   @Post('upload')
@@ -67,6 +72,7 @@ export class ExercisesController {
     }),
   )
   async uploadExercise(
+    @AuthUser() user: AuthorizedUser,
     @UploadedFile() file: Express.Multer.File,
     @Body('title') title: string,
   ): Promise<ExerciseResponseDto> {
@@ -100,12 +106,12 @@ export class ExercisesController {
       console.error('PDF extraction failed:', err.message);
     }
 
-    return this.exercisesService.create({ title, pdfUrl, extractedText });
+    return this.exercisesService.create({ title, pdfUrl, extractedText }, user.sub);
   }
 
   @Get()
-  findAll(): Promise<ExerciseResponseDto[]> {
-    return this.exercisesService.findAll();
+  findAll(@AuthUser() user: AuthorizedUser): Promise<ExerciseResponseDto[]> {
+    return this.exercisesService.findAll(user.sub);
   }
 
   @Get(':id')

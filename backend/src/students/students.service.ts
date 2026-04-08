@@ -23,7 +23,7 @@ export class StudentsService {
     this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
   }
 
-  async importFromFile(file: Express.Multer.File): Promise<StudentResponseDto[]> {
+  async importFromFile(file: Express.Multer.File, userId: string): Promise<StudentResponseDto[]> {
     let rows: StudentRow[];
 
     try {
@@ -49,6 +49,11 @@ export class StudentsService {
             firstName: row.firstName,
             lastName: row.lastName,
             email: row.email || null,
+            users: {
+              connect: {
+                id: userId,
+              }
+            }
           },
           update: {
             firstName: row.firstName,
@@ -59,11 +64,12 @@ export class StudentsService {
       ),
     );
 
-    return this.findAll();
+    return this.findAll(userId);
   }
 
-  async findAll(): Promise<StudentResponseDto[]> {
+  async findAll(userId: string): Promise<StudentResponseDto[]> {
     return this.prisma.student.findMany({
+      where: { teacherid: userId },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
   }

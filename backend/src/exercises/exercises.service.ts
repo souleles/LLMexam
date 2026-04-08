@@ -7,11 +7,14 @@ import { ExerciseStatus } from '@prisma/client';
 export class ExercisesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createExerciseDto: CreateExerciseDto): Promise<ExerciseResponseDto> {
+  async create(createExerciseDto: CreateExerciseDto, userId: string): Promise<ExerciseResponseDto> {
     const exercise = await this.prisma.exercise.create({
       data: {
         ...createExerciseDto,
         status: ExerciseStatus.DRAFT,
+        users: {
+          connect: { id: userId },
+        },
       },
       include: {
         checkpoints: true,
@@ -22,8 +25,9 @@ export class ExercisesService {
     return this.mapToResponseDto(exercise);
   }
 
-  async findAll(): Promise<ExerciseResponseDto[]> {
+  async findAll(userId: string): Promise<ExerciseResponseDto[]> {
     const exercises = await this.prisma.exercise.findMany({
+      where: { teacherid: userId },
       include: {
         checkpoints: true,
         submissions: true,
