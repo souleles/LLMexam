@@ -8,7 +8,7 @@ from typing import AsyncIterator
 import httpx
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, AIMessage, SystemMessage
-from models import GenerateCheckpointsRequest, GeneratePatternsRequest
+from models import GenerateCheckpointsRequest, GeneratePatternsRequest, MiniReportRequest
 from prompts.checkpoint_prompts import (
     SYSTEM_PROMPT_INITIAL,
     USER_PROMPT_INITIAL,
@@ -18,6 +18,10 @@ from prompts.checkpoint_prompts import (
 from prompts.patterns_prompts import (
     SYSTEM_PROMPT_PATTERNS,
     USER_PROMPT_PATTERNS,
+)
+from prompts.mini_report_prompts import (
+    SYSTEM_PROMPT_MINI_REPORT,
+    USER_PROMPT_MINI_REPORT,
 )
 
 logger = logging.getLogger(__name__)
@@ -263,3 +267,57 @@ async def stream_pattern_generation(request: GeneratePatternsRequest) -> AsyncIt
         logger.error(f"Pattern generation failed: {str(e)}", exc_info=True)
         yield f"data: Σφάλμα κατά τη δημιουργία patterns: {str(e)}\n\n"
         yield "data: [DONE]\n\n"
+
+
+async def generate_mini_report(request: MiniReportRequest) -> str:
+    """
+    Generate a mini performance report for a student using LLM.
+
+    Args:
+        request: Student info and submission history
+
+    Returns:
+        Report text in Greek
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not found in environment")
+
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        streaming=False,
+        temperature=0.5,
+        api_key=api_key,
+        http_client=httpx.Client(),
+        http_async_client=httpx.AsyncClient(),
+    )
+
+    # Build human-readable submissions text
+    if not request.submissions:
+        submissions_text = "Δεν υπάρχουν υποβολές."
+    else:
+        lines = []
+        for i, sub in enumerate(request.submissions, 1):
+            if sub.teacher_score is not None:
+                score_str = f"Βαθμός καθηγητή: {sub.teacher_score}/{sub.total_checkpoints}"
+            else:
+                score_str = f"Αυτόματος βαθμός: {sub.passed_checkpoints}/{sub.total_checkpoints} ({sub.score:.0f}%)"
+            lines.append(f"{i}. Εργασία: {sub.exercise_title} | Ημερομηνία: {sub.submitted_at} | {score_str}")
+            for cp in sub.checkpoint_results:
+                status = "Επιτυχία" if cp.matched else "Αποτυχία"
+                lines.append(f"   - {cp.description}: {status}")
+        submissions_text = "\n".join(lines)
+
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT_MINI_REPORT),
+        HumanMessage(content=USER_PROMPT_MINI_REPORT.format(
+            student_name=request.student_name,
+            student_identifier=request.student_identifier,
+            submissions_text=submissions_text,
+        )),
+    ]
+
+    logger.info(f"Generating mini report for student {request.student_identifier}")
+    response = await llm.ainvoke(messages)
+    logger.info(f"Mini report generated, length={len(response.content)}")
+    return response.content

@@ -64,6 +64,8 @@ export interface Student {
   firstName: string;
   lastName: string;
   email: string | null;
+  miniReport: string | null;
+  miniReportAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -210,6 +212,10 @@ export const api = {
       const { data } = await httpClient.post('/api/students/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      return data;
+    },
+    getMiniReport: async (id: string): Promise<{ report: string }> => {
+      const { data } = await httpClient.get(`/api/students/${id}/mini-report`);
       return data;
     },
   },

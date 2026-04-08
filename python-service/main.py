@@ -18,9 +18,11 @@ from models import (
     HealthResponse,
     GradeRequest,
     GradeResponse,
+    MiniReportRequest,
+    MiniReportResponse,
 )
 from services.pdf_service import extract_text_from_pdf
-from services.llm_service import stream_checkpoint_generation, stream_pattern_generation
+from services.llm_service import stream_checkpoint_generation, stream_pattern_generation, generate_mini_report
 from services.sql_service import parse_sql
 from services.grading_service import grade_submission
 
@@ -151,6 +153,17 @@ async def grade(request: GradeRequest):
     """
     logger.info(f"Received grading request: {len(request.checkpoints)} checkpoints, {len(request.files)} files")
     return grade_submission(request)
+
+
+@app.post("/generate-mini-report", response_model=MiniReportResponse)
+async def generate_mini_report_endpoint(request: MiniReportRequest):
+    """
+    Generate a mini performance report for a student using LLM.
+    Returns a plain-text Greek report about the student's grades and history.
+    """
+    logger.info(f"Received mini report request for student {request.student_identifier}")
+    report_text = await generate_mini_report(request)
+    return MiniReportResponse(report=report_text)
 
 
 @app.post("/parse-sql", response_model=SqlParseResponse)

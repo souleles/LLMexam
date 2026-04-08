@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as XLSX from 'xlsx';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudentResponseDto } from './dto/student.dto';
 
@@ -12,7 +14,14 @@ interface StudentRow {
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly pythonServiceUrl: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {
+    this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
+  }
 
   async importFromFile(file: Express.Multer.File): Promise<StudentResponseDto[]> {
     let rows: StudentRow[];
@@ -148,6 +157,75 @@ export class StudentsService {
           }
         : null,
     }));
+  }
+
+  async getMiniReport(studentId: string): Promise<{ report: string }> {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${studentId} not found`);
+    }
+
+    const submissionStudents = await this.prisma.submissionStudent.findMany({
+      where: { studentId },
+      include: {
+        submission: {
+          include: {
+            exercise: true,
+            gradingResult: {
+              include: {
+                checkpointResults: {
+                  include: { checkpoint: true },
+                  orderBy: { checkpoint: { order: 'asc' } },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const submissions = submissionStudents.map((ss) => ({
+      exercise_title: ss.submission.exercise.title,
+      submitted_at: new Date(ss.submission.createdAt).toLocaleDateString('el-GR'),
+      total_checkpoints: ss.submission.gradingResult?.totalCheckpoints ?? 0,
+      passed_checkpoints: ss.submission.gradingResult?.passedCheckpoints ?? 0,
+      score: ss.submission.gradingResult?.score ?? 0,
+      teacher_score: ss.submission.gradingResult?.teacherScore ?? null,
+      checkpoint_results: (ss.submission.gradingResult?.checkpointResults ?? []).map((cr) => ({
+        description: cr.checkpoint.description,
+        matched: cr.matched,
+      })),
+    }));
+
+    try {
+      const response = await axios.post(
+        `${this.pythonServiceUrl}/generate-mini-report`,
+        {
+          student_name: `${student.lastName} ${student.firstName}`,
+          student_identifier: student.studentIdentifier,
+          submissions,
+        },
+        { timeout: 60000 },
+      );
+      const report: string = response.data.report;
+
+      await this.prisma.student.update({
+        where: { id: studentId },
+        data: { miniReport: report, miniReportAt: new Date() },
+      });
+
+      return { report };
+    } catch (error) {
+      console.error('Error generating mini report from Python service:', {
+        studentId,
+        message: error.message,
+      });
+      throw new Error('Failed to generate mini report from LLM service');
+    }
   }
 
   private parseRows(raw: Record<string, unknown>[]): StudentRow[] {

@@ -99,7 +99,11 @@ export function StudentsPage() {
           emptyText="Δεν υπάρχουν φοιτητές ακόμα"
           emptySubtext="Ανεβάστε ένα αρχείο CSV ή Excel με στήλες: AM, firstName, lastName, email"
           renderRow={(student) => (
-            <Tr key={student.id} _hover={{ bg: 'gray.700' }}>
+            <Tr key={student.id}
+              _hover={{ bg: 'gray.700' }}
+              cursor="pointer"
+              onClick={() => navigate(`/students/${student.id}`)}
+            >
               <Td fontWeight="medium">{student.studentIdentifier}</Td>
               <Td>{student.lastName}</Td>
               <Td>{student.firstName}</Td>

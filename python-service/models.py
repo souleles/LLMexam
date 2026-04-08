@@ -100,3 +100,34 @@ class CheckpointResult(BaseModel):
 class GradeResponse(BaseModel):
     """Response for /grade endpoint."""
     results: list[CheckpointResult]
+
+
+# Mini report models
+
+class CheckpointResultInfo(BaseModel):
+    """Checkpoint result for mini report."""
+    description: str
+    matched: bool
+
+
+class SubmissionSummary(BaseModel):
+    """Summary of a single student submission for mini report."""
+    exercise_title: str
+    submitted_at: str
+    total_checkpoints: int
+    passed_checkpoints: int
+    score: float
+    teacher_score: Optional[float] = None
+    checkpoint_results: list[CheckpointResultInfo] = Field(default_factory=list)
+
+
+class MiniReportRequest(BaseModel):
+    """Request body for /generate-mini-report endpoint."""
+    student_name: str
+    student_identifier: str
+    submissions: list[SubmissionSummary]
+
+
+class MiniReportResponse(BaseModel):
+    """Response for /generate-mini-report endpoint."""
+    report: str
