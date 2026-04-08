@@ -102,6 +102,10 @@ export function ExercisesPage() {
           isLoading={isLoading}
           emptyText="Δεν υπάρχουν ασκήσεις ακόμα"
           emptySubtext="Ξεκινήστε ανεβάζοντας την πρώτη σας άσκηση"
+          pagination={{
+            pageSizeOptions: [10, 25, 50],
+            defaultPageSize: 10,
+          }}
           renderRow={(exercise) => <RenderRow exercise={exercise} deleteMutation={deleteMutation} />}
         />
       </Box>

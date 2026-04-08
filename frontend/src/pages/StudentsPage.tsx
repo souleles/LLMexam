@@ -98,6 +98,10 @@ export function StudentsPage() {
           isLoading={isLoading}
           emptyText="Δεν υπάρχουν φοιτητές ακόμα"
           emptySubtext="Ανεβάστε ένα αρχείο CSV ή Excel με στήλες: AM, firstName, lastName, email"
+          pagination={{
+            pageSizeOptions: [10, 25, 50],
+            defaultPageSize: 10,
+          }}
           renderRow={(student) => (
             <Tr key={student.id}
               _hover={{ bg: 'gray.700' }}
