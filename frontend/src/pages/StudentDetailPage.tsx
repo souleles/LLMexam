@@ -231,14 +231,12 @@ export function StudentDetailPage() {
                                   colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
                                   textTransform="none"
                                 >
-                                  {submission.gradingResult.passedCheckpoints}/
-                                  {submission.gradingResult.totalCheckpoints}
+                                  LLM: {submission.gradingResult.passedCheckpoints}/{submission.gradingResult.totalCheckpoints}
                                 </Badge>
                                 {submission.gradingResult.teacherScore !== null &&
                                   submission.gradingResult.teacherScore !== undefined ? (
                                   <Badge colorScheme="blue" textTransform="none">
-                                    Καθηγητής: {submission.gradingResult.teacherScore}/
-                                    {submission.gradingResult.totalCheckpoints}
+                                    Καθηγητής: {submission.gradingResult.teacherScore}/{submission.gradingResult.totalCheckpoints}
                                   </Badge>
                                 ) : (
                                   <Text fontSize="sm" fontWeight="bold">
