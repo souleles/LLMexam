@@ -1,6 +1,7 @@
 import { PageTransition } from '@/components/PageTransition';
 import { DataTable } from '@/components/DataTable';
 import { api, Exercise, ExerciseStatus } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   Badge,
   Box,
@@ -74,13 +75,13 @@ export function ExercisesPage() {
   const queryClient = useQueryClient();
 
   const { data: exercises = [], isLoading } = useQuery({
-    queryKey: ['exercises'],
+    queryKey: [QueryKeys.Exercises],
     queryFn: api.exercises.list,
   });
 
   const deleteMutation = useMutation({
     mutationFn: api.exercises.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['exercises'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] }),
   });
 
   return (

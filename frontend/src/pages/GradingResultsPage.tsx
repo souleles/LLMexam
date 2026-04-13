@@ -32,6 +32,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiCheck, FiX, FiSave } from 'react-icons/fi';
 import { api, GradingResult, Checkpoint } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import { useState, useEffect } from 'react';
 
 export function GradingResultsPage() {
@@ -42,25 +43,25 @@ export function GradingResultsPage() {
   const [results, setResults] = useState<GradingResult[]>([]);
 
   const { data: exercise } = useQuery({
-    queryKey: ['exercise', exerciseId],
+    queryKey: [QueryKeys.Exercise, exerciseId],
     queryFn: () => api.exercises.get(exerciseId!),
     enabled: !!exerciseId,
   });
 
   const { data: checkpoints = [] } = useQuery({
-    queryKey: ['checkpoints', exerciseId],
+    queryKey: [QueryKeys.Checkpoints, exerciseId],
     queryFn: () => api.checkpoints.list(exerciseId!),
     enabled: !!exerciseId,
   });
 
   const { data: submissions = [] } = useQuery({
-    queryKey: ['submissions', exerciseId],
+    queryKey: [QueryKeys.Submissions, exerciseId],
     queryFn: () => api.submissions.list(exerciseId!),
     enabled: !!exerciseId,
   });
 
   const { data: fetchedResults = [], isLoading } = useQuery({
-    queryKey: ['grading-results', exerciseId],
+    queryKey: [QueryKeys.GradingResults, exerciseId],
     queryFn: () => api.grading.getResults(exerciseId!),
     enabled: !!exerciseId,
   });
@@ -72,7 +73,7 @@ export function GradingResultsPage() {
   const saveMutation = useMutation({
     mutationFn: (results: GradingResult[]) => api.grading.saveResults(results),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['grading-results', exerciseId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.GradingResults, exerciseId] });
       toast({
         title: 'Αποθηκεύτηκαν τα αποτελέσματα',
         description: 'Τα αποτελέσματα βαθμολόγησης αποθηκεύτηκαν επιτυχώς',
@@ -193,9 +194,9 @@ export function GradingResultsPage() {
                           return (
                             <Tr key={submission.id}>
                               <Td fontWeight="medium">
-                                {submission.student.lastName} {submission.student.firstName}
+                                {submission.students[0]?.lastName} {submission.students[0]?.firstName}
                                 <Text as="span" fontSize="xs" color="gray.500" ml={1}>
-                                  ({submission.student.studentIdentifier})
+                                  ({submission.students[0]?.studentIdentifier})
                                 </Text>
                               </Td>
                               <Td>
@@ -240,7 +241,7 @@ export function GradingResultsPage() {
                           <Box flex="1" textAlign="left">
                             <HStack>
                               <Text fontWeight="bold">
-                                {submission.student.lastName} {submission.student.firstName} ({submission.student.studentIdentifier})
+                                {submission.students[0]?.lastName} {submission.students[0]?.firstName} ({submission.students[0]?.studentIdentifier})
                               </Text>
                               <Badge>
                                 {checkpointResults.filter((cr) => cr.result?.matched).length} /{' '}

@@ -1,7 +1,9 @@
 import { PageTransition } from '@/components/PageTransition';
 import { InlineChat } from '@/components/Chat/InlineChat';
 import { CheckpointsCard } from '@/components/Exercise/CheckpointsCard';
+import { SubmissionsList } from '@/components/SubmissionsList';
 import { api, ExerciseStatus } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -44,14 +46,20 @@ export function ExerciseDetailPage() {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const { data: exercise, isLoading: exerciseLoading } = useQuery({
-    queryKey: ['exercises', exerciseId],
+    queryKey: [QueryKeys.Exercises, exerciseId],
     queryFn: () => api.exercises.get(exerciseId!),
     enabled: !!exerciseId,
   });
 
   const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
-    queryKey: ['checkpoints', exerciseId],
+    queryKey: [QueryKeys.Checkpoints, exerciseId],
     queryFn: () => api.checkpoints.list(exerciseId!),
+    enabled: !!exerciseId,
+  });
+
+  const { data: submissions = [], isLoading: submissionsLoading } = useQuery({
+    queryKey: [QueryKeys.Submissions, exerciseId],
+    queryFn: () => api.submissions.list(exerciseId!),
     enabled: !!exerciseId,
   });
 
@@ -69,8 +77,8 @@ export function ExerciseDetailPage() {
   const approveMutation = useMutation({
     mutationFn: () => api.exercises.approve(exerciseId!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exercises', exerciseId] });
-      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises, exerciseId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] });
       toast({ title: 'Η άσκηση εγκρίθηκε επιτυχώς', status: 'success', duration: 3000 });
     },
     onError: () => {
@@ -79,7 +87,7 @@ export function ExerciseDetailPage() {
   });
 
   const handleAccepted = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
   }, [exerciseId, queryClient]);
 
   const handleDelete = () => {
@@ -188,6 +196,21 @@ export function ExerciseDetailPage() {
 
           {/* Checkpoints card */}
           <CheckpointsCard checkpoints={checkpoints} />
+
+          {/* Submissions card */}
+          <Card>
+            <CardBody>
+              <VStack align="stretch" spacing={4}>
+                <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                <SubmissionsList
+                  submissions={submissions}
+                  isLoading={submissionsLoading}
+                  showStudents
+                  buildPath={(s) => `/exercises/${exerciseId}/submissions/${s.id}`}
+                />
+              </VStack>
+            </CardBody>
+          </Card>
 
           {/* Chat */}
           <Card>

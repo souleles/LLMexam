@@ -1,5 +1,6 @@
 import { useLlmStream } from '@/hooks/useLlmStream';
 import { api } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import { ContentBlock, parseMessageContent } from '@/lib/parseMessageContent';
 import {
   Box,
@@ -61,7 +62,7 @@ export function InlineChat({
   const conversationType = mode === 'checkpoints' ? 'CHECKPOINT' : 'PATTERN';
 
   const { data: dbMessages = [] } = useQuery({
-    queryKey: ['conversations', exerciseId, conversationType],
+    queryKey: [QueryKeys.Conversations, exerciseId, conversationType],
     queryFn: () => api.conversations.listByType(exerciseId, conversationType),
     enabled: !!exerciseId && (mode === 'checkpoints' || patternsEnabled),
     staleTime: Infinity,
@@ -157,7 +158,7 @@ export function InlineChat({
   const acceptCheckpointsMutation = useMutation({
     mutationFn: () => api.checkpoints.bulkReplace(exerciseId, pendingCheckpoints),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingCheckpoints();
       onAccepted();
       toast({ title: 'Checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
@@ -178,7 +179,7 @@ export function InlineChat({
         })),
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checkpoints', exerciseId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingPatterns();
       onAccepted();
       toast({ title: 'Patterns αποθηκεύτηκαν', status: 'success', duration: 3000 });

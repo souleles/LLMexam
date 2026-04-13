@@ -36,26 +36,35 @@ export interface ConversationMessage {
 export interface Submission {
   id: string;
   exerciseId: string;
-  studentId: string;
-  student: {
+  exerciseTitle: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  createdAt: string;
+  students: Array<{
+    id: string;
     studentIdentifier: string;
     firstName: string;
     lastName: string;
     email: string | null;
-  };
-  fileName: string;
-  fileUrl: string;
-  fileType: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-  gradingResult?: {
+  }>;
+  gradingResult: {
     id: string;
-    score: number;
-    passed: boolean;
     totalCheckpoints: number;
     passedCheckpoints: number;
-  };
+    score: number;
+    teacherScore?: number | null;
+    passed: boolean;
+    gradedAt: string;
+    checkpointResults: Array<{
+      id: string;
+      checkpointId: string;
+      checkpointDescription: string;
+      checkpointOrder: number;
+      matched: boolean;
+      matchedSnippets: unknown[];
+    }>;
+  } | null;
 }
 
 export interface Student {
@@ -189,10 +198,14 @@ export const api = {
       return data;
     },
     list: async (exerciseId: string): Promise<Submission[]> => {
-      const { data } = await httpClient.get(`/api/submissions?exerciseId=${exerciseId}`);
+      const { data } = await httpClient.get('/api/submissions', { params: { exerciseId } });
       return data;
     },
-  },  
+    get: async (id: string): Promise<Submission> => {
+      const { data } = await httpClient.get(`/api/submissions/${id}`);
+      return data;
+    },
+  },
   students: {
     list: async (): Promise<Student[]> => {
       const { data } = await httpClient.get('/api/students');
@@ -203,7 +216,7 @@ export const api = {
       return data;
     },
     getSubmissions: async (id: string): Promise<StudentSubmission[]> => {
-      const { data } = await httpClient.get(`/api/students/${id}/submissions`);
+      const { data } = await httpClient.get(`/api/submissions`, { params: { studentId: id } });
       return data;
     },
     upload: async (file: File): Promise<Student[]> => {

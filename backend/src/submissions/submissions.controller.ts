@@ -14,7 +14,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { SubmissionResponseDto } from './dto/submission.dto';
 import { CheckpointMatch, SubmissionsService } from './submissions.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 
@@ -76,15 +75,24 @@ export class SubmissionsController {
   }
 
   @Get()
-  findAll(@Query('exerciseId') exerciseId?: string): Promise<SubmissionResponseDto[]> {
-    if (exerciseId) {
-      return this.submissionsService.findByExercise(exerciseId);
+  findAll(
+    @Query('studentId') studentId?: string,
+    @Query('exerciseId') exerciseId?: string,
+  ) {
+    if (studentId && exerciseId) {
+      throw new BadRequestException('Provide either studentId or exerciseId, not both');
     }
-    return this.submissionsService.findAll();
+    if (!studentId && !exerciseId) {
+      throw new BadRequestException('Either studentId or exerciseId is required');
+    }
+    if (studentId) {
+      return this.submissionsService.findByStudent(studentId);
+    }
+    return this.submissionsService.findByExercise(exerciseId!);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<SubmissionResponseDto> {
+  findOne(@Param('id') id: string) {
     return this.submissionsService.findOne(id);
   }
 

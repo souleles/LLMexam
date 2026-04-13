@@ -1,6 +1,7 @@
 import { PageTransition } from '@/components/PageTransition';
 import { DataTable } from '@/components/DataTable';
 import { api } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   Box,
   Button,
@@ -27,14 +28,14 @@ export function StudentsPage() {
   const queryClient = useQueryClient();
 
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['students'],
+    queryKey: [QueryKeys.Students],
     queryFn: api.students.list,
   });
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.students.upload(file),
     onSuccess: (imported) => {
-      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Students] });
       toast({
         title: 'Επιτυχής εισαγωγή',
         description: `Εισήχθησαν ${imported.length} φοιτητές`,

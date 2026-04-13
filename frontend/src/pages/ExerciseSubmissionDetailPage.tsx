@@ -7,10 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-export function StudentSubmissionDetailPage() {
+export function ExerciseSubmissionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { submissionId } = useParams<{ submissionId: string }>();
+  const { exerciseId, submissionId } = useParams<{ exerciseId: string; submissionId: string }>();
 
   const stateSubmission = location.state?.submission;
 
@@ -25,8 +25,13 @@ export function StudentSubmissionDetailPage() {
   if (isLoading) {
     return (
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate(-1)}>
-          Πίσω στον Φοιτητή
+        <Button
+          leftIcon={<FiArrowLeft />}
+          variant="ghost"
+          mb={6}
+          onClick={() => navigate(`/exercises/${exerciseId}`)}
+        >
+          Πίσω στην Άσκηση
         </Button>
         <Stack spacing={4}>
           <Skeleton height="60px" />
@@ -42,8 +47,8 @@ export function StudentSubmissionDetailPage() {
         <Text fontSize="lg" color="gray.400">
           Δεν βρέθηκαν δεδομένα υποβολής
         </Text>
-        <Button mt={4} onClick={() => navigate(-1)}>
-          Πίσω
+        <Button mt={4} onClick={() => navigate(`/exercises/${exerciseId}`)}>
+          Πίσω στην Άσκηση
         </Button>
       </Box>
     );
@@ -52,8 +57,13 @@ export function StudentSubmissionDetailPage() {
   return (
     <PageTransition>
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate(-1)}>
-          Πίσω στον Φοιτητή
+        <Button
+          leftIcon={<FiArrowLeft />}
+          variant="ghost"
+          mb={6}
+          onClick={() => navigate(`/exercises/${exerciseId}`)}
+        >
+          Πίσω στην Άσκηση
         </Button>
         <SubmissionDetail submission={submission} />
       </Box>

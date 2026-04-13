@@ -62,11 +62,6 @@ export class StudentsController {
     return this.studentsService.findOne(id);
   }
 
-  @Get(':id/submissions')
-  getStudentSubmissions(@Param('id') id: string) {
-    return this.studentsService.getStudentSubmissions(id);
-  }
-
   @Get(':id/mini-report')
   getMiniReport(@Param('id') id: string) {
     return this.studentsService.getMiniReport(id);

@@ -1,6 +1,7 @@
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
 import { api, GradingResult } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   Accordion,
   AccordionButton,
@@ -80,12 +81,12 @@ export function StudentExercisesPage() {
   const queryClient = useQueryClient();
 
   const { data: exercises = [] } = useQuery({
-    queryKey: ['exercises'],
+    queryKey: [QueryKeys.Exercises],
     queryFn: api.exercises.list,
   });
 
   const { data: students = [] } = useQuery({
-    queryKey: ['students'],
+    queryKey: [QueryKeys.Students],
     queryFn: api.students.list,
   });
 
@@ -125,7 +126,7 @@ export function StudentExercisesPage() {
         setGradingResults(data.checkpoints);
         setTeacherPassed(data.checkpoints.filter((r: any) => r.matched).length);
       }
-      queryClient.invalidateQueries({ queryKey: ['submissions'] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
         title: 'Ολοκληρώθηκε η βαθμολόγηση',
@@ -158,7 +159,7 @@ export function StudentExercisesPage() {
         status: 'success',
         duration: 3000,
       });
-      queryClient.invalidateQueries({ queryKey: ['submissions'] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
     },
     onError: (error: Error) => {
       toast({

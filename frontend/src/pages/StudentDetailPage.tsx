@@ -1,4 +1,6 @@
 import { api } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
+import { SubmissionsList } from '@/components/SubmissionsList';
 import { PageTransition } from '@/components/PageTransition';
 import {
   Badge,
@@ -18,7 +20,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiChevronRight, FiFile, FiFileText, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiFileText, FiUser } from 'react-icons/fi';
 
 export function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -26,13 +28,13 @@ export function StudentDetailPage() {
   const [miniReport, setMiniReport] = useState<string | null | undefined>(undefined);
 
   const { data: student, isLoading: studentLoading } = useQuery({
-    queryKey: ['students', studentId],
+    queryKey: [QueryKeys.Students, studentId],
     queryFn: () => api.students.get(studentId!),
     enabled: !!studentId,
   });
 
   const { data: submissions = [], isLoading: submissionsLoading } = useQuery({
-    queryKey: ['students', studentId, 'submissions'],
+    queryKey: [QueryKeys.Students, studentId, QueryKeys.Submissions],
     queryFn: () => api.students.getSubmissions(studentId!),
     enabled: !!studentId,
   });
@@ -189,69 +191,11 @@ export function StudentDetailPage() {
             <CardBody>
               <VStack align="stretch" spacing={4}>
                 <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
-
-                {submissionsLoading ? (
-                  <Stack spacing={3}>
-                    <Skeleton height="60px" />
-                    <Skeleton height="60px" />
-                  </Stack>
-                ) : submissions.length === 0 ? (
-                  <Box textAlign="center" py={8}>
-                    <Text color="gray.500">Δεν υπάρχουν υποβολές για αυτόν τον φοιτητή</Text>
-                  </Box>
-                ) : (
-                  <VStack align="stretch" spacing={2}>
-                    {submissions.map((submission) => (
-                      <Box
-                        key={submission.id}
-                        p={4}
-                        borderWidth="1px"
-                        borderRadius="md"
-                        cursor="pointer"
-                        _hover={{ bg: 'gray.700', borderColor: 'brand.400' }}
-                        onClick={() =>
-                          navigate(`/student-exercises/${submission.id}`, { state: { submission } })
-                        }
-                      >
-                        <HStack justify="space-between">
-                          <HStack spacing={3}>
-                            <Icon as={FiFile} color="gray.500" />
-                            <VStack align="start" spacing={0}>
-                              <Text fontWeight="medium">{submission.exerciseTitle}</Text>
-                              <Text fontSize="sm" color="gray.400">
-                                {new Date(submission.createdAt).toLocaleDateString('el-GR')} •{' '}
-                                {submission.fileName}
-                              </Text>
-                            </VStack>
-                          </HStack>
-                          <HStack spacing={2}>
-                            {submission.gradingResult && (
-                              <>
-                                <Badge
-                                  colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
-                                  textTransform="none"
-                                >
-                                  LLM: {submission.gradingResult.passedCheckpoints}/{submission.gradingResult.totalCheckpoints}
-                                </Badge>
-                                {submission.gradingResult.teacherScore !== null &&
-                                  submission.gradingResult.teacherScore !== undefined ? (
-                                  <Badge colorScheme="blue" textTransform="none">
-                                    Καθηγητής: {submission.gradingResult.teacherScore}/{submission.gradingResult.totalCheckpoints}
-                                  </Badge>
-                                ) : (
-                                  <Text fontSize="sm" fontWeight="bold">
-                                    {Math.round(submission.gradingResult.score)}%
-                                  </Text>
-                                )}
-                              </>
-                            )}
-                            <Icon as={FiChevronRight} color="gray.400" />
-                          </HStack>
-                        </HStack>
-                      </Box>
-                    ))}
-                  </VStack>
-                )}
+                <SubmissionsList
+                  submissions={submissions}
+                  isLoading={submissionsLoading}
+                  showExerciseTitle
+                />
               </VStack>
             </CardBody>
           </Card>

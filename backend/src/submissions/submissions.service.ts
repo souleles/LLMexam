@@ -295,13 +295,123 @@ export class SubmissionsService {
     };
   }
 
-  async findByExercise(exerciseId: string): Promise<SubmissionResponseDto[]> {
-    const submissions = await this.prisma.submission.findMany({
-      where: { exerciseId },
-      include: SUBMISSION_INCLUDE,
+  async findByStudent(studentId: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${studentId} not found`);
+    }
+
+    const submissionStudents = await this.prisma.submissionStudent.findMany({
+      where: { studentId },
+      include: {
+        submission: {
+          include: {
+            exercise: true,
+            submissionStudents: { include: { student: true } },
+            gradingResult: {
+              include: {
+                checkpointResults: {
+                  include: { checkpoint: true },
+                  orderBy: { checkpoint: { order: 'asc' } },
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
-    return submissions.map(this.mapToResponseDto);
+
+    return submissionStudents.map((ss) => ({
+      id: ss.submission.id,
+      exerciseId: ss.submission.exerciseId,
+      exerciseTitle: ss.submission.exercise.title,
+      fileName: ss.submission.fileName,
+      fileUrl: ss.submission.fileUrl,
+      fileType: ss.submission.fileType,
+      createdAt: ss.submission.createdAt,
+      students: ss.submission.submissionStudents.map((s) => ({
+        id: s.student.id,
+        studentIdentifier: s.student.studentIdentifier,
+        firstName: s.student.firstName,
+        lastName: s.student.lastName,
+        email: s.student.email,
+      })),
+      gradingResult: ss.submission.gradingResult
+        ? {
+            id: ss.submission.gradingResult.id,
+            totalCheckpoints: ss.submission.gradingResult.totalCheckpoints,
+            passedCheckpoints: ss.submission.gradingResult.passedCheckpoints,
+            score: ss.submission.gradingResult.score,
+            teacherScore: ss.submission.gradingResult.teacherScore,
+            passed: ss.submission.gradingResult.passed,
+            gradedAt: ss.submission.gradingResult.gradedAt,
+            checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
+              id: cr.id,
+              checkpointId: cr.checkpointId,
+              checkpointDescription: cr.checkpoint.description,
+              checkpointOrder: cr.checkpoint.order,
+              matched: cr.matched,
+              matchedSnippets: cr.matchedSnippets,
+            })),
+          }
+        : null,
+    }));
+  }
+
+  async findByExercise(exerciseId: string) {
+    const submissions = await this.prisma.submission.findMany({
+      where: { exerciseId },
+      include: {
+        exercise: true,
+        submissionStudents: { include: { student: true } },
+        gradingResult: {
+          include: {
+            checkpointResults: {
+              include: { checkpoint: true },
+              orderBy: { checkpoint: { order: 'asc' } },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return submissions.map((s) => ({
+      id: s.id,
+      exerciseId: s.exerciseId,
+      exerciseTitle: s.exercise.title,
+      fileName: s.fileName,
+      fileUrl: s.fileUrl,
+      fileType: s.fileType,
+      createdAt: s.createdAt,
+      students: s.submissionStudents.map((ss) => ({
+        id: ss.student.id,
+        studentIdentifier: ss.student.studentIdentifier,
+        firstName: ss.student.firstName,
+        lastName: ss.student.lastName,
+        email: ss.student.email,
+      })),
+      gradingResult: s.gradingResult
+        ? {
+            id: s.gradingResult.id,
+            totalCheckpoints: s.gradingResult.totalCheckpoints,
+            passedCheckpoints: s.gradingResult.passedCheckpoints,
+            score: s.gradingResult.score,
+            teacherScore: s.gradingResult.teacherScore,
+            passed: s.gradingResult.passed,
+            gradedAt: s.gradingResult.gradedAt,
+            checkpointResults: s.gradingResult.checkpointResults.map((cr) => ({
+              id: cr.id,
+              checkpointId: cr.checkpointId,
+              checkpointDescription: cr.checkpoint.description,
+              checkpointOrder: cr.checkpoint.order,
+              matched: cr.matched,
+              matchedSnippets: cr.matchedSnippets,
+            })),
+          }
+        : null,
+    }));
   }
 
   async findAll(): Promise<SubmissionResponseDto[]> {
@@ -312,15 +422,60 @@ export class SubmissionsService {
     return submissions.map(this.mapToResponseDto);
   }
 
-  async findOne(id: string): Promise<SubmissionResponseDto> {
+  async findOne(id: string) {
     const submission = await this.prisma.submission.findUnique({
       where: { id },
-      include: SUBMISSION_INCLUDE,
+      include: {
+        exercise: true,
+        submissionStudents: { include: { student: true } },
+        gradingResult: {
+          include: {
+            checkpointResults: {
+              include: { checkpoint: true },
+              orderBy: { checkpoint: { order: 'asc' } },
+            },
+          },
+        },
+      },
     });
     if (!submission) {
       throw new NotFoundException(`Submission with ID ${id} not found`);
     }
-    return this.mapToResponseDto(submission);
+    return {
+      id: submission.id,
+      exerciseId: submission.exerciseId,
+      exerciseTitle: submission.exercise.title,
+      fileName: submission.fileName,
+      fileUrl: submission.fileUrl,
+      fileType: submission.fileType,
+      createdAt: submission.createdAt,
+      students: submission.submissionStudents.map((ss) => ({
+        id: ss.student.id,
+        studentIdentifier: ss.student.studentIdentifier,
+        firstName: ss.student.firstName,
+        lastName: ss.student.lastName,
+        email: ss.student.email,
+      })),
+      gradingResult: submission.gradingResult
+        ? {
+            id: submission.gradingResult.id,
+            totalCheckpoints: submission.gradingResult.totalCheckpoints,
+            passedCheckpoints: submission.gradingResult.passedCheckpoints,
+            score: submission.gradingResult.score,
+            teacherScore: submission.gradingResult.teacherScore,
+            passed: submission.gradingResult.passed,
+            gradedAt: submission.gradingResult.gradedAt,
+            checkpointResults: submission.gradingResult.checkpointResults.map((cr) => ({
+              id: cr.id,
+              checkpointId: cr.checkpointId,
+              checkpointDescription: cr.checkpoint.description,
+              checkpointOrder: cr.checkpoint.order,
+              matched: cr.matched,
+              matchedSnippets: cr.matchedSnippets,
+            })),
+          }
+        : null,
+    };
   }
 
   async remove(id: string): Promise<void> {

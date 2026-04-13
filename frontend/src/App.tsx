@@ -8,6 +8,7 @@ import { ExercisesPage } from './pages/ExercisesPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { StudentDetailPage } from './pages/StudentDetailPage';
 import { StudentSubmissionDetailPage } from './pages/StudentSubmissionDetailPage';
+import { ExerciseSubmissionDetailPage } from './pages/ExerciseSubmissionDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import UnprotectedRoute from './components/Auth/UnprotectedRoute';
@@ -22,6 +23,7 @@ function App() {
           <Route path="exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
           <Route path="exercises/new" element={<ProtectedRoute><NewExercisePage /></ProtectedRoute>} />
           <Route path="exercises/:exerciseId" element={<ProtectedRoute><ExerciseDetailPage /></ProtectedRoute>} />
+          <Route path="exercises/:exerciseId/submissions/:submissionId" element={<ProtectedRoute><ExerciseSubmissionDetailPage /></ProtectedRoute>} />
           <Route path="student-exercises" element={<ProtectedRoute><StudentExercisesPage /></ProtectedRoute>} />
           <Route path="student-exercises/:submissionId" element={<ProtectedRoute><StudentSubmissionDetailPage /></ProtectedRoute>} />
           <Route path="students" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />

@@ -1,7 +1,7 @@
-import { Box, Container, Flex, Heading, Button, HStack, Menu, MenuButton, MenuList, MenuItem, MenuDivider, Avatar, Text, IconButton, useToast } from '@chakra-ui/react';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
-import { FiBarChart, FiFileText, FiUpload, FiUsers, FiChevronDown, FiUser, FiLogOut } from 'react-icons/fi';
 import { useAuthContext } from '@/contexts/use-auth';
+import { Avatar, Box, Button, Container, Flex, Heading, HStack, IconButton, Menu, MenuButton, MenuDivider, MenuItem, MenuList, Text, useToast } from '@chakra-ui/react';
+import { FiChevronDown, FiFileText, FiLogOut, FiUpload, FiUsers } from 'react-icons/fi';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 
 export function Header() {
   const location = useLocation();

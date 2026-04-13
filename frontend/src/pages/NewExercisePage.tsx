@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { api, Exercise } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import { FileUploader } from '@/components/FileUploader';
 
 export function NewExercisePage() {
@@ -29,7 +30,7 @@ export function NewExercisePage() {
     mutationFn: ({ file, title }: { file: File; title: string }) =>
       api.exercises.create(file, title),
     onSuccess: (exercise: Exercise) => {
-      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] });
       toast({
         title: 'Επιτυχής δημιουργία άσκησης',
         description: 'Τώρα μπορείτε να εξάγετε τα σημεία ελέγχου χρησιμοποιώντας το chat',
