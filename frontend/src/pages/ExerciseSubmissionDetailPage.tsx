@@ -1,9 +1,7 @@
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
-import { api } from '@/lib/api';
-import { QueryKeys } from '@/lib/queryKeys';
+import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
 import { Box, Button, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { useQuery } from '@tanstack/react-query';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -14,11 +12,7 @@ export function ExerciseSubmissionDetailPage() {
 
   const stateSubmission = location.state?.submission;
 
-  const { data: fetchedSubmission, isLoading } = useQuery({
-    queryKey: [QueryKeys.Submissions, submissionId],
-    queryFn: () => api.submissions.get(submissionId!),
-    enabled: !!submissionId && !stateSubmission,
-  });
+  const { data: fetchedSubmission, isLoading } = useGetSingleSubmission(submissionId, !stateSubmission);
 
   const submission = stateSubmission ?? fetchedSubmission;
 

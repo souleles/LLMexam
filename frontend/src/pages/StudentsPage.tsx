@@ -1,7 +1,8 @@
 import { PageTransition } from '@/components/PageTransition';
 import { DataTable } from '@/components/DataTable';
-import { api } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetStudents } from '@/hooks/use-get-students';
+import { useUploadStudents } from '@/hooks/use-upload-students';
 import {
   Box,
   Button,
@@ -15,7 +16,7 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { FiEye, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -27,13 +28,9 @@ export function StudentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  const { data: students = [], isLoading } = useQuery({
-    queryKey: [QueryKeys.Students],
-    queryFn: api.students.list,
-  });
+  const { data: students = [], isLoading } = useGetStudents();
 
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => api.students.upload(file),
+  const uploadMutation = useUploadStudents({
     onSuccess: (imported) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Students] });
       toast({

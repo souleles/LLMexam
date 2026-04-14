@@ -1,6 +1,8 @@
 import { useLlmStream } from '@/hooks/useLlmStream';
-import { api } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetConversations } from '@/hooks/use-get-conversations';
+import { useAcceptCheckpoints } from '@/hooks/use-accept-checkpoints';
+import { useAcceptPatterns } from '@/hooks/use-accept-patterns';
 import { ContentBlock, parseMessageContent } from '@/lib/parseMessageContent';
 import {
   Box,
@@ -11,7 +13,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiCheck, FiSend } from 'react-icons/fi';
 import { useToast } from '@chakra-ui/react';
@@ -61,12 +63,11 @@ export function InlineChat({
 
   const conversationType = mode === 'checkpoints' ? 'CHECKPOINT' : 'PATTERN';
 
-  const { data: dbMessages = [] } = useQuery({
-    queryKey: [QueryKeys.Conversations, exerciseId, conversationType],
-    queryFn: () => api.conversations.listByType(exerciseId, conversationType),
-    enabled: !!exerciseId && (mode === 'checkpoints' || patternsEnabled),
-    staleTime: Infinity,
-  });
+  const { data: dbMessages = [] } = useGetConversations(
+    exerciseId,
+    conversationType,
+    mode === 'checkpoints' || patternsEnabled,
+  );
 
   // Seed from DB once
   useEffect(() => {
@@ -155,8 +156,7 @@ export function InlineChat({
     }
   }, [messages.length, streaming]);
 
-  const acceptCheckpointsMutation = useMutation({
-    mutationFn: () => api.checkpoints.bulkReplace(exerciseId, pendingCheckpoints),
+  const acceptCheckpointsMutation = useAcceptCheckpoints(exerciseId, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingCheckpoints();
@@ -168,16 +168,7 @@ export function InlineChat({
     },
   });
 
-  const acceptPatternsMutation = useMutation({
-    mutationFn: () =>
-      api.checkpoints.bulkUpdatePatterns(
-        exerciseId,
-        pendingPatterns.map((p) => ({
-          order: p.order,
-          pattern: p.pattern,
-          patternDescription: p.patternDescription,
-        })),
-      ),
+  const acceptPatternsMutation = useAcceptPatterns(exerciseId, {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingPatterns();
@@ -215,7 +206,8 @@ export function InlineChat({
 
   const hasPending = mode === 'checkpoints' ? pendingCheckpoints.length > 0 : pendingPatterns.length > 0;
   const pendingCount = mode === 'checkpoints' ? pendingCheckpoints.length : pendingPatterns.length;
-  const acceptMutation = mode === 'checkpoints' ? acceptCheckpointsMutation : acceptPatternsMutation;
+  const acceptIsPending =
+    mode === 'checkpoints' ? acceptCheckpointsMutation.isPending : acceptPatternsMutation.isPending;
   const acceptLabel = mode === 'checkpoints' ? 'Αποδοχή Checkpoints' : 'Αποδοχή Patterns';
   const emptyLabel =
     mode === 'checkpoints'
@@ -231,8 +223,18 @@ export function InlineChat({
               leftIcon={<FiCheck />}
               colorScheme="green"
               size="sm"
-              isLoading={acceptMutation.isPending}
-              onClick={() => acceptMutation.mutate()}
+              isLoading={acceptIsPending}
+              onClick={() =>
+                mode === 'checkpoints'
+                  ? acceptCheckpointsMutation.mutate(pendingCheckpoints)
+                  : acceptPatternsMutation.mutate(
+                      pendingPatterns.map((p) => ({
+                        order: p.order,
+                        pattern: p.pattern,
+                        patternDescription: p.patternDescription,
+                      })),
+                    )
+              }
             >
               {acceptLabel} ({pendingCount})
             </Button>

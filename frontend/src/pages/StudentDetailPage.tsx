@@ -1,5 +1,6 @@
-import { api } from '@/lib/api';
-import { QueryKeys } from '@/lib/queryKeys';
+import { useGetStudent } from '@/hooks/use-get-student';
+import { useGetStudentSubmissions } from '@/hooks/use-get-student-submissions';
+import { useGenerateMiniReport } from '@/hooks/use-generate-mini-report';
 import { SubmissionsList } from '@/components/SubmissionsList';
 import { PageTransition } from '@/components/PageTransition';
 import {
@@ -17,7 +18,6 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiFileText, FiUser } from 'react-icons/fi';
@@ -27,20 +27,10 @@ export function StudentDetailPage() {
   const navigate = useNavigate();
   const [miniReport, setMiniReport] = useState<string | null | undefined>(undefined);
 
-  const { data: student, isLoading: studentLoading } = useQuery({
-    queryKey: [QueryKeys.Students, studentId],
-    queryFn: () => api.students.get(studentId!),
-    enabled: !!studentId,
-  });
+  const { data: student, isLoading: studentLoading } = useGetStudent(studentId);
+  const { data: submissions = [], isLoading: submissionsLoading } = useGetStudentSubmissions(studentId);
 
-  const { data: submissions = [], isLoading: submissionsLoading } = useQuery({
-    queryKey: [QueryKeys.Students, studentId, QueryKeys.Submissions],
-    queryFn: () => api.students.getSubmissions(studentId!),
-    enabled: !!studentId,
-  });
-
-  const miniReportMutation = useMutation({
-    mutationFn: () => api.students.getMiniReport(studentId!),
+  const miniReportMutation = useGenerateMiniReport({
     onSuccess: (data) => setMiniReport(data.report),
   });
 
@@ -130,7 +120,7 @@ export function StudentDetailPage() {
                   <Button
                     size="sm"
                     colorScheme="brand"
-                    onClick={() => miniReportMutation.mutate()}
+                    onClick={() => miniReportMutation.mutate(studentId!)}
                     isLoading={miniReportMutation.isPending}
                     loadingText="Δημιουργία..."
                     isDisabled={miniReportMutation.isPending}

@@ -2,8 +2,13 @@ import { PageTransition } from '@/components/PageTransition';
 import { InlineChat } from '@/components/Chat/InlineChat';
 import { CheckpointsCard } from '@/components/Exercise/CheckpointsCard';
 import { SubmissionsList } from '@/components/SubmissionsList';
-import { api, ExerciseStatus } from '@/lib/api';
+import { ExerciseStatus } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetExercise } from '@/hooks/use-get-exercise';
+import { useGetCheckpoints } from '@/hooks/use-get-checkpoints';
+import { useGetSubmissions } from '@/hooks/use-get-submissions';
+import { useDeleteExercise } from '@/hooks/use-delete-exercise';
+import { useApproveExercise } from '@/hooks/use-approve-exercise';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -32,7 +37,7 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { FiArrowLeft, FiCheck, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,26 +50,11 @@ export function ExerciseDetailPage() {
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  const { data: exercise, isLoading: exerciseLoading } = useQuery({
-    queryKey: [QueryKeys.Exercises, exerciseId],
-    queryFn: () => api.exercises.get(exerciseId!),
-    enabled: !!exerciseId,
-  });
+  const { data: exercise, isLoading: exerciseLoading } = useGetExercise(exerciseId);
+  const { data: checkpoints = [], isLoading: checkpointsLoading } = useGetCheckpoints(exerciseId);
+  const { data: submissions = [], isLoading: submissionsLoading } = useGetSubmissions(exerciseId);
 
-  const { data: checkpoints = [], isLoading: checkpointsLoading } = useQuery({
-    queryKey: [QueryKeys.Checkpoints, exerciseId],
-    queryFn: () => api.checkpoints.list(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  const { data: submissions = [], isLoading: submissionsLoading } = useQuery({
-    queryKey: [QueryKeys.Submissions, exerciseId],
-    queryFn: () => api.submissions.list(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => api.exercises.delete(exerciseId!),
+  const deleteMutation = useDeleteExercise({
     onSuccess: () => {
       toast({ title: 'Η άσκηση διαγράφηκε επιτυχώς', status: 'success', duration: 3000 });
       navigate('/exercises');
@@ -74,8 +64,7 @@ export function ExerciseDetailPage() {
     },
   });
 
-  const approveMutation = useMutation({
-    mutationFn: () => api.exercises.approve(exerciseId!),
+  const approveMutation = useApproveExercise({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises, exerciseId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] });
@@ -91,7 +80,7 @@ export function ExerciseDetailPage() {
   }, [exerciseId, queryClient]);
 
   const handleDelete = () => {
-    deleteMutation.mutate();
+    deleteMutation.mutate(exerciseId!);
     onDeleteClose();
   };
 
@@ -150,7 +139,7 @@ export function ExerciseDetailPage() {
                 <Button
                   leftIcon={<FiCheck />}
                   colorScheme="green"
-                  onClick={() => approveMutation.mutate()}
+                  onClick={() => approveMutation.mutate(exerciseId!)}
                   isLoading={approveMutation.isPending}
                 >
                   Έγκριση Άσκησης

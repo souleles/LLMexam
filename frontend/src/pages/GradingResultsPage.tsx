@@ -29,10 +29,15 @@ import {
   AccordionIcon,
 } from '@chakra-ui/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiCheck, FiX, FiSave } from 'react-icons/fi';
 import { api, GradingResult, Checkpoint } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetExercise } from '@/hooks/use-get-exercise';
+import { useGetCheckpoints } from '@/hooks/use-get-checkpoints';
+import { useGetSubmissions } from '@/hooks/use-get-submissions';
+import { useGetGradingResults } from '@/hooks/use-get-grading-results';
+import { useSaveGradingResults } from '@/hooks/use-save-grading-results';
 import { useState, useEffect } from 'react';
 
 export function GradingResultsPage() {
@@ -42,36 +47,16 @@ export function GradingResultsPage() {
   const toast = useToast();
   const [results, setResults] = useState<GradingResult[]>([]);
 
-  const { data: exercise } = useQuery({
-    queryKey: [QueryKeys.Exercise, exerciseId],
-    queryFn: () => api.exercises.get(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  const { data: checkpoints = [] } = useQuery({
-    queryKey: [QueryKeys.Checkpoints, exerciseId],
-    queryFn: () => api.checkpoints.list(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  const { data: submissions = [] } = useQuery({
-    queryKey: [QueryKeys.Submissions, exerciseId],
-    queryFn: () => api.submissions.list(exerciseId!),
-    enabled: !!exerciseId,
-  });
-
-  const { data: fetchedResults = [], isLoading } = useQuery({
-    queryKey: [QueryKeys.GradingResults, exerciseId],
-    queryFn: () => api.grading.getResults(exerciseId!),
-    enabled: !!exerciseId,
-  });
+  const { data: exercise } = useGetExercise(exerciseId);
+  const { data: checkpoints = [] } = useGetCheckpoints(exerciseId);
+  const { data: submissions = [] } = useGetSubmissions(exerciseId);
+  const { data: fetchedResults = [], isLoading } = useGetGradingResults(exerciseId);
 
   useEffect(() => {
     setResults(fetchedResults);
   }, [fetchedResults]);
 
-  const saveMutation = useMutation({
-    mutationFn: (results: GradingResult[]) => api.grading.saveResults(results),
+  const saveMutation = useSaveGradingResults({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.GradingResults, exerciseId] });
       toast({

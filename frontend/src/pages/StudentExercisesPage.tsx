@@ -1,7 +1,11 @@
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
-import { api, GradingResult } from '@/lib/api';
+import { GradingResult } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetExercises } from '@/hooks/use-get-exercises';
+import { useGetStudents } from '@/hooks/use-get-students';
+import { useUploadAndGrade } from '@/hooks/use-upload-and-grade';
+import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import {
   Accordion,
   AccordionButton,
@@ -28,7 +32,7 @@ import {
   useToast,
   VStack
 } from '@chakra-ui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useState } from 'react';
 import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
@@ -80,15 +84,8 @@ export function StudentExercisesPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: exercises = [] } = useQuery({
-    queryKey: [QueryKeys.Exercises],
-    queryFn: api.exercises.list,
-  });
-
-  const { data: students = [] } = useQuery({
-    queryKey: [QueryKeys.Students],
-    queryFn: api.students.list,
-  });
+  const { data: exercises = [] } = useGetExercises();
+  const { data: students = [] } = useGetStudents();
 
   const exerciseOptions = exercises
     .filter((ex) => ex.status === 'approved')
@@ -102,23 +99,8 @@ export function StudentExercisesPage() {
     label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
   }));
 
-  const gradeMutation = useMutation({
-    mutationFn: ({
-      exerciseId,
-      studentIds,
-      file,
-    }: {
-      exerciseId: string;
-      studentIds: Array<{ value: string; label: string }>;
-      file: File;
-    }) =>
-      api.submissions.uploadAndGrade(
-        exerciseId,
-        studentIds.map((s) => s.value),
-        file,
-      ),
+  const gradeMutation = useUploadAndGrade({
     onSuccess: (data: any) => {
-      // data is the response from uploadAndGrade endpoint
       if (data.submissionId) {
         setSubmissionId(data.submissionId);
       }
@@ -145,13 +127,7 @@ export function StudentExercisesPage() {
     },
   });
 
-  const saveScoreMutation = useMutation({
-    mutationFn: () => {
-      if (!submissionId) {
-        throw new Error('No submission ID available');
-      }
-      return api.grading.updateTeacherScore(submissionId, teacherPassed);
-    },
+  const saveScoreMutation = useSaveTeacherScore({
     onSuccess: () => {
       toast({
         title: 'Επιτυχής αποθήκευση',
@@ -354,7 +330,7 @@ export function StudentExercisesPage() {
                     </VStack>
                     <Button
                       colorScheme="green"
-                      onClick={() => saveScoreMutation.mutate()}
+                      onClick={() => saveScoreMutation.mutate({ submissionId: submissionId!, score: teacherPassed })}
                       isLoading={saveScoreMutation.isPending}
                       isDisabled={!submissionId}
                     >

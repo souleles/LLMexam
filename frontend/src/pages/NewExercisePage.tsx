@@ -14,11 +14,12 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
-import { api, Exercise } from '@/lib/api';
+import { Exercise } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useCreateExercise } from '@/hooks/use-create-exercise';
 import { FileUploader } from '@/components/FileUploader';
 
 export function NewExercisePage() {
@@ -26,9 +27,9 @@ export function NewExercisePage() {
   const [file, setFile] = useState<File | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); const createMutation = useMutation({
-    mutationFn: ({ file, title }: { file: File; title: string }) =>
-      api.exercises.create(file, title),
+  const queryClient = useQueryClient();
+
+  const createMutation = useCreateExercise({
     onSuccess: (exercise: Exercise) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] });
       toast({
@@ -37,7 +38,6 @@ export function NewExercisePage() {
         status: 'success',
         duration: 3000,
       });
-      // Navigate to exercise detail page where chat will open
       navigate(`/exercises/${exercise.id}`);
     },
     onError: () => {

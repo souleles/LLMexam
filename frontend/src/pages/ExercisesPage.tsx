@@ -2,6 +2,8 @@ import { PageTransition } from '@/components/PageTransition';
 import { DataTable } from '@/components/DataTable';
 import { api, Exercise, ExerciseStatus } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
+import { useGetExercises } from '@/hooks/use-get-exercises';
+import { useDeleteExercise } from '@/hooks/use-delete-exercise';
 import {
   Badge,
   Box,
@@ -14,7 +16,7 @@ import {
   Td,
   VStack,
 } from '@chakra-ui/react';
-import { useMutation, UseMutationResult, useQuery, useQueryClient } from '@tanstack/react-query';
+import { UseMutationResult, useQueryClient } from '@tanstack/react-query';
 import { FiEye, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { ExerciseColumns } from '@/lib/columns';
@@ -74,13 +76,9 @@ export function ExercisesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: exercises = [], isLoading } = useQuery({
-    queryKey: [QueryKeys.Exercises],
-    queryFn: api.exercises.list,
-  });
+  const { data: exercises = [], isLoading } = useGetExercises();
 
-  const deleteMutation = useMutation({
-    mutationFn: api.exercises.delete,
+  const deleteMutation = useDeleteExercise({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] }),
   });
 
