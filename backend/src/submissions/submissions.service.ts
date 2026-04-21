@@ -380,7 +380,7 @@ export class SubmissionsService {
               checkpointDescription: cr.checkpoint.description,
               checkpointOrder: cr.checkpoint.order,
               matched: cr.matched,
-              matchedSnippets: cr.matchedSnippets,
+              matchedSnippets: cr.matchedSnippets.map((s) => JSON.parse(s)),
             })),
           }
         : null,
