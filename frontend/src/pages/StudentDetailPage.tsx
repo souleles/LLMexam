@@ -1,8 +1,8 @@
+import { PageTransition } from '@/components/PageTransition';
+import { SubmissionsList } from '@/components/SubmissionsList';
+import { useGenerateMiniReport } from '@/hooks/use-generate-mini-report';
 import { useGetStudent } from '@/hooks/use-get-student';
 import { useGetStudentSubmissions } from '@/hooks/use-get-student-submissions';
-import { useGenerateMiniReport } from '@/hooks/use-generate-mini-report';
-import { SubmissionsList } from '@/components/SubmissionsList';
-import { PageTransition } from '@/components/PageTransition';
 import {
   Badge,
   Box,
@@ -19,8 +19,8 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useState } from 'react';
+import { FiArrowLeft, FiFileText, FiPlusCircle, FiRefreshCcw, FiUser } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiArrowLeft, FiFileText, FiUser } from 'react-icons/fi';
 
 export function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -123,7 +123,11 @@ export function StudentDetailPage() {
                     onClick={() => miniReportMutation.mutate(studentId!)}
                     isLoading={miniReportMutation.isPending}
                     loadingText="Δημιουργία..."
-                    isDisabled={miniReportMutation.isPending}
+                    isDisabled={miniReportMutation.isPending || submissions.length === 0}
+                    rightIcon={miniReport || student?.miniReport
+                      ? <FiRefreshCcw />
+                      : <FiPlusCircle />
+                    }
                   >
                     {miniReport || student?.miniReport ? 'Ανανέωση' : 'Δημιουργία'}
                   </Button>

@@ -187,19 +187,21 @@ export function ExerciseDetailPage() {
           <CheckpointsCard checkpoints={checkpoints} />
 
           {/* Submissions card */}
-          <Card>
-            <CardBody>
-              <VStack align="stretch" spacing={4}>
-                <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
-                <SubmissionsList
-                  submissions={submissions}
-                  isLoading={submissionsLoading}
-                  showStudents
-                  buildPath={(s) => `/exercises/${exerciseId}/submissions/${s.id}`}
-                />
-              </VStack>
-            </CardBody>
-          </Card>
+          {exercise.status !== ExerciseStatus.DRAFT && (
+            <Card>
+              <CardBody>
+                <VStack align="stretch" spacing={4}>
+                  <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                  <SubmissionsList
+                    submissions={submissions}
+                    isLoading={submissionsLoading}
+                    showStudents
+                    buildPath={(s) => `/exercises/${exerciseId}/submissions/${s.id}`}
+                  />
+                </VStack>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Chat */}
           <Card>
