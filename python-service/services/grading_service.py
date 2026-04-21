@@ -8,6 +8,38 @@ from models import GradeRequest, GradeResponse, CheckpointResult, MatchedSnippet
 
 logger = logging.getLogger(__name__)
 
+# Splits SQL files into logical blocks (procedure, trigger, function, event) so
+# that a regex with [\s\S]*? cannot jump from one block into another.
+_BLOCK_BOUNDARY = re.compile(
+    r'(?:CREATE\s+(?:DEFINER\s*=\s*\S+\s+)?(?:PROCEDURE|TRIGGER|FUNCTION|EVENT))',
+    re.IGNORECASE,
+)
+
+
+def _split_into_blocks(content: str) -> list[tuple[int, str]]:
+    """
+    Return a list of (start_line_1based, block_text) tuples.
+    If the file has no SQL block headers the whole file is returned as one block.
+    """
+    boundaries = [m.start() for m in _BLOCK_BOUNDARY.finditer(content)]
+    if not boundaries:
+        return [(1, content)]
+
+    blocks: list[tuple[int, str]] = []
+    # Text before the first block (DROP statements, comments, etc.)
+    if boundaries[0] > 0:
+        preamble = content[: boundaries[0]]
+        blocks.append((1, preamble))
+
+    for i, start in enumerate(boundaries):
+        end = boundaries[i + 1] if i + 1 < len(boundaries) else len(content)
+        block_text = content[start:end]
+        start_line = content[:start].count('\n') + 1
+        blocks.append((start_line, block_text))
+
+    logger.debug("Split file into %d block(s)", len(blocks))
+    return blocks
+
 
 def grade_submission(request: GradeRequest) -> GradeResponse:
     logger.info(
@@ -44,28 +76,36 @@ def grade_submission(request: GradeRequest) -> GradeResponse:
             )
 
             for f in request.files:
-                file_matches = list(regex.finditer(f.content))
-                if file_matches:
-                    logger.debug(
-                        "  File '%s': %d match(es) found", f.relative_path, len(file_matches)
-                    )
-                for m in file_matches:
-                    matched = True
-                    # Count newlines before match start to get 1-based line number
-                    line_number = f.content[: m.start()].count('\n') + 1
-                    # Show the full line where the match starts, not just the matched text
-                    line_start = f.content.rfind('\n', 0, m.start()) + 1  # char after preceding \n
-                    line_end = f.content.find('\n', m.start())
-                    if line_end == -1:
-                        line_end = len(f.content)
-                    full_line = f.content[line_start:line_end].rstrip('\r').strip()
-                    logger.debug(
-                        "    Match at line %d (chars %d-%d): %r",
-                        line_number, m.start(), m.end(), full_line[:120],
-                    )
-                    snippets.append(
-                        MatchedSnippet(file=f.relative_path, line=line_number, snippet=full_line)
-                    )
+                ext = f.relative_path.rsplit('.', 1)[-1].lower()
+                # Split SQL files into per-block sections so [\s\S]*? patterns
+                # cannot span from one CREATE PROCEDURE/TRIGGER into another.
+                blocks = _split_into_blocks(f.content) if ext == 'sql' else [(1, f.content)]
+
+                for block_start_line, block_text in blocks:
+                    block_matches = list(regex.finditer(block_text))
+                    if block_matches:
+                        logger.debug(
+                            "  File '%s' block@line%d: %d match(es) found",
+                            f.relative_path, block_start_line, len(block_matches),
+                        )
+                    for m in block_matches:
+                        matched = True
+                        # Line within the block + offset of where the block starts in the file
+                        line_in_block = block_text[: m.start()].count('\n')
+                        line_number = block_start_line + line_in_block
+                        # Full line where the match starts
+                        line_start = block_text.rfind('\n', 0, m.start()) + 1
+                        line_end = block_text.find('\n', m.start())
+                        if line_end == -1:
+                            line_end = len(block_text)
+                        full_line = block_text[line_start:line_end].rstrip('\r').strip()
+                        logger.debug(
+                            "    Match at line %d (block-offset %d, chars %d-%d): %r",
+                            line_number, line_in_block, m.start(), m.end(), full_line[:120],
+                        )
+                        snippets.append(
+                            MatchedSnippet(file=f.relative_path, line=line_number, snippet=full_line)
+                        )
 
         except re.error as e:
             logger.warning(

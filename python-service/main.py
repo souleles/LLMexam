@@ -89,9 +89,13 @@ async def extract_pdf(file: UploadFile = File(...)):
         ExtractPdfResponse with extracted text
     """
     logger.info(f"Received PDF extraction request: {file.filename}")
-    
-    # Validate file type
-    if not file.filename.endswith('.pdf'):
+
+    # Validate file type — use content_type as primary check so Greek/non-ASCII
+    # filenames (where file.filename may be None or garbled) still work correctly
+    filename = file.filename or ""
+    is_pdf_by_name = filename.lower().endswith('.pdf')
+    is_pdf_by_type = (file.content_type or "").lower() in ("application/pdf", "application/x-pdf")
+    if not is_pdf_by_name and not is_pdf_by_type:
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
     # Extract text

@@ -7,8 +7,22 @@ import * as AdmZip from 'adm-zip';
 import * as fs from 'fs';
 import * as path from 'path';
 import { firstValueFrom } from 'rxjs';
+import * as FormData from 'form-data';
 
-const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cs', '.php', '.rb', '.go'];
+const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cs', '.php', '.rb', '.go', '.pdf'];
+
+// Multer (busboy) and adm-zip both decode non-ASCII bytes as Latin-1 when the
+// UTF-8 encoding flag is absent. If those bytes were actually UTF-8 (common with
+// Greek filenames on Windows), re-interpreting Latin-1 → raw bytes → UTF-8 restores
+// the original string. Falls back to the original when the bytes are not valid UTF-8.
+function decodeFilename(name: string): string {
+  try {
+    const decoded = Buffer.from(name, 'latin1').toString('utf8');
+    return decoded.includes('�') ? name : decoded;
+  } catch {
+    return name;
+  }
+}
 
 export interface CheckpointMatch {
   checkpointId: string;
@@ -154,20 +168,36 @@ export class SubmissionsService {
           if (entry.isDirectory) continue;
           const ext = path.extname(entry.entryName).toLowerCase();
           if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
-          extractedFiles.push({
-            relativePath: entry.entryName,
-            content: entry.getData().toString('utf8'),
-          });
+          const entryName = decodeFilename(entry.entryName);
+          if (ext === '.pdf') {
+            const text = await this.extractPdfContent(entry.getData(), entryName);
+            if (text !== null) {
+              extractedFiles.push({ relativePath: entryName, content: text });
+            }
+          } else {
+            extractedFiles.push({
+              relativePath: entryName,
+              content: entry.getData().toString('utf8'),
+            });
+          }
         }
       } else {
         const ext = path.extname(file.originalname).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
           throw new BadRequestException(`File type ${ext} is not allowed`);
         }
-        extractedFiles.push({
-          relativePath: file.originalname,
-          content: fs.readFileSync(file.path, 'utf8'),
-        });
+        const originalName = decodeFilename(file.originalname);
+        if (ext === '.pdf') {
+          const text = await this.extractPdfContent(fs.readFileSync(file.path), originalName);
+          if (text !== null) {
+            extractedFiles.push({ relativePath: originalName, content: text });
+          }
+        } else {
+          extractedFiles.push({
+            relativePath: originalName,
+            content: fs.readFileSync(file.path, 'utf8'),
+          });
+        }
       }
     } catch (error) {
       throw new BadRequestException(`Failed to extract files: ${error.message}`);
@@ -483,6 +513,22 @@ export class SubmissionsService {
       await this.prisma.submission.delete({ where: { id } });
     } catch {
       throw new NotFoundException(`Submission with ID ${id} not found`);
+    }
+  }
+
+  private async extractPdfContent(buffer: Buffer, filename: string): Promise<string | null> {
+    try {
+      const formData = new FormData();
+      formData.append('file', buffer, { filename, contentType: 'application/pdf' });
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${this.pythonServiceUrl}/extract-pdf`, formData, {
+          headers: formData.getHeaders(),
+        }),
+      );
+      return data.extracted_text ?? null;
+    } catch (err) {
+      this.logger.error(`PDF extraction failed for ${filename}: ${err.message}`);
+      return null;
     }
   }
 
