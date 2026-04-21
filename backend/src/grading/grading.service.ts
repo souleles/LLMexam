@@ -133,7 +133,6 @@ export class GradingService {
       passedCheckpoints: gradingResult.passedCheckpoints,
       score: gradingResult.score,
       teacherScore: gradingResult.teacherScore,
-      passed: gradingResult.passed,
       gradedAt: gradingResult.gradedAt,
       checkpointResults: gradingResult.checkpointResults.map((cr: any) => ({
         id: cr.id,

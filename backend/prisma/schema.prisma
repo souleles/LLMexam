@@ -92,7 +92,6 @@ model GradingResult {
   totalCheckpoints  Int
   passedCheckpoints Int
   score             Float
-  passed            Boolean
   gradedAt          DateTime           @default(now())
   teacherScore      Float?
   checkpointResults CheckpointResult[]

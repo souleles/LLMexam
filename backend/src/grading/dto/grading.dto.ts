@@ -13,7 +13,6 @@ export class GradingResultResponseDto {
   passedCheckpoints: number;
   score: number;
   teacherScore?: number;
-  passed: boolean;
   gradedAt: Date;
   checkpointResults: CheckpointResultDto[];
 }
@@ -53,7 +52,6 @@ export class StudentGradingResultDto {
   submissionId: string;
   fileName: string;
   score: number;
-  passed: boolean;
   totalCheckpoints: number;
   passedCheckpoints: number;
   checkpointResults: CheckpointResultDto[];

@@ -124,17 +124,6 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                     </HStack>
                   </VStack>
                 )}
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color="gray.400">
-                    Κατάσταση
-                  </Text>
-                  <Badge
-                    colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
-                    textTransform="none"
-                  >
-                    {submission.gradingResult.passed ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                  </Badge>
-                </VStack>
               </HStack>
 
               {/* Checkpoint Results */}

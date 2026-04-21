@@ -41,7 +41,6 @@ export class SubmissionResponseDto {
   gradingResult?: {
     id: string;
     score: number;
-    passed: boolean;
     totalCheckpoints: number;
     passedCheckpoints: number;
   };

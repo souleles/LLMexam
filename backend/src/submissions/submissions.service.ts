@@ -301,9 +301,8 @@ export class SubmissionsService {
         totalCheckpoints,
         passedCheckpoints,
         score,
-        passed: score >= 50,
       },
-      update: { totalCheckpoints, passedCheckpoints, score, passed: score >= 50 },
+      update: { totalCheckpoints, passedCheckpoints, score },
     });
 
     await this.prisma.checkpointResult.createMany({
@@ -374,7 +373,6 @@ export class SubmissionsService {
             passedCheckpoints: ss.submission.gradingResult.passedCheckpoints,
             score: ss.submission.gradingResult.score,
             teacherScore: ss.submission.gradingResult.teacherScore,
-            passed: ss.submission.gradingResult.passed,
             gradedAt: ss.submission.gradingResult.gradedAt,
             checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
@@ -429,7 +427,6 @@ export class SubmissionsService {
             passedCheckpoints: s.gradingResult.passedCheckpoints,
             score: s.gradingResult.score,
             teacherScore: s.gradingResult.teacherScore,
-            passed: s.gradingResult.passed,
             gradedAt: s.gradingResult.gradedAt,
             checkpointResults: s.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
@@ -493,7 +490,6 @@ export class SubmissionsService {
             passedCheckpoints: submission.gradingResult.passedCheckpoints,
             score: submission.gradingResult.score,
             teacherScore: submission.gradingResult.teacherScore,
-            passed: submission.gradingResult.passed,
             gradedAt: submission.gradingResult.gradedAt,
             checkpointResults: submission.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
@@ -555,7 +551,6 @@ export class SubmissionsService {
       dto.gradingResult = {
         id: submission.gradingResult.id,
         score: submission.gradingResult.score,
-        passed: submission.gradingResult.passed,
         totalCheckpoints: submission.gradingResult.totalCheckpoints,
         passedCheckpoints: submission.gradingResult.passedCheckpoints,
       };

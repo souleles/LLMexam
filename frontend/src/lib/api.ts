@@ -54,7 +54,6 @@ export interface Submission {
     passedCheckpoints: number;
     score: number;
     teacherScore?: number | null;
-    passed: boolean;
     gradedAt: string;
     checkpointResults: Array<{
       id: string;
@@ -100,7 +99,6 @@ export interface StudentSubmission {
     passedCheckpoints: number;
     score: number;
     teacherScore?: number;
-    passed: boolean;
     gradedAt: string;
     checkpointResults: Array<{
       id: string;

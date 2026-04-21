@@ -94,7 +94,7 @@ export function SubmissionsList({
                   {submission.gradingResult && (
                     <>
                       <Badge
-                        colorScheme={submission.gradingResult.passed ? 'green' : 'red'}
+                        colorScheme={submission.gradingResult.passedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.passedCheckpoints > 0 ? 'yellow' : 'red'}
                         textTransform="none"
                       >
                         LLM: {submission.gradingResult.passedCheckpoints}/
