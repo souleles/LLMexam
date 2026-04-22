@@ -143,23 +143,21 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                       <Td>{cr.checkpointOrder}</Td>
                       <Td>
                         <Text fontSize="sm">{cr.checkpointDescription}</Text>
-                        {cr.matched && ((cr.matchedSnippets as any[]) ?? []).length > 0 && (
+                        {cr.matched && cr.matchedSnippets.length > 0 && (
                           <VStack align="start" spacing={1} mt={2}>
-                            {((cr.matchedSnippets as any[]) ?? []).map((snippet, idx) => (
-                              <Box key={idx}>
-                                <Text fontSize="xs" color="gray.400">
-                                  Γραμμή {snippet.line}:
-                                </Text>
-                                <Code
-                                  fontSize="xs"
-                                  p={1}
-                                  borderRadius="md"
-                                  display="block"
-                                >
-                                  {snippet.snippet}
-                                </Code>
-                              </Box>
-                            ))}
+                            {cr.matchedSnippets.map((raw, idx) => {
+                              const s = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                              return (
+                                <Box key={idx}>
+                                  <Text fontSize="xs" color="gray.400">
+                                    {s.file ? `${s.file} — Γραμμή ${s.line}` : `Γραμμή ${s.line}`}:
+                                  </Text>
+                                  <Code fontSize="xs" p={1} borderRadius="md" display="block">
+                                    {s.snippet}
+                                  </Code>
+                                </Box>
+                              );
+                            })}
                           </VStack>
                         )}
                       </Td>

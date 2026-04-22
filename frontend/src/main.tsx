@@ -26,7 +26,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ChakraProvider theme={theme} colorModeManager={forceDarkManager}>
+      <ChakraProvider theme={theme} colorModeManager={forceDarkManager} toastOptions={{ defaultOptions: { position: 'bottom-right' } }}>
         <BrowserRouter>
           <AuthProvider>
             <App />

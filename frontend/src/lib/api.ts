@@ -61,7 +61,7 @@ export interface Submission {
       checkpointDescription: string;
       checkpointOrder: number;
       matched: boolean;
-      matchedSnippets: unknown[];
+      matchedSnippets: Array<{ file?: string; line: number; snippet: string } | string>;
     }>;
   } | null;
 }
