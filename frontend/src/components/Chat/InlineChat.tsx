@@ -3,7 +3,7 @@ import { QueryKeys } from '@/lib/queryKeys';
 import { useGetConversations } from '@/hooks/use-get-conversations';
 import { useAcceptCheckpoints } from '@/hooks/use-accept-checkpoints';
 import { useAcceptPatterns } from '@/hooks/use-accept-patterns';
-import { ContentBlock, parseMessageContent } from '@/lib/parseMessageContent';
+import { parseMessageContent } from '@/lib/parseMessageContent';
 import {
   Box,
   Button,
@@ -74,9 +74,14 @@ export function InlineChat({
     if (!seeded.current && dbMessages.length > 0) {
       seeded.current = true;
       setMessages(
-        dbMessages.map((m) => {
-          const parsed = parseMessageContent(m.content);
-          return { ...m, content: parsed || m.content };
+        dbMessages.flatMap((m) => {
+          const segments = parseMessageContent(m.content);
+          if (segments.length === 0) return [{ ...m, content: m.content }];
+          return segments.map((seg, i) => ({
+            ...m,
+            id: segments.length > 1 ? `${m.id}-${i}` : m.id,
+            content: seg,
+          }));
         }),
       );
     }
@@ -113,41 +118,69 @@ export function InlineChat({
     if (prevStreaming.current && !streaming) {
       const patterns = latestPendingPatterns.current;
       const checkpoints = latestPendingCheckpoints.current;
-      let content: string | ContentBlock[];
+      const toAdd: ChatMessage[] = [];
+      const now = Date.now();
+
+      console.log({
+        buffer,
+        mode,
+        checkpoints
+      })
+      if (buffer) {
+        toAdd.push({
+          id: `assistant-${now}-text`,
+          exerciseId,
+          role: 'assistant' as const,
+          content: buffer,
+          createdAt: new Date().toISOString(),
+        });
+      }
 
       if (mode === 'patterns' && patterns.length > 0) {
-        content = patterns.map((p, i) => ({
-          title: `${p.order ?? i + 1}. ${p.description}`,
-          content: [
-            { title: 'Pattern', description: p.pattern },
-            { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
-          ],
-        }));
+        toAdd.push({
+          id: `assistant-${now}-structured`,
+          exerciseId,
+          role: 'assistant' as const,
+          content: patterns.map((p) => ({
+            title: p.description,
+            content: [
+              { title: 'Pattern', description: p.pattern },
+              { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
+            ],
+          })),
+          createdAt: new Date().toISOString(),
+        });
+        console.log({
+          buffer,
+          mode,
+          checkpoints
+        })
       } else if (mode === 'checkpoints' && checkpoints.length > 0) {
-        content = checkpoints.map((p, i) => ({
-          title: `${p.order ?? i + 1}. ${p.description}`,
-          content: [],
-        }));
-      } else if (buffer) {
-        content = buffer;
-      } else {
+        toAdd.push({
+          id: `assistant-${now}-structured`,
+          exerciseId,
+          role: 'assistant' as const,
+          content: checkpoints.map((p) => ({
+            title: p.description,
+            content: [],
+          })),
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      if (toAdd.length === 0) {
         prevStreaming.current = streaming;
         return;
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          exerciseId,
-          role: 'assistant' as const,
-          content,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      setMessages((prev) => [...prev, ...toAdd]);
+
+      queryClient.invalidateQueries({
+        queryKey: [QueryKeys.Conversations, exerciseId, conversationType],
+      });
     }
     prevStreaming.current = streaming;
-  }, [streaming, buffer, exerciseId, mode]);
+  }, [streaming, buffer, exerciseId, mode, conversationType, queryClient]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -182,6 +215,7 @@ export function InlineChat({
 
   const handleSend = useCallback(() => {
     if (!input.trim() || streaming) return;
+    seeded.current = true;
     const text = input;
     setMessages((prev) => [
       ...prev,
@@ -228,12 +262,12 @@ export function InlineChat({
                 mode === 'checkpoints'
                   ? acceptCheckpointsMutation.mutate(pendingCheckpoints)
                   : acceptPatternsMutation.mutate(
-                      pendingPatterns.map((p) => ({
-                        order: p.order,
-                        pattern: p.pattern,
-                        patternDescription: p.patternDescription,
-                      })),
-                    )
+                    pendingPatterns.map((p) => ({
+                      order: p.order,
+                      pattern: p.pattern,
+                      patternDescription: p.patternDescription,
+                    })),
+                  )
               }
             >
               {acceptLabel} ({pendingCount})

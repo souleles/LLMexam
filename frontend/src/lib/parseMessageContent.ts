@@ -1,44 +1,54 @@
 export type ContentItem = { title: string; description: string };
 export type ContentBlock = { title: string; content: ContentItem[] };
-export type ParsedContent = ContentBlock[] | string;
+export type ParsedSegment = ContentBlock[] | string;
 
 /**
- * Converts a raw stored/streamed SSE message into a structured or plain-text representation.
- *
- * - checkpoints payload → ContentBlock[] (title only, no inner content)
- * - patterns payload    → ContentBlock[] (title + Pattern / Περιγραφή Pattern items)
- * - plain text tokens   → string
+ * Converts a raw stored/streamed SSE message into an ordered list of segments.
+ * Each segment is either a plain string or a structured ContentBlock[].
+ * Most messages produce a single-element array; messages with both a text
+ * summary and a checkpoints/patterns payload produce two elements.
  */
-export function parseMessageContent(raw: string): ParsedContent {
+export function parseMessageContent(raw: string): ParsedSegment[] {
   const chunks = raw
     .split(/\n\n/)
     .map((c) => c.replace(/^data:\s*/, '').trim())
     .filter((c) => c && c !== '[DONE]');
 
+  const segments: ParsedSegment[] = [];
   const textParts: string[] = [];
-  let blocks: ContentBlock[] | null = null;
+
+  const flushText = () => {
+    const t = textParts.join('\n\n').trim();
+    if (t) segments.push(t);
+    textParts.length = 0;
+  };
 
   for (const chunk of chunks) {
     try {
       const parsed = JSON.parse(chunk);
 
       if (parsed.type === 'checkpoints' && Array.isArray(parsed.data)) {
-        blocks = (parsed.data as { order: number; description: string }[]).map((cp, i) => ({
-          title: cp.description,
-          content: [],
-        }));
+        flushText();
+        segments.push(
+          (parsed.data as { order: number; description: string }[]).map(cp => ({
+            title: cp.description,
+            content: [],
+          }))
+        );
         continue;
       }
 
       if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
-        blocks = (parsed.data as { order: number; description: string; pattern: string; patternDescription: string }[])
-        .map((p) => ({
-            title: p.description,
-            content: [
-              { title: 'Pattern', description: p.pattern },
-              { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
-            ]
-          })
+        flushText();
+        segments.push(
+          (parsed.data as { order: number; description: string; pattern: string; patternDescription: string }[])
+            .map(p => ({
+              title: p.description,
+              content: [
+                { title: 'Pattern', description: p.pattern },
+                { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
+              ],
+            }))
         );
         continue;
       }
@@ -50,6 +60,6 @@ export function parseMessageContent(raw: string): ParsedContent {
     }
   }
 
-  if (blocks) return blocks;
-  return textParts.join('\n\n');
+  flushText();
+  return segments;
 }
