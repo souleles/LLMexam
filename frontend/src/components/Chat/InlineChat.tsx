@@ -121,11 +121,6 @@ export function InlineChat({
       const toAdd: ChatMessage[] = [];
       const now = Date.now();
 
-      console.log({
-        buffer,
-        mode,
-        checkpoints
-      })
       if (buffer) {
         toAdd.push({
           id: `assistant-${now}-text`,
@@ -150,11 +145,6 @@ export function InlineChat({
           })),
           createdAt: new Date().toISOString(),
         });
-        console.log({
-          buffer,
-          mode,
-          checkpoints
-        })
       } else if (mode === 'checkpoints' && checkpoints.length > 0) {
         toAdd.push({
           id: `assistant-${now}-structured`,
