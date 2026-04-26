@@ -41,7 +41,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
         <CardBody>
           <HStack justify="space-between">
             <VStack align="start" spacing={1}>
-              <Text fontWeight="medium">Αρχείο Υποβολής</Text>
+              <Text fontWeight="bold">Αρχείο Υποβολής</Text>
               <Text fontSize="sm" color="gray.400">
                 {submission.fileName} ({submission.fileType}) •{' '}
                 {new Date(submission.createdAt).toLocaleDateString('el-GR')}
@@ -51,7 +51,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
               leftIcon={<FiDownload />}
               size="sm"
               colorScheme="blue"
-              variant="ghost"
+              variant="outline"
               onClick={() => handleDownload(submission.fileUrl, submission.fileName)}
             >
               Λήψη
@@ -83,13 +83,13 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
         <Card>
           <CardBody>
             <VStack align="stretch" spacing={4}>
-              <Text fontWeight="medium">Αποτελέσματα Βαθμολόγησης</Text>
+              <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
 
               {/* Summary */}
-              <HStack spacing={6} p={3} bg="gray.700" borderRadius="md">
+              <HStack spacing={12} p={3} bg="gray.700" borderRadius="md">
                 <VStack align="start" spacing={0}>
                   <Text fontSize="xs" color="gray.400">
-                    Βαθμός LLM
+                    Βαθμός Regex
                   </Text>
                   <HStack>
                     <Text fontWeight="bold">
@@ -103,6 +103,24 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                     </Badge>
                   </HStack>
                 </VStack>
+                {submission.gradingResult.llmScore != null && (
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="xs" color="gray.400">
+                      Βαθμός LLM
+                    </Text>
+                    <HStack>
+                      <Text fontWeight="bold">
+                        {submission.gradingResult.llmPassedCheckpoints}/
+                        {submission.gradingResult.totalCheckpoints}
+                      </Text>
+                      <Badge
+                        colorScheme={submission.gradingResult.llmScore >= 50 ? 'green' : 'red'}
+                      >
+                        {Math.round(submission.gradingResult.llmScore)}%
+                      </Badge>
+                    </HStack>
+                  </VStack>
+                )}
                 {submission.gradingResult.teacherScore != null && (
                   <VStack align="start" spacing={0}>
                     <Text fontSize="xs" color="gray.400">
@@ -117,7 +135,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                         {Math.round(
                           (submission.gradingResult.teacherScore /
                             submission.gradingResult.totalCheckpoints) *
-                            100,
+                          100,
                         )}
                         %
                       </Badge>
