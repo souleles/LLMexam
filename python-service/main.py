@@ -20,11 +20,14 @@ from models import (
     GradeResponse,
     MiniReportRequest,
     MiniReportResponse,
+    LlmGradeRequest,
+    LlmGradeResponse,
 )
 from services.pdf_service import extract_text_from_pdf
 from services.llm_service import stream_checkpoint_generation, stream_pattern_generation, generate_mini_report
 from services.sql_service import parse_sql
 from services.grading_service import grade_submission
+from services.llm_grading_service import grade_submission_with_llm
 
 # Load environment variables
 load_dotenv()
@@ -157,6 +160,16 @@ async def grade(request: GradeRequest):
     """
     logger.info(f"Received grading request: {len(request.checkpoints)} checkpoints, {len(request.files)} files")
     return grade_submission(request)
+
+
+@app.post("/grade-llm", response_model=LlmGradeResponse)
+async def grade_llm(request: LlmGradeRequest):
+    """
+    Grade student submission files against checkpoint requirements using LLM semantic analysis.
+    Results include file name, line number, and snippet for each matched checkpoint.
+    """
+    logger.info(f"Received LLM grading request: {len(request.checkpoints)} checkpoints, {len(request.files)} files")
+    return await grade_submission_with_llm(request)
 
 
 @app.post("/generate-mini-report", response_model=MiniReportResponse)

@@ -38,6 +38,7 @@ export interface CheckpointMatch {
 export interface UploadAndGradeResult {
   submissionId: string;
   checkpoints: CheckpointMatch[];
+  method: 'regex' | 'llm';
 }
 
 const SUBMISSION_INCLUDE = {
@@ -64,7 +65,8 @@ export class SubmissionsService {
     exerciseId: string,
     studentIds: string[],
     file: Express.Multer.File,
-  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string }> {
+    method: 'regex' | 'llm' = 'regex',
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
     // 1. Verify exercise exists and is approved
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -215,9 +217,8 @@ export class SubmissionsService {
 
     // 5. Create or update submission
     let submission: any;
-    
+
     if (existingSubmissionId) {
-      // Update existing submission
       submission = await this.prisma.submission.update({
         where: { id: existingSubmissionId },
         data: {
@@ -229,12 +230,13 @@ export class SubmissionsService {
         },
       });
 
-      // Delete old grading results and checkpoint results
-      await this.prisma.gradingResult.deleteMany({
-        where: { submissionId: existingSubmissionId },
-      });
+      // Regex re-grade: clear old results so createMany works cleanly (original behaviour)
+      if (method === 'regex') {
+        await this.prisma.gradingResult.deleteMany({
+          where: { submissionId: existingSubmissionId },
+        });
+      }
     } else {
-      // Create new submission
       submission = await this.prisma.submission.create({
         data: {
           exerciseId,
@@ -245,21 +247,23 @@ export class SubmissionsService {
         },
       });
 
-      // Create mapping rows for all selected students
       await this.prisma.submissionStudent.createMany({
         data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
         skipDuplicates: true,
       });
     }
 
-    // 6. Regex matching via Python service (supports full PCRE + (?i) inline flags)
+    // 6. Grade via Python service — regex uses /grade, LLM uses /grade-llm
+    const pythonEndpoint = method === 'llm' ? '/grade-llm' : '/grade';
     this.logger.log(
-      `Sending grading request: ${exercise.checkpoints.length} checkpoints, ${extractedFiles.length} files`,
+      `Sending grading request [${method}]: ${exercise.checkpoints.length} checkpoints, ${extractedFiles.length} files`,
     );
+
     const gradeResponse = await firstValueFrom(
-      this.httpService.post(`${this.pythonServiceUrl}/grade`, {
+      this.httpService.post(`${this.pythonServiceUrl}${pythonEndpoint}`, {
         checkpoints: exercise.checkpoints.map((cp) => ({
           id: cp.id,
+          description: cp.description,
           pattern: cp.pattern,
           case_sensitive: cp.caseSensitive,
         })),
@@ -287,40 +291,92 @@ export class SubmissionsService {
     });
 
     const passed = checkpointMatches.filter((m) => m.matched).length;
-    this.logger.log(`Grading result: ${passed}/${checkpointMatches.length} checkpoints passed`);
-
-    // 7. Save grading result
-    const passedCheckpoints = passed;
     const totalCheckpoints = checkpointMatches.length;
-    const score = (passedCheckpoints / totalCheckpoints) * 100;
+    this.logger.log(`Grading result [${method}]: ${passed}/${totalCheckpoints} checkpoints passed`);
 
-    const gradingResult = await this.prisma.gradingResult.upsert({
-      where: { submissionId: submission.id },
-      create: {
-        submission: { connect: { id: submission.id } },
-        totalCheckpoints,
-        passedCheckpoints,
-        score,
-      },
-      update: { totalCheckpoints, passedCheckpoints, score },
-    });
+    if (method === 'regex') {
+      // --- REGEX: original save logic, untouched ---
+      const score = (passed / totalCheckpoints) * 100;
 
-    await this.prisma.checkpointResult.createMany({
-      data: checkpointMatches.map(match => ({
-        gradingResultId: gradingResult.id,
-        checkpointId: match.checkpointId,
-        matched: match.matched,
-        // Store as JSON strings so file path and line number can be recovered on read
-        matchedSnippets: match.matchedSnippets.map(s =>
+      const gradingResult = await this.prisma.gradingResult.upsert({
+        where: { submissionId: submission.id },
+        create: {
+          submission: { connect: { id: submission.id } },
+          totalCheckpoints,
+          passedCheckpoints: passed,
+          score,
+        },
+        update: { totalCheckpoints, passedCheckpoints: passed, score },
+      });
+
+      await this.prisma.checkpointResult.createMany({
+        data: checkpointMatches.map((match) => ({
+          gradingResultId: gradingResult.id,
+          checkpointId: match.checkpointId,
+          matched: match.matched,
+          matchedSnippets: match.matchedSnippets.map((s) =>
+            JSON.stringify({ file: s.file, line: s.line, snippet: s.snippet }),
+          ),
+        })),
+      });
+      this.logger.log(`Saved regex grading result ${gradingResult.id} for submission ${submission.id}`);
+    } else {
+      // --- LLM: upsert GradingResult (llm columns), update existing CheckpointResults or create ---
+      // Cast to any because Prisma client types are regenerated only after `prisma generate`.
+      const db = this.prisma as any;
+      const llmScore = (passed / totalCheckpoints) * 100;
+
+      const gradingResult = await db.gradingResult.upsert({
+        where: { submissionId: submission.id },
+        create: {
+          submission: { connect: { id: submission.id } },
+          totalCheckpoints,
+          passedCheckpoints: 0,
+          score: 0,
+          llmPassedCheckpoints: passed,
+          llmScore,
+        },
+        update: { totalCheckpoints, llmPassedCheckpoints: passed, llmScore },
+      });
+
+      // Find any existing CheckpointResults for this GradingResult (from a prior regex run)
+      const existingCRs: Array<{ id: string; checkpointId: string }> =
+        await this.prisma.checkpointResult.findMany({
+          where: { gradingResultId: gradingResult.id },
+          select: { id: true, checkpointId: true },
+        });
+
+      for (const match of checkpointMatches) {
+        const snippetsJson = match.matchedSnippets.map((s) =>
           JSON.stringify({ file: s.file, line: s.line, snippet: s.snippet }),
-        ),
-      })),
-    });
-    this.logger.log(`Saved grading result ${gradingResult.id} for submission ${submission.id}`);
+        );
+        const existing = existingCRs.find((r) => r.checkpointId === match.checkpointId);
+
+        if (existing) {
+          await db.checkpointResult.update({
+            where: { id: existing.id },
+            data: { llmMatched: match.matched, llmMatchedSnippets: snippetsJson },
+          });
+        } else {
+          await db.checkpointResult.create({
+            data: {
+              gradingResultId: gradingResult.id,
+              checkpointId: match.checkpointId,
+              matched: false,
+              matchedSnippets: [],
+              llmMatched: match.matched,
+              llmMatchedSnippets: snippetsJson,
+            },
+          });
+        }
+      }
+      this.logger.log(`Saved LLM grading result ${gradingResult.id} for submission ${submission.id}`);
+    }
 
     return {
       checkpoints: checkpointMatches,
-      submissionId: submission.id
+      submissionId: submission.id,
+      method,
     };
   }
 
@@ -374,6 +430,8 @@ export class SubmissionsService {
             score: ss.submission.gradingResult.score,
             teacherScore: ss.submission.gradingResult.teacherScore,
             gradedAt: ss.submission.gradingResult.gradedAt,
+            llmPassedCheckpoints: ss.submission.gradingResult.llmPassedCheckpoints,
+            llmScore: ss.submission.gradingResult.llmScore,
             checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
               checkpointId: cr.checkpointId,
@@ -428,6 +486,8 @@ export class SubmissionsService {
             score: s.gradingResult.score,
             teacherScore: s.gradingResult.teacherScore,
             gradedAt: s.gradingResult.gradedAt,
+            llmPassedCheckpoints: s.gradingResult.llmPassedCheckpoints,
+            llmScore: s.gradingResult.llmScore,
             checkpointResults: s.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
               checkpointId: cr.checkpointId,

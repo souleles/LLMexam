@@ -10,6 +10,8 @@ import {
   UploadedFile,
   UseInterceptors,
   UseGuards,
+  ParseEnumPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -60,7 +62,8 @@ export class SubmissionsController {
     @Body('exerciseId') exerciseId: string,
     @Body('studentId') rawStudentId: string | string[],
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string }> {
+    @Query('method', new DefaultValuePipe('regex')) method: string,
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -69,9 +72,10 @@ export class SubmissionsController {
       throw new BadRequestException('exerciseId and studentId are required');
     }
 
+    const gradingMethod = method === 'llm' ? 'llm' : 'regex';
     const studentIds = Array.isArray(rawStudentId) ? rawStudentId : [rawStudentId];
 
-    return this.submissionsService.uploadAndGradeZip(exerciseId, studentIds, file);
+    return this.submissionsService.uploadAndGradeZip(exerciseId, studentIds, file, gradingMethod);
   }
 
   @Get()

@@ -97,19 +97,29 @@ export function SubmissionsList({
                         colorScheme={submission.gradingResult.passedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.passedCheckpoints > 0 ? 'yellow' : 'red'}
                         textTransform="none"
                       >
-                        LLM: {submission.gradingResult.passedCheckpoints}/
+                        Regex: {submission.gradingResult.passedCheckpoints}/
                         {submission.gradingResult.totalCheckpoints}
                       </Badge>
-                      {submission.gradingResult.teacherScore != null ? (
-                        <Badge colorScheme="blue" textTransform="none">
-                          Καθηγητής: {submission.gradingResult.teacherScore}/
+                      {submission.gradingResult.llmPassedCheckpoints != null && (
+                        <Badge
+                          colorScheme={submission.gradingResult.llmPassedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.llmPassedCheckpoints > 0 ? 'yellow' : 'red'}
+                          textTransform="none"
+                        >
+                          LLM: {submission.gradingResult.llmPassedCheckpoints}/
                           {submission.gradingResult.totalCheckpoints}
                         </Badge>
-                      ) : (
-                        <Text fontSize="sm" fontWeight="bold">
-                          {Math.round(submission.gradingResult.score)}%
-                        </Text>
                       )}
+                      {submission.gradingResult.teacherScore != null
+                        ? (
+                          <Badge colorScheme="blue" textTransform="none">
+                            Καθηγητής: {submission.gradingResult.teacherScore}/
+                            {submission.gradingResult.totalCheckpoints}
+                          </Badge>
+                        ) : (
+                          <Text fontSize="sm" fontWeight="bold">
+                            {Math.round(submission.gradingResult.score)}%
+                          </Text>
+                        )}
                     </>
                   )}
                   <Icon as={FiChevronRight} color="gray.400" />

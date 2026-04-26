@@ -53,8 +53,10 @@ export interface Submission {
     totalCheckpoints: number;
     passedCheckpoints: number;
     score: number;
-    teacherScore?: number | null;
     gradedAt: string;
+    teacherScore?: number | null;
+    llmPassedCheckpoints?: number;
+    llmScore?: number;
     checkpointResults: Array<{
       id: string;
       checkpointId: string;
@@ -185,12 +187,13 @@ export const api = {
       exerciseId: string,
       studentIds: string[],
       file: File,
-    ): Promise<GradingResult[]> => {
+      method: 'regex' | 'llm' = 'regex',
+    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm' }> => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('exerciseId', exerciseId);
       studentIds.forEach((id) => formData.append('studentId', id));
-      const { data } = await httpClient.post('/api/submissions/upload-and-grade', formData, {
+      const { data } = await httpClient.post(`/api/submissions/upload-and-grade?method=${method}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return data;

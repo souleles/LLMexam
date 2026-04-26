@@ -18,11 +18,12 @@ import {
   Card,
   CardBody,
   Code,
+  Divider,
   FormControl,
   FormHelperText,
   FormLabel,
-  Heading,
   HStack,
+  Heading,
   NumberDecrementStepper,
   NumberIncrementStepper,
   NumberInput,
@@ -33,9 +34,8 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
 import { useState } from 'react';
-import { FiCheck, FiUpload, FiX } from 'react-icons/fi';
+import { FiCheck, FiCheckSquare, FiCpu, FiSave, FiUpload, FiX } from 'react-icons/fi';
 import ReactSelect from 'react-select';
 
 const darkSelectStyles = {
@@ -78,7 +78,8 @@ export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<Array<{ value: string; label: string }>>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [gradingResults, setGradingResults] = useState<GradingResult[]>([]);
+  const [regexResults, setRegexResults] = useState<GradingResult[]>([]);
+  const [llmResults, setLlmResults] = useState<GradingResult[]>([]);
   const [teacherPassed, setTeacherPassed] = useState<number>(0);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const toast = useToast();
@@ -99,28 +100,51 @@ export function StudentExercisesPage() {
     label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
   }));
 
-  const gradeMutation = useUploadAndGrade({
+  const regexGradeMutation = useUploadAndGrade({
     onSuccess: (data: any) => {
-      if (data.submissionId) {
-        setSubmissionId(data.submissionId);
-      }
+      if (data.submissionId) setSubmissionId(data.submissionId);
       if (data.checkpoints) {
-        setGradingResults(data.checkpoints);
+        setRegexResults(data.checkpoints);
         setTeacherPassed(data.checkpoints.filter((r: any) => r.matched).length);
       }
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
-        title: 'Ολοκληρώθηκε η βαθμολόγηση',
+        title: 'Ολοκληρώθηκε η βαθμολόγηση (Regex)',
         description: n === 1 ? 'Βαθμολογήθηκε 1 φοιτητής' : `Βαθμολογήθηκαν ${n} φοιτητές`,
         status: 'success',
         duration: 3000,
       });
     },
-    onError: (error: AxiosError<Error>) => {
+    onError: (error: any) => {
       toast({
         title: 'Σφάλμα',
-        description: error.response?.data?.message || 'Αποτυχία βαθμολόγησης εργασίας',
+        description: error?.response?.data?.message || 'Αποτυχία βαθμολόγησης εργασίας',
+        status: 'error',
+        duration: 5000,
+      });
+    },
+  });
+
+  const llmGradeMutation = useUploadAndGrade({
+    onSuccess: (data: any) => {
+      if (data.submissionId) setSubmissionId(data.submissionId);
+      if (data.checkpoints) {
+        setLlmResults(data.checkpoints);
+      }
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
+      const n = selectedStudentIds.length;
+      toast({
+        title: 'Ολοκληρώθηκε η βαθμολόγηση (LLM)',
+        description: n === 1 ? 'Βαθμολογήθηκε 1 φοιτητής' : `Βαθμολογήθηκαν ${n} φοιτητές`,
+        status: 'success',
+        duration: 3000,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Σφάλμα',
+        description: error?.response?.data?.message || 'Αποτυχία βαθμολόγησης με LLM',
         status: 'error',
         duration: 5000,
       });
@@ -147,7 +171,7 @@ export function StudentExercisesPage() {
     },
   });
 
-  const handleFindResults = () => {
+  const handleGrade = (method: 'regex' | 'llm') => {
     if (!selectedExerciseId || !file || selectedStudentIds.length === 0) {
       toast({
         title: 'Λείπουν πληροφορίες',
@@ -157,8 +181,21 @@ export function StudentExercisesPage() {
       });
       return;
     }
-    gradeMutation.mutateAsync({ exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file });
+    const vars = { exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file, method };
+    if (method === 'regex') {
+      regexGradeMutation.mutateAsync(vars);
+    } else {
+      llmGradeMutation.mutateAsync(vars);
+    }
   };
+
+  // Use whichever result set is non-empty to drive the accordion structure
+  const allCheckpoints = regexResults.length > 0 ? regexResults : llmResults;
+  const hasAnyResults = regexResults.length > 0 || llmResults.length > 0;
+
+  const regexPassedCount = regexResults.filter((r) => r.matched).length;
+  const llmPassedCount = llmResults.filter((r) => r.matched).length;
+  const totalCount = allCheckpoints.length;
 
   return (
     <PageTransition>
@@ -220,128 +257,206 @@ export function StudentExercisesPage() {
                   </FormHelperText>
                 </FormControl>
 
-                <Button
-                  leftIcon={<FiUpload />}
-                  colorScheme="brand"
-                  size="lg"
-                  w="full"
-                  onClick={handleFindResults}
-                  isLoading={gradeMutation.isPending}
-                  loadingText="Βαθμολόγηση..."
-                >
-                  Εύρεση Αποτελεσμάτων
-                </Button>
+                <HStack w="full" spacing={3}>
+                  <Button
+                    leftIcon={<FiUpload />}
+                    colorScheme="brand"
+                    size="lg"
+                    flex="1"
+                    onClick={() => handleGrade('regex')}
+                    isLoading={regexGradeMutation.isPending}
+                    loadingText="Βαθμολόγηση..."
+                  >
+                    Βαθμολόγηση με Regex Patterns
+                  </Button>
+                  <Button
+                    leftIcon={<FiCpu />}
+                    colorScheme="purple"
+                    size="lg"
+                    flex="1"
+                    onClick={() => handleGrade('llm')}
+                    isLoading={llmGradeMutation.isPending}
+                    loadingText="Βαθμολόγηση με LLM..."
+                  >
+                    Βαθμολόγηση με LLM
+                  </Button>
+                </HStack>
               </VStack>
             </CardBody>
           </Card>
 
           {/* Results */}
-          {gradingResults.length > 0 && (() => {
-            const passedCount = gradingResults.filter((r) => r.matched).length;
-            const totalCount = gradingResults.length;
-            return (
-              <Card>
-                <CardBody>
-                  <VStack align="stretch" spacing={4}>
-                    <VStack align="stretch" spacing={2}>
-                      <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
-                      <Text fontSize="sm" color="gray.500">
-                        {selectedStudentIds.map((s) => s.label).join(' · ')}
-                      </Text>
-                    </VStack>
+          {hasAnyResults && (
+            <Card>
+              <CardBody>
+                <VStack align="stretch" spacing={4}>
+                  <VStack align="stretch" spacing={2}>
+                    <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
+                    <Text fontSize="sm" color="gray.500">
+                      {selectedStudentIds.map((s) => s.label).join(' · ')}
+                    </Text>
+                  </VStack>
 
-                    <Accordion allowMultiple>
-                      {gradingResults.map((result, index) => (
-                        <AccordionItem key={result.checkpointId}>
+                  <Accordion allowMultiple>
+                    {allCheckpoints.map((checkpoint, index) => {
+                      const regexResult = regexResults.find((r) => r.checkpointId === checkpoint.checkpointId);
+                      const llmResult = llmResults.find((r) => r.checkpointId === checkpoint.checkpointId);
+                      const overallMatched = regexResult?.matched || llmResult?.matched;
+
+                      return (
+                        <AccordionItem key={checkpoint.checkpointId}>
                           <h2>
                             <AccordionButton>
                               <Box flex="1" textAlign="left">
                                 <HStack>
-                                  {result.matched ? <FiCheck color="green" /> : <FiX color="red" />}
+                                  {overallMatched ? <FiCheck color="green" /> : <FiX color="red" />}
                                   <Text fontWeight="medium">
-                                    Checkpoint {index + 1}: {result.checkpointDescription}
+                                    Checkpoint {index + 1}: {checkpoint.checkpointDescription}
                                   </Text>
                                 </HStack>
                               </Box>
-                              <Badge colorScheme={result.matched ? 'green' : 'red'} mr={2}>
-                                {result.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                              </Badge>
+                              <HStack mr={2} spacing={1}>
+                                {regexResult && (
+                                  <Badge colorScheme={regexResult.matched ? 'green' : 'red'} fontSize="xs">
+                                    Regex: {regexResult.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
+                                  </Badge>
+                                )}
+                                {llmResult && (
+                                  <Badge colorScheme={llmResult.matched ? 'purple' : 'red'} fontSize="xs">
+                                    LLM: {llmResult.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
+                                  </Badge>
+                                )}
+                              </HStack>
                               <AccordionIcon />
                             </AccordionButton>
                           </h2>
                           <AccordionPanel pb={4}>
-                            {result.matched && result.matchedSnippets.length > 0 ? (
-                              <VStack align="stretch" spacing={3}>
-                                <Text fontWeight="medium">Βρέθηκε στις γραμμές:</Text>
-                                {result.matchedSnippets.map((snippet, idx) => (
-                                  <Box key={idx}>
-                                    <Text fontSize="sm" color="gray.400" mb={1}>
-                                      {snippet.file
-                                        ? `${snippet.file} — Γραμμή ${snippet.line}`
-                                        : `Γραμμή ${snippet.line}`}:
+                            <VStack align="stretch" spacing={3} divider={<Divider />}>
+                              {/* Regex results */}
+                              {regexResult && (
+                                <Box>
+                                  <Badge colorScheme="brand" mb={2}>Regex Patterns</Badge>
+                                  {regexResult.matched && regexResult.matchedSnippets.length > 0 ? (
+                                    <VStack align="stretch" spacing={2}>
+                                      <Text fontWeight="medium" fontSize="sm">Βρέθηκε στις γραμμές:</Text>
+                                      {regexResult.matchedSnippets.map((snippet, idx) => (
+                                        <Box key={idx}>
+                                          <Text fontSize="sm" color="gray.400" mb={1}>
+                                            {snippet.file
+                                              ? `${snippet.file} — Γραμμή ${snippet.line}`
+                                              : `Γραμμή ${snippet.line}`}:
+                                          </Text>
+                                          <Code p={2} borderRadius="md" display="block">
+                                            {snippet.snippet}
+                                          </Code>
+                                        </Box>
+                                      ))}
+                                    </VStack>
+                                  ) : (
+                                    <Text color="gray.500" fontSize="sm">
+                                      Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
                                     </Text>
-                                    <Code p={2} borderRadius="md" display="block">
-                                      {snippet.snippet}
-                                    </Code>
-                                  </Box>
-                                ))}
-                              </VStack>
-                            ) : (
-                              <Text color="gray.500">
-                                Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
-                              </Text>
-                            )}
+                                  )}
+                                </Box>
+                              )}
+
+                              {/* LLM results */}
+                              {llmResult && (
+                                <Box>
+                                  <Badge colorScheme="purple" mb={2}>LLM</Badge>
+                                  {llmResult.matched && llmResult.matchedSnippets.length > 0 ? (
+                                    <VStack align="stretch" spacing={2}>
+                                      <Text fontWeight="medium" fontSize="sm">Βρέθηκε στις γραμμές:</Text>
+                                      {llmResult.matchedSnippets.map((snippet, idx) => (
+                                        <Box key={idx}>
+                                          <Text fontSize="sm" color="gray.400" mb={1}>
+                                            {snippet.file
+                                              ? `${snippet.file} — Γραμμή ${snippet.line}`
+                                              : `Γραμμή ${snippet.line}`}:
+                                          </Text>
+                                          <Code p={2} borderRadius="md" display="block" borderLeftWidth="3px" borderLeftColor="purple.400">
+                                            {snippet.snippet}
+                                          </Code>
+                                        </Box>
+                                      ))}
+                                    </VStack>
+                                  ) : (
+                                    <Text color="gray.500" fontSize="sm">
+                                      Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
+                                    </Text>
+                                  )}
+                                </Box>
+                              )}
+                            </VStack>
                           </AccordionPanel>
                         </AccordionItem>
-                      ))}
-                    </Accordion>
+                      );
+                    })}
+                  </Accordion>
 
-                    <VStack align="stretch" spacing={2}>
-                      <HStack spacing={4} pt={1} w="full">
-                        <HStack flex="1">
-                          <Text fontWeight="medium" color="gray.400">LLM Βαθμός:</Text>
-                          <Text fontWeight="bold">{passedCount}/{totalCount}</Text>
-                          <Badge colorScheme={passedCount === totalCount ? 'green' : 'yellow'}>
-                            {Math.round((passedCount / totalCount) * 100)}%
+                  <VStack align="stretch" spacing={2}>
+                    <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
+                      {regexResults.length > 0 && (
+                        <HStack flex="1" minW="160px">
+                          <Text fontWeight="medium" color="gray.400">Βαθμός Regex:</Text>
+                          <Text fontWeight="bold">{regexPassedCount}/{totalCount}</Text>
+                          <Badge colorScheme={regexPassedCount === totalCount ? 'green' : 'yellow'}>
+                            {Math.round((regexPassedCount / totalCount) * 100)}%
                           </Badge>
                         </HStack>
-                        <HStack flex="1">
-                          <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
-                          <NumberInput
-                            value={teacherPassed}
-                            min={0}
-                            max={totalCount}
-                            size="sm"
-                            w="80px"
-                            onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                          <Text fontWeight="bold">/{totalCount}</Text>
-                          <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
-                            {Math.round((teacherPassed / totalCount) * 100)}%
+                      )}
+                      {llmResults.length > 0 && (
+                        <HStack flex="1" minW="160px">
+                          <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
+                          <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
+                          <Badge colorScheme={llmPassedCount === totalCount ? 'purple' : 'yellow'}>
+                            {Math.round((llmPassedCount / totalCount) * 100)}%
                           </Badge>
                         </HStack>
-                      </HStack>
-                    </VStack>
-                    <Button
-                      colorScheme="green"
-                      onClick={() => saveScoreMutation.mutate({ submissionId: submissionId!, score: teacherPassed })}
-                      isLoading={saveScoreMutation.isPending}
-                      isDisabled={!submissionId}
-                    >
-                      Αποθήκευση βαθμολογίας
-                    </Button>
-
+                      )}
+                    </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
-            );
-          })()}
+                  <Divider />
+                  <VStack align="stretch">
+                    <HStack w="full" flexWrap="wrap">
+                      <HStack flex={1} minW="300px">
+                        <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
+                        <NumberInput
+                          value={teacherPassed}
+                          min={0}
+                          max={totalCount}
+                          size="sm"
+                          w="80px"
+                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
+                        >
+                          <NumberInputField />
+                          <NumberInputStepper>
+                            <NumberIncrementStepper />
+                            <NumberDecrementStepper />
+                          </NumberInputStepper>
+                        </NumberInput>
+                        <Text fontWeight="bold">/{totalCount}</Text>
+                        <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
+                          {Math.round((teacherPassed / totalCount) * 100)}%
+                        </Badge>
+                      </HStack>
+                      <HStack flex={1}>
+                        <Button
+                          rightIcon={<FiSave />}
+                          colorScheme="green"
+                          onClick={() => saveScoreMutation.mutate({ submissionId: submissionId!, score: teacherPassed })}
+                          isLoading={saveScoreMutation.isPending}
+                          isDisabled={!submissionId}
+                        >
+                          Αποθήκευση βαθμολογίας Εκπαιδευτικού
+                        </Button>
+                      </HStack>
+                    </HStack>
+                  </VStack>
+                </VStack>
+              </CardBody>
+            </Card>
+          )}
         </VStack>
       </Box>
     </PageTransition>

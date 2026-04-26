@@ -131,3 +131,35 @@ class MiniReportRequest(BaseModel):
 class MiniReportResponse(BaseModel):
     """Response for /generate-mini-report endpoint."""
     report: str
+
+
+# LLM grading models
+
+class LlmCheckpointDesc(BaseModel):
+    """Checkpoint description sent for LLM-based grading."""
+    id: str
+    description: str
+    pattern: str = ""
+
+
+class LlmGradeRequest(BaseModel):
+    """Request body for /grade-llm endpoint."""
+    checkpoints: list[LlmCheckpointDesc]
+    files: list[FileContent]
+
+
+class LlmMatchedSnippet(BaseModel):
+    file: str
+    line: int
+    snippet: str
+
+
+class LlmCheckpointResult(BaseModel):
+    checkpoint_id: str
+    matched: bool
+    matched_snippets: list[LlmMatchedSnippet]
+
+
+class LlmGradeResponse(BaseModel):
+    """Response for /grade-llm endpoint."""
+    results: list[LlmCheckpointResult]
