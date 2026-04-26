@@ -30,7 +30,8 @@ import {
 } from '@chakra-ui/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { FiArrowLeft, FiCheck, FiX, FiSave } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
+import { FiCheck, FiX, FiSave } from 'react-icons/fi';
 import { api, GradingResult, Checkpoint } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercise } from '@/hooks/use-get-exercise';
@@ -106,13 +107,7 @@ export function GradingResultsPage() {
     <Box>
       <HStack justify="space-between" mb={6}>
         <HStack spacing={4}>
-          <Button
-            leftIcon={<FiArrowLeft />}
-            variant="ghost"
-            onClick={() => navigate('/exercises')}
-          >
-            Πίσω
-          </Button>
+          <BackButton buttonText="Πίσω" navigationUrl="/exercises" />
           <VStack align="start" spacing={0}>
             <Heading size="lg">{exercise.title}</Heading>
             <Text color="gray.400" fontSize="sm">

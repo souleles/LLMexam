@@ -2,7 +2,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
 import { Box, Button, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { FiArrowLeft } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 export function StudentSubmissionDetailPage() {
@@ -19,9 +19,7 @@ export function StudentSubmissionDetailPage() {
   if (isLoading) {
     return (
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate(-1)}>
-          Πίσω στον Φοιτητή
-        </Button>
+        <BackButton buttonText="Πίσω στον Φοιτητή" navigationUrl="-1" mb={6} />
         <Stack spacing={4}>
           <Skeleton height="60px" />
           <Skeleton height="300px" />
@@ -46,9 +44,7 @@ export function StudentSubmissionDetailPage() {
   return (
     <PageTransition>
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate(-1)}>
-          Πίσω στον Φοιτητή
-        </Button>
+        <BackButton buttonText="Πίσω στον Φοιτητή" navigationUrl="-1" mb={6} />
         <SubmissionDetail submission={submission} />
       </Box>
     </PageTransition>

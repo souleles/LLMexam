@@ -16,7 +16,7 @@ import {
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
 import { Exercise } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useCreateExercise } from '@/hooks/use-create-exercise';
@@ -66,14 +66,7 @@ export function NewExercisePage() {
   return (
     <PageTransition>
     <Box>
-      <Button
-        leftIcon={<FiArrowLeft />}
-        variant="ghost"
-        mb={6}
-        onClick={() => navigate('/exercises')}
-      >
-        Πίσω στις Ασκήσεις
-      </Button>
+      <BackButton buttonText="Πίσω στις Ασκήσεις" navigationUrl="/exercises" mb={6} />
 
       <VStack align="start" spacing={6} >
         <VStack align="start" spacing={1}>

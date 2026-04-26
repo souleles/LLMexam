@@ -19,7 +19,8 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { FiArrowLeft, FiFileText, FiPlusCircle, FiRefreshCcw, FiUser } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
+import { FiFileText, FiPlusCircle, FiRefreshCcw, FiUser } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function StudentDetailPage() {
@@ -40,9 +41,7 @@ export function StudentDetailPage() {
   if (studentLoading) {
     return (
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate('/students')}>
-          Πίσω στους Φοιτητές
-        </Button>
+        <BackButton buttonText="Πίσω στους Φοιτητές" navigationUrl="/students" mb={6} />
         <Stack spacing={4}>
           <Skeleton height="150px" />
           <Skeleton height="400px" />
@@ -57,9 +56,7 @@ export function StudentDetailPage() {
         <Text fontSize="lg" color="gray.400">
           Ο φοιτητής δεν βρέθηκε
         </Text>
-        <Button mt={4} onClick={() => navigate('/students')}>
-          Πίσω στους Φοιτητές
-        </Button>
+        <BackButton buttonText="Πίσω στους Φοιτητές" navigationUrl="/students" mt={4} />
       </Box>
     );
   }
@@ -67,9 +64,7 @@ export function StudentDetailPage() {
   return (
     <PageTransition>
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate('/students')}>
-          Πίσω στους Φοιτητές
-        </Button>
+        <BackButton buttonText="Πίσω στους Φοιτητές" navigationUrl="/students" mb={6} />
 
         <VStack align="stretch" spacing={6}>
           {/* Student Info Card */}

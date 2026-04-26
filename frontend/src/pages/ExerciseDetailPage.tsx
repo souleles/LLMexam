@@ -39,7 +39,8 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { FiArrowLeft, FiCheck, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
+import { FiCheck, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function ExerciseDetailPage() {
@@ -87,9 +88,7 @@ export function ExerciseDetailPage() {
   if (exerciseLoading || checkpointsLoading) {
     return (
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6}>
-          Πίσω στις Ασκήσεις
-        </Button>
+        <BackButton buttonText="Πίσω στις Ασκήσεις" navigationUrl="/exercises" mb={6} />
         <Stack spacing={4}>
           <Skeleton height="60px" />
           <Skeleton height="400px" />
@@ -102,7 +101,7 @@ export function ExerciseDetailPage() {
     return (
       <Box textAlign="center" py={12}>
         <Text fontSize="lg" color="gray.400">Η άσκηση δεν βρέθηκε</Text>
-        <Button mt={4} onClick={() => navigate('/exercises')}>Πίσω στις Ασκήσεις</Button>
+        <BackButton buttonText="Πίσω στις Ασκήσεις" navigationUrl="/exercises" mt={4} />
       </Box>
     );
   }
@@ -113,9 +112,7 @@ export function ExerciseDetailPage() {
   return (
     <PageTransition>
       <Box>
-        <Button leftIcon={<FiArrowLeft />} variant="ghost" mb={6} onClick={() => navigate('/exercises')}>
-          Πίσω στις Ασκήσεις
-        </Button>
+        <BackButton buttonText="Πίσω στις Ασκήσεις" navigationUrl="/exercises" mb={6} />
 
         <VStack align="stretch" spacing={6}>
           {/* Header */}

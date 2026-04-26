@@ -2,7 +2,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
 import { Box, Button, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { FiArrowLeft } from 'react-icons/fi';
+import { BackButton } from '@/components/BackButton';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 export function ExerciseSubmissionDetailPage() {
@@ -19,14 +19,7 @@ export function ExerciseSubmissionDetailPage() {
   if (isLoading) {
     return (
       <Box>
-        <Button
-          leftIcon={<FiArrowLeft />}
-          variant="ghost"
-          mb={6}
-          onClick={() => navigate(`/exercises/${exerciseId}`)}
-        >
-          Πίσω στην Άσκηση
-        </Button>
+        <BackButton buttonText="Πίσω στην Άσκηση" navigationUrl={`/exercises/${exerciseId}`} mb={6} />
         <Stack spacing={4}>
           <Skeleton height="60px" />
           <Skeleton height="300px" />
@@ -41,9 +34,7 @@ export function ExerciseSubmissionDetailPage() {
         <Text fontSize="lg" color="gray.400">
           Δεν βρέθηκαν δεδομένα υποβολής
         </Text>
-        <Button mt={4} onClick={() => navigate(`/exercises/${exerciseId}`)}>
-          Πίσω στην Άσκηση
-        </Button>
+        <BackButton buttonText="Πίσω στην Άσκηση" navigationUrl={`/exercises/${exerciseId}`} mt={4} />
       </Box>
     );
   }
@@ -51,14 +42,7 @@ export function ExerciseSubmissionDetailPage() {
   return (
     <PageTransition>
       <Box>
-        <Button
-          leftIcon={<FiArrowLeft />}
-          variant="ghost"
-          mb={6}
-          onClick={() => navigate(`/exercises/${exerciseId}`)}
-        >
-          Πίσω στην Άσκηση
-        </Button>
+        <BackButton buttonText="Πίσω στην Άσκηση" navigationUrl={`/exercises/${exerciseId}`} mb={6} />
         <SubmissionDetail submission={submission} />
       </Box>
     </PageTransition>
