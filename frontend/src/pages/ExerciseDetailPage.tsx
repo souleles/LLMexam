@@ -207,7 +207,7 @@ export function ExerciseDetailPage() {
           {/* Chat */}
           <Card>
             <CardBody>
-              <HStack spacing={3} mb={4}>
+              <HStack spacing={3}>
                 <Icon as={FiMessageSquare} color="brand.400" boxSize={5} />
                 <Heading size="md">
                   Συνομιλία & Εξαγωγή
@@ -218,7 +218,7 @@ export function ExerciseDetailPage() {
                   )}
                 </Heading>
               </HStack>
-              <Divider mb={4} />
+              <Divider my={4} />
               <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior="unmount">
                 <TabList>
                   <Tab>Checkpoints</Tab>
