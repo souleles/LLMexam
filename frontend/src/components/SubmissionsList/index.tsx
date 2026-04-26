@@ -2,6 +2,7 @@ import { Submission } from '@/lib/api';
 import {
   Badge,
   Box,
+  Button,
   HStack,
   Icon,
   Skeleton,
@@ -9,8 +10,11 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { FiChevronRight, FiFile } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiChevronLeft, FiChevronRight, FiFile } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+
+const PAGE_SIZE = 5;
 
 interface SubmissionsListProps {
   submissions: Submission[];
@@ -31,6 +35,10 @@ export function SubmissionsList({
   buildPath = (s) => `/student-exercises/${s.id}`,
 }: SubmissionsListProps) {
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.ceil(submissions.length / PAGE_SIZE);
+  const paginated = submissions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (isLoading) {
     return (
@@ -50,9 +58,9 @@ export function SubmissionsList({
   }
 
   return (
-    <Box maxHeight="400px" overflowY="auto">
+    <VStack align="stretch" spacing={4}>
       <VStack align="stretch" spacing={2}>
-        {submissions.map((submission) => {
+        {paginated.map((submission) => {
           const studentNames = submission.students
             .map((s) => `${s.lastName} ${s.firstName}`)
             .join(', ');
@@ -129,6 +137,32 @@ export function SubmissionsList({
           );
         })}
       </VStack>
-    </Box>
+
+      {totalPages > 1 && (
+        <HStack justify="center" spacing={3}>
+          <Button
+            size="sm"
+            variant="outline"
+            leftIcon={<FiChevronLeft />}
+            isDisabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Προηγούμενο
+          </Button>
+          <Text fontSize="sm" color="gray.400">
+            {page} / {totalPages}
+          </Text>
+          <Button
+            size="sm"
+            variant="outline"
+            rightIcon={<FiChevronRight />}
+            isDisabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Επόμενο
+          </Button>
+        </HStack>
+      )}
+    </VStack>
   );
 }

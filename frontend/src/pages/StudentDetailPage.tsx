@@ -1,3 +1,4 @@
+import { BackButton } from '@/components/BackButton';
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionsList } from '@/components/SubmissionsList';
 import { useGenerateMiniReport } from '@/hooks/use-generate-mini-report';
@@ -19,8 +20,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { BackButton } from '@/components/BackButton';
-import { FiFileText, FiPlusCircle, FiRefreshCcw, FiUser } from 'react-icons/fi';
+import { FiFileText, FiFolder, FiPlusCircle, FiRefreshCcw, FiUser } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function StudentDetailPage() {
@@ -179,7 +179,10 @@ export function StudentDetailPage() {
           <Card>
             <CardBody>
               <VStack align="stretch" spacing={4}>
-                <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                <HStack spacing={3}>
+                  <Icon as={FiFolder} color="brand.400" boxSize={5} />
+                  <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                </HStack>
                 <SubmissionsList
                   submissions={submissions}
                   isLoading={submissionsLoading}

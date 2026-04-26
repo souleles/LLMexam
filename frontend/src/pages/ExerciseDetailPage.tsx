@@ -24,6 +24,7 @@ import {
   Divider,
   Heading,
   HStack,
+  Icon,
   Link,
   Skeleton,
   Stack,
@@ -40,7 +41,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { BackButton } from '@/components/BackButton';
-import { FiCheck, FiDownload, FiFileText, FiTrash2 } from 'react-icons/fi';
+import { FiCheck, FiDownload, FiFileText, FiFolder, FiMessageCircle, FiMessageSquare, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function ExerciseDetailPage() {
@@ -188,7 +189,10 @@ export function ExerciseDetailPage() {
             <Card>
               <CardBody>
                 <VStack align="stretch" spacing={4}>
-                  <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                  <HStack spacing={3}>
+                    <Icon as={FiFolder} color="brand.400" boxSize={5} />
+                    <Heading size="md">Υποβεβλημένες Εργασίες</Heading>
+                  </HStack>
                   <SubmissionsList
                     submissions={submissions}
                     isLoading={submissionsLoading}
@@ -203,14 +207,17 @@ export function ExerciseDetailPage() {
           {/* Chat */}
           <Card>
             <CardBody>
-              <Heading size="md" mb={4}>
-                Συνομιλία & Εξαγωγή
-                {isReadOnly && (
-                  <Badge ml={2} colorScheme="green" textTransform="none">
-                    Μόνο ανάγνωση
-                  </Badge>
-                )}
-              </Heading>
+              <HStack spacing={3} mb={4}>
+                <Icon as={FiMessageSquare} color="brand.400" boxSize={5} />
+                <Heading size="md">
+                  Συνομιλία & Εξαγωγή
+                  {isReadOnly && (
+                    <Badge ml={2} colorScheme="green" textTransform="none">
+                      Μόνο ανάγνωση
+                    </Badge>
+                  )}
+                </Heading>
+              </HStack>
               <Divider mb={4} />
               <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior="unmount">
                 <TabList>
