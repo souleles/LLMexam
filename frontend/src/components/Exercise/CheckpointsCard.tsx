@@ -25,7 +25,7 @@ export function CheckpointsCard({ checkpoints }: CheckpointsCardProps) {
         <VStack align="start" spacing={4}>
           <HStack>
             <FiCheckCircle size={24} />
-            <Heading size="md">Εξαγμένα Checkpoints</Heading>
+            <Heading size="md">Εξαγμένα Checkpoints ({checkpoints.length})</Heading>
           </HStack>
           <Divider />
           {checkpoints.length === 0 ? (
@@ -35,30 +35,32 @@ export function CheckpointsCard({ checkpoints }: CheckpointsCardProps) {
               </Text>
             </Box>
           ) : (
-            <List spacing={3} w="full">
-              {checkpoints.map((checkpoint, index) => (
-                <ListItem key={checkpoint.id}>
-                  <HStack align="start">
-                    <ListIcon as={FiCheckCircle} color="green.500" mt={1} />
-                    <VStack align="start" spacing={1} flex={1}>
-                      <Text fontWeight="medium">
-                        {index + 1}. {checkpoint.description}
-                      </Text>
-                      {checkpoint.pattern && (
-                        <Text fontSize="xs" color="gray.400" fontFamily="mono">
-                          {checkpoint.pattern}
+            <Box maxHeight="600px" overflowY="auto">
+              <List spacing={3} w="full">
+                {checkpoints.map((checkpoint, index) => (
+                  <ListItem key={checkpoint.id}>
+                    <HStack align="start">
+                      <ListIcon as={FiCheckCircle} color="green.500" mt={1} />
+                      <VStack align="start" spacing={1} flex={1}>
+                        <Text fontWeight="medium">
+                          {index + 1}. {checkpoint.description}
                         </Text>
-                      )}
-                      {checkpoint.patternDescription && (
-                        <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                          {checkpoint.patternDescription}
-                        </Text>
-                      )}
-                    </VStack>
-                  </HStack>
-                </ListItem>
-              ))}
-            </List>
+                        {checkpoint.pattern && (
+                          <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                            {checkpoint.pattern}
+                          </Text>
+                        )}
+                        {checkpoint.patternDescription && (
+                          <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                            {checkpoint.patternDescription}
+                          </Text>
+                        )}
+                      </VStack>
+                    </HStack>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
           )}
         </VStack>
       </CardBody>
