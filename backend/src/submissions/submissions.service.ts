@@ -439,6 +439,8 @@ export class SubmissionsService {
               checkpointOrder: cr.checkpoint.order,
               matched: cr.matched,
               matchedSnippets: cr.matchedSnippets.map((s) => JSON.parse(s)),
+              llmMatched: cr.llmMatched,
+              llmMatchedSnippets: cr.llmMatchedSnippets.map((s) => JSON.parse(s)),
             })),
           }
         : null,
@@ -495,6 +497,8 @@ export class SubmissionsService {
               checkpointOrder: cr.checkpoint.order,
               matched: cr.matched,
               matchedSnippets: cr.matchedSnippets,
+              llmMatched: cr.llmMatched,
+              llmMatchedSnippets: cr.llmMatchedSnippets,
             })),
           }
         : null,

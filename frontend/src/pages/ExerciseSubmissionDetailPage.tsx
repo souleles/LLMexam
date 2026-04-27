@@ -1,12 +1,11 @@
+import { BackButton } from '@/components/BackButton';
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
-import { Box, Button, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { BackButton } from '@/components/BackButton';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Box, Skeleton, Stack, Text } from '@chakra-ui/react';
+import { useLocation, useParams } from 'react-router-dom';
 
 export function ExerciseSubmissionDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { exerciseId, submissionId } = useParams<{ exerciseId: string; submissionId: string }>();
 

@@ -1,5 +1,6 @@
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
+import { GradingAccordion } from '@/components/GradingAccordion';
 import { GradingResult } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercises } from '@/hooks/use-get-exercises';
@@ -7,17 +8,11 @@ import { useGetStudents } from '@/hooks/use-get-students';
 import { useUploadAndGrade } from '@/hooks/use-upload-and-grade';
 import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import {
-  Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
   Badge,
   Box,
   Button,
   Card,
   CardBody,
-  Code,
   Divider,
   FormControl,
   FormHelperText,
@@ -35,7 +30,7 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FiCheck, FiCheckSquare, FiCpu, FiSave, FiUpload, FiX } from 'react-icons/fi';
+import { FiCpu, FiSave, FiUpload } from 'react-icons/fi';
 import ReactSelect from 'react-select';
 
 const darkSelectStyles = {
@@ -297,102 +292,18 @@ export function StudentExercisesPage() {
                     </Text>
                   </VStack>
 
-                  <Accordion allowMultiple>
-                    {allCheckpoints.map((checkpoint, index) => {
-                      const regexResult = regexResults.find((r) => r.checkpointId === checkpoint.checkpointId);
-                      const llmResult = llmResults.find((r) => r.checkpointId === checkpoint.checkpointId);
-                      const overallMatched = regexResult?.matched || llmResult?.matched;
-
-                      return (
-                        <AccordionItem key={checkpoint.checkpointId}>
-                          <h2>
-                            <AccordionButton>
-                              <Box flex="1" textAlign="left">
-                                <HStack>
-                                  {overallMatched ? <FiCheck color="green" /> : <FiX color="red" />}
-                                  <Text fontWeight="medium">
-                                    Checkpoint {index + 1}: {checkpoint.checkpointDescription}
-                                  </Text>
-                                </HStack>
-                              </Box>
-                              <HStack mr={2} spacing={1}>
-                                {regexResult && (
-                                  <Badge colorScheme={regexResult.matched ? 'green' : 'red'} fontSize="xs">
-                                    Regex: {regexResult.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                                  </Badge>
-                                )}
-                                {llmResult && (
-                                  <Badge colorScheme={llmResult.matched ? 'purple' : 'red'} fontSize="xs">
-                                    LLM: {llmResult.matched ? 'ΠΕΤΥΧΕ' : 'ΑΠΕΤΥΧΕ'}
-                                  </Badge>
-                                )}
-                              </HStack>
-                              <AccordionIcon />
-                            </AccordionButton>
-                          </h2>
-                          <AccordionPanel pb={4}>
-                            <VStack align="stretch" spacing={3} divider={<Divider />}>
-                              {/* Regex results */}
-                              {regexResult && (
-                                <Box>
-                                  <Badge colorScheme="brand" mb={2}>Regex Patterns</Badge>
-                                  {regexResult.matched && regexResult.matchedSnippets.length > 0 ? (
-                                    <VStack align="stretch" spacing={2}>
-                                      <Text fontWeight="medium" fontSize="sm">Βρέθηκε στις γραμμές:</Text>
-                                      {regexResult.matchedSnippets.map((snippet, idx) => (
-                                        <Box key={idx}>
-                                          <Text fontSize="sm" color="gray.400" mb={1}>
-                                            {snippet.file
-                                              ? `${snippet.file} — Γραμμή ${snippet.line}`
-                                              : `Γραμμή ${snippet.line}`}:
-                                          </Text>
-                                          <Code p={2} borderRadius="md" display="block">
-                                            {snippet.snippet}
-                                          </Code>
-                                        </Box>
-                                      ))}
-                                    </VStack>
-                                  ) : (
-                                    <Text color="gray.500" fontSize="sm">
-                                      Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
-                                    </Text>
-                                  )}
-                                </Box>
-                              )}
-
-                              {/* LLM results */}
-                              {llmResult && (
-                                <Box>
-                                  <Badge colorScheme="purple" mb={2}>LLM</Badge>
-                                  {llmResult.matched && llmResult.matchedSnippets.length > 0 ? (
-                                    <VStack align="stretch" spacing={2}>
-                                      <Text fontWeight="medium" fontSize="sm">Βρέθηκε στις γραμμές:</Text>
-                                      {llmResult.matchedSnippets.map((snippet, idx) => (
-                                        <Box key={idx}>
-                                          <Text fontSize="sm" color="gray.400" mb={1}>
-                                            {snippet.file
-                                              ? `${snippet.file} — Γραμμή ${snippet.line}`
-                                              : `Γραμμή ${snippet.line}`}:
-                                          </Text>
-                                          <Code p={2} borderRadius="md" display="block" borderLeftWidth="3px" borderLeftColor="purple.400">
-                                            {snippet.snippet}
-                                          </Code>
-                                        </Box>
-                                      ))}
-                                    </VStack>
-                                  ) : (
-                                    <Text color="gray.500" fontSize="sm">
-                                      Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
-                                    </Text>
-                                  )}
-                                </Box>
-                              )}
-                            </VStack>
-                          </AccordionPanel>
-                        </AccordionItem>
-                      );
+                  <GradingAccordion
+                    items={allCheckpoints.map((cp) => {
+                      const regex = regexResults.find((r) => r.checkpointId === cp.checkpointId);
+                      const llm = llmResults.find((r) => r.checkpointId === cp.checkpointId);
+                      return {
+                        checkpointId: cp.checkpointId,
+                        checkpointDescription: cp.checkpointDescription,
+                        ...(regex && { regexMatched: regex.matched, regexSnippets: regex.matchedSnippets }),
+                        ...(llm && { llmMatched: llm.matched, llmSnippets: llm.matchedSnippets }),
+                      };
                     })}
-                  </Accordion>
+                  />
 
                   <VStack align="stretch" spacing={2}>
                     <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
@@ -405,15 +316,20 @@ export function StudentExercisesPage() {
                           </Badge>
                         </HStack>
                       )}
-                      {llmResults.length > 0 && (
-                        <HStack flex="1" minW="160px">
-                          <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
-                          <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
-                          <Badge colorScheme={llmPassedCount === totalCount ? 'purple' : 'yellow'}>
-                            {Math.round((llmPassedCount / totalCount) * 100)}%
-                          </Badge>
-                        </HStack>
-                      )}
+                      <HStack flex="1" minW="160px">
+                        <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
+                        {llmResults.length > 0
+                          ? (
+                            <>
+                              <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
+                              <Badge colorScheme={llmPassedCount === totalCount ? 'green' : 'yellow'}>
+                                {Math.round((llmPassedCount / totalCount) * 100)}%
+                              </Badge>
+                            </>
+                          )
+                          : <Text fontWeight="bold">Δεν έχει βαθμολογηθεί</Text>
+                        }
+                      </HStack>
                     </HStack>
                   </VStack>
                   <Divider />

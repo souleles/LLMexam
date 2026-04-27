@@ -64,6 +64,8 @@ export interface Submission {
       checkpointOrder: number;
       matched: boolean;
       matchedSnippets: Array<{ file?: string; line: number; snippet: string } | string>;
+      llmMatched?: boolean;
+      llmMatchedSnippets?: Array<{ file?: string; line: number; snippet: string } | string>;
     }>;
   } | null;
 }

@@ -1,3 +1,4 @@
+import { GradingAccordion } from '@/components/GradingAccordion';
 import { Submission } from '@/lib/api';
 import {
   Badge,
@@ -5,20 +6,12 @@ import {
   Button,
   Card,
   CardBody,
-  Code,
   Heading,
   HStack,
-  Icon,
-  Table,
-  Tbody,
-  Td,
   Text,
-  Th,
-  Thead,
-  Tr,
   VStack,
 } from '@chakra-ui/react';
-import { FiCheck, FiDownload, FiX } from 'react-icons/fi';
+import { FiDownload } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
@@ -145,51 +138,22 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
               </HStack>
 
               {/* Checkpoint Results */}
-              <Table size="sm" variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th w="50px">#</Th>
-                    <Th>Checkpoint</Th>
-                    <Th w="100px" textAlign="center">
-                      Κατάσταση
-                    </Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {(submission.gradingResult.checkpointResults ?? []).map((cr) => (
-                    <Tr key={cr.id}>
-                      <Td>{cr.checkpointOrder}</Td>
-                      <Td>
-                        <Text fontSize="sm">{cr.checkpointDescription}</Text>
-                        {cr.matched && cr.matchedSnippets.length > 0 && (
-                          <VStack align="start" spacing={1} mt={2}>
-                            {cr.matchedSnippets.map((raw, idx) => {
-                              const s = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                              return (
-                                <Box key={idx}>
-                                  <Text fontSize="xs" color="gray.400">
-                                    {s.file ? `${s.file} — Γραμμή ${s.line}` : `Γραμμή ${s.line}`}:
-                                  </Text>
-                                  <Code fontSize="xs" p={1} borderRadius="md" display="block">
-                                    {s.snippet}
-                                  </Code>
-                                </Box>
-                              );
-                            })}
-                          </VStack>
-                        )}
-                      </Td>
-                      <Td textAlign="center">
-                        {cr.matched ? (
-                          <Icon as={FiCheck} color="green.500" boxSize={5} />
-                        ) : (
-                          <Icon as={FiX} color="red.500" boxSize={5} />
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+              <GradingAccordion
+                items={(submission.gradingResult.checkpointResults ?? []).map((cr) => {
+                  const parseSnippets = (raw: Array<{ file?: string; line: number; snippet: string } | string>) =>
+                    raw.map((s) => (typeof s === 'string' ? JSON.parse(s) : s));
+                  return {
+                    checkpointId: cr.checkpointId,
+                    checkpointDescription: cr.checkpointDescription,
+                    regexMatched: cr.matched,
+                    regexSnippets: parseSnippets(cr.matchedSnippets),
+                    ...(cr.llmMatched !== undefined && {
+                      llmMatched: cr.llmMatched,
+                      llmSnippets: parseSnippets(cr.llmMatchedSnippets ?? []),
+                    }),
+                  };
+                })}
+              />
             </VStack>
           </CardBody>
         </Card>
