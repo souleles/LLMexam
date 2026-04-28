@@ -54,7 +54,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
       </Card>
 
       {/* Participating Students */}
-      {submission.students.length > 1 && (
+      {submission.students.length > 0 && (
         <Card>
           <CardBody>
             <Text fontWeight="medium" mb={2}>
