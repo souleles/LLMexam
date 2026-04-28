@@ -3,17 +3,12 @@ import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
 import { Box, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 export function ExerciseSubmissionDetailPage() {
-  const location = useLocation();
   const { exerciseId, submissionId } = useParams<{ exerciseId: string; submissionId: string }>();
 
-  const stateSubmission = location.state?.submission;
-
-  const { data: fetchedSubmission, isLoading } = useGetSingleSubmission(submissionId, !stateSubmission);
-
-  const submission = stateSubmission ?? fetchedSubmission;
+  const { data: submission, isLoading } = useGetSingleSubmission(submissionId, true);
 
   if (isLoading) {
     return (

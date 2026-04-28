@@ -393,14 +393,7 @@ export class SubmissionsService {
           include: {
             exercise: true,
             submissionStudents: { include: { student: true } },
-            gradingResult: {
-              include: {
-                checkpointResults: {
-                  include: { checkpoint: true },
-                  orderBy: { checkpoint: { order: 'asc' } },
-                },
-              },
-            },
+            gradingResult: true,
           },
         },
       },
@@ -432,16 +425,6 @@ export class SubmissionsService {
             gradedAt: ss.submission.gradingResult.gradedAt,
             llmPassedCheckpoints: ss.submission.gradingResult.llmPassedCheckpoints,
             llmScore: ss.submission.gradingResult.llmScore,
-            checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
-              id: cr.id,
-              checkpointId: cr.checkpointId,
-              checkpointDescription: cr.checkpoint.description,
-              checkpointOrder: cr.checkpoint.order,
-              matched: cr.matched,
-              matchedSnippets: cr.matchedSnippets.map((s) => JSON.parse(s)),
-              llmMatched: cr.llmMatched,
-              llmMatchedSnippets: cr.llmMatchedSnippets.map((s) => JSON.parse(s)),
-            })),
           }
         : null,
     }));
@@ -453,14 +436,7 @@ export class SubmissionsService {
       include: {
         exercise: true,
         submissionStudents: { include: { student: true } },
-        gradingResult: {
-          include: {
-            checkpointResults: {
-              include: { checkpoint: true },
-              orderBy: { checkpoint: { order: 'asc' } },
-            },
-          },
-        },
+        gradingResult: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -490,16 +466,6 @@ export class SubmissionsService {
             gradedAt: s.gradingResult.gradedAt,
             llmPassedCheckpoints: s.gradingResult.llmPassedCheckpoints,
             llmScore: s.gradingResult.llmScore,
-            checkpointResults: s.gradingResult.checkpointResults.map((cr) => ({
-              id: cr.id,
-              checkpointId: cr.checkpointId,
-              checkpointDescription: cr.checkpoint.description,
-              checkpointOrder: cr.checkpoint.order,
-              matched: cr.matched,
-              matchedSnippets: cr.matchedSnippets,
-              llmMatched: cr.llmMatched,
-              llmMatchedSnippets: cr.llmMatchedSnippets,
-            })),
           }
         : null,
     }));

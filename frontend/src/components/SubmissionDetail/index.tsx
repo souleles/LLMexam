@@ -60,9 +60,9 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
     onOpen();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (scoreValue === '') return;
-    saveScoreMutation.mutate({ submissionId: submission.id, score: scoreValue });
+    await saveScoreMutation.mutateAsync({ submissionId: submission.id, score: scoreValue });
   };
 
   const handleDownload = (fileUrl: string, fileName: string) => {

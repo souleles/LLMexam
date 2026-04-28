@@ -1,20 +1,15 @@
+import { BackButton } from '@/components/BackButton';
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
 import { Box, Button, Skeleton, Stack, Text } from '@chakra-ui/react';
-import { BackButton } from '@/components/BackButton';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export function StudentSubmissionDetailPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { submissionId } = useParams<{ submissionId: string }>();
 
-  const stateSubmission = location.state?.submission;
-
-  const { data: fetchedSubmission, isLoading } = useGetSingleSubmission(submissionId, !stateSubmission);
-
-  const submission = stateSubmission ?? fetchedSubmission;
+  const { data: submission, isLoading } = useGetSingleSubmission(submissionId, true);
 
   if (isLoading) {
     return (

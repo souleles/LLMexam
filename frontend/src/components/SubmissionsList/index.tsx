@@ -79,11 +79,7 @@ export function SubmissionsList({
               borderRadius="md"
               cursor="pointer"
               _hover={{ bg: 'gray.700', borderColor: 'brand.400' }}
-              onClick={() =>
-                navigate(buildPath(submission), {
-                  state: { submission },
-                })
-              }
+              onClick={() => navigate(buildPath(submission))}
             >
               <HStack justify="space-between">
                 <HStack spacing={3}>

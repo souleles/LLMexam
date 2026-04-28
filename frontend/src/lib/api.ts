@@ -57,7 +57,7 @@ export interface Submission {
     teacherScore?: number | null;
     llmPassedCheckpoints?: number;
     llmScore?: number;
-    checkpointResults: Array<{
+    checkpointResults?: Array<{
       id: string;
       checkpointId: string;
       checkpointDescription: string;
