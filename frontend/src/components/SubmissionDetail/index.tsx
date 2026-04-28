@@ -46,7 +46,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
 
   const saveScoreMutation = useSaveTeacherScore({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
       toast({ title: 'Βαθμολογία αποθηκεύτηκε', status: 'success', duration: 3000 });
       onClose();
     },

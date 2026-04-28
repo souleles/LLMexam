@@ -7,5 +7,6 @@ export function useGetSingleSubmission(submissionId: string | undefined, enabled
     queryKey: [QueryKeys.Submissions, submissionId],
     queryFn: () => api.submissions.get(submissionId!),
     enabled: !!submissionId && enabled,
+    staleTime: Infinity,
   });
 }
