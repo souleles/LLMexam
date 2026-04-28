@@ -553,6 +553,8 @@ export class SubmissionsService {
             totalCheckpoints: submission.gradingResult.totalCheckpoints,
             passedCheckpoints: submission.gradingResult.passedCheckpoints,
             score: submission.gradingResult.score,
+            llmPassedCheckpoints: submission.gradingResult.llmPassedCheckpoints,
+            llmScore: submission.gradingResult.llmScore,
             teacherScore: submission.gradingResult.teacherScore,
             gradedAt: submission.gradingResult.gradedAt,
             checkpointResults: submission.gradingResult.checkpointResults.map((cr) => ({
@@ -562,6 +564,8 @@ export class SubmissionsService {
               checkpointOrder: cr.checkpoint.order,
               matched: cr.matched,
               matchedSnippets: cr.matchedSnippets,
+              llmMatched: cr.llmMatched,
+              llmMatchedSnippets: cr.llmMatchedSnippets,
             })),
           }
         : null,

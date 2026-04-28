@@ -1,5 +1,7 @@
 import { GradingAccordion } from '@/components/GradingAccordion';
+import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import { Submission } from '@/lib/api';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   Badge,
   Box,
@@ -8,16 +10,61 @@ import {
   CardBody,
   Heading,
   HStack,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  NumberDecrementStepper,
+  NumberIncrementStepper,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
   Text,
+  useDisclosure,
+  useToast,
   VStack,
 } from '@chakra-ui/react';
-import { FiDownload } from 'react-icons/fi';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { FiDownload, FiEdit2 } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
 }
 
 export function SubmissionDetail({ submission }: SubmissionDetailProps) {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const total = submission.gradingResult?.totalCheckpoints ?? 0;
+  const existingScore = submission.gradingResult?.teacherScore ?? null;
+  const [scoreValue, setScoreValue] = useState<number | ''>(existingScore ?? '');
+
+  const saveScoreMutation = useSaveTeacherScore({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
+      toast({ title: 'Βαθμολογία αποθηκεύτηκε', status: 'success', duration: 3000 });
+      onClose();
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα αποθήκευσης βαθμολογίας', status: 'error', duration: 3000 });
+    },
+  });
+
+  const handleOpen = () => {
+    setScoreValue(submission.gradingResult?.teacherScore ?? '');
+    onOpen();
+  };
+
+  const handleSave = () => {
+    if (scoreValue === '') return;
+    saveScoreMutation.mutate({ submissionId: submission.id, score: scoreValue });
+  };
+
   const handleDownload = (fileUrl: string, fileName: string) => {
     const link = document.createElement('a');
     link.href = fileUrl;
@@ -76,7 +123,18 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
         <Card>
           <CardBody>
             <VStack align="stretch" spacing={4}>
-              <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
+              <HStack justify="space-between">
+                <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
+                <Button
+                  leftIcon={<FiEdit2 />}
+                  size="sm"
+                  variant="outline"
+                  colorScheme="blue"
+                  onClick={handleOpen}
+                >
+                  {existingScore != null ? 'Επεξεργασία Βαθμού' : 'Προσθήκη Βαθμού'}
+                </Button>
+              </HStack>
 
               {/* Summary */}
               <HStack spacing={12} p={3} bg="gray.700" borderRadius="md">
@@ -164,6 +222,50 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
           </Text>
         </Box>
       )}
+
+      {/* Teacher Score Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Βαθμολογία Εκπαιδευτικού</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={3}>
+              <Text fontSize="sm" color="gray.400">
+                Εισάγετε τον αριθμό checkpoints που πέρασε ο φοιτητής (0–{total}).
+              </Text>
+              <NumberInput
+                value={scoreValue}
+                min={0}
+                max={total}
+                onChange={(_, val) => setScoreValue(isNaN(val) ? '' : val)}
+              >
+                <NumberInputField placeholder={`0 – ${total}`} />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              {scoreValue !== '' && (
+                <Text fontSize="sm" color="gray.400">
+                  {Math.round((scoreValue / total) * 100)}% ({scoreValue}/{total})
+                </Text>
+              )}
+            </VStack>
+          </ModalBody>
+          <ModalFooter gap={2}>
+            <Button variant="ghost" onClick={onClose}>Ακύρωση</Button>
+            <Button
+              colorScheme="blue"
+              onClick={handleSave}
+              isDisabled={scoreValue === ''}
+              isLoading={saveScoreMutation.isPending}
+            >
+              Αποθήκευση
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </VStack>
   );
 }
