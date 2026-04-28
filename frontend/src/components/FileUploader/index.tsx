@@ -17,7 +17,8 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
     (newFiles: FileList | null) => {
       if (!newFiles) return;
 
-      const filesArray = Array.from(newFiles); if (filesArray.length > maxFiles) {
+      const filesArray = Array.from(newFiles);
+      if (filesArray.length > maxFiles) {
         toast({
           title: 'Πάρα πολλά αρχεία',
           description: `Επιτρέπονται μέχρι ${maxFiles} αρχεί${maxFiles > 1 ? 'α' : 'ο'}`,
@@ -32,7 +33,8 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
         const allowedTypes = accept.split(',').map((t) => t.trim());
         const invalidFiles = filesArray.filter(
           (file) => !allowedTypes.some((type) => file.name.endsWith(type.replace('*', '')))
-        ); if (invalidFiles.length > 0) {
+        );
+        if (invalidFiles.length > 0) {
           toast({
             title: 'Μη έγκυρος τύπος αρχείου',
             description: `Επιτρέπονται μόνο αρχεία ${accept}`,
@@ -86,7 +88,8 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-        >          <VStack spacing={3}>
+        >
+          <VStack spacing={3}>
             <Icon as={FiUpload} boxSize={10} color="gray.500" />
             <Text fontWeight="medium">
               Σύρετε αρχεία εδώ ή κάντε κλικ για αναζήτηση
@@ -103,7 +106,10 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
         type="file"
         accept={accept}
         multiple={maxFiles > 1}
-        onChange={(e) => handleFiles(e.target.files)}
+        onChange={(e) => {
+          handleFiles(e.target.files);
+          e.currentTarget.value = '';
+        }}
         style={{ display: 'none' }}
       />
 

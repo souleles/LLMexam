@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmissionResponseDto } from './dto/submission.dto';
 import * as AdmZip from 'adm-zip';
+import { createExtractorFromData } from 'node-unrar-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { firstValueFrom } from 'rxjs';
@@ -183,6 +184,27 @@ export class SubmissionsService {
             });
           }
         }
+      } else if (file.originalname.endsWith('.rar')) {
+        const buf = fs.readFileSync(file.path);
+        const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+        const extractor = await createExtractorFromData({ data: arrayBuffer });
+        const { files } = extractor.extract();
+        for (const entry of files) {
+          if (entry.fileHeader.flags.directory) continue;
+          if (!entry.extraction) continue;
+          const ext = path.extname(entry.fileHeader.name).toLowerCase();
+          if (!ALLOWED_EXTENSIONS.includes(ext)) continue;
+          const entryName = decodeFilename(entry.fileHeader.name);
+          const content = Buffer.from(entry.extraction);
+          if (ext === '.pdf') {
+            const text = await this.extractPdfContent(content, entryName);
+            if (text !== null) {
+              extractedFiles.push({ relativePath: entryName, content: text });
+            }
+          } else {
+            extractedFiles.push({ relativePath: entryName, content: content.toString('utf8') });
+          }
+        }
       } else {
         const ext = path.extname(file.originalname).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
@@ -208,7 +230,7 @@ export class SubmissionsService {
     }
 
     if (extractedFiles.length === 0) {
-      throw new BadRequestException('No valid files found in the uploaded ZIP');
+      throw new BadRequestException('No valid files found in the uploaded archive');
     }
 
     const combinedContent = extractedFiles

@@ -19,7 +19,7 @@ import { extname } from 'path';
 import { CheckpointMatch, SubmissionsService } from './submissions.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 
-const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.pdf', '.docx', '.js', '.ts', '.tsx', '.zip'];
+const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.pdf', '.docx', '.js', '.ts', '.tsx', '.zip', '.rar'];
 
 const multerConfig = {
   storage: diskStorage({

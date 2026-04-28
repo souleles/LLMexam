@@ -241,14 +241,14 @@ export function StudentExercisesPage() {
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Αρχείο Εργασίας (.zip ή μεμονωμένο αρχείο)</FormLabel>
+                  <FormLabel>Αρχείο Εργασίας (.zip, .rar ή μεμονωμένο αρχείο)</FormLabel>
                   <FileUploader
-                    accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip"
+                    accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip,.rar"
                     maxFiles={1}
                     onFilesSelected={(files) => setFile(files[0] || null)}
                   />
                   <FormHelperText>
-                    ZIP αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
+                    ZIP ή RAR αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
                   </FormHelperText>
                 </FormControl>
 
