@@ -224,7 +224,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
       )}
 
       {/* Teacher Score Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} isCentered size="sm">
+      <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Βαθμολογία Εκπαιδευτικού</ModalHeader>
@@ -238,7 +238,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                 value={scoreValue}
                 min={0}
                 max={total}
-                onChange={(_, val) => setScoreValue(isNaN(val) ? '' : val)}
+                onChange={(_, val) => setScoreValue(isNaN(val) ? '' : Math.min(total, Math.max(0, val)))}
               >
                 <NumberInputField placeholder={`0 – ${total}`} />
                 <NumberInputStepper>
