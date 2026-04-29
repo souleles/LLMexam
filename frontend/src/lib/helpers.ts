@@ -1,0 +1,35 @@
+export const darkSelectStyles = {
+  control: (base: any) => ({
+    ...base,
+    backgroundColor: '#2D3748',
+    borderColor: '#4A5568',
+    color: '#E2E8F0',
+    '&:hover': { borderColor: '#718096' },
+    boxShadow: 'none',
+  }),
+  menu: (base: any) => ({
+    ...base,
+    backgroundColor: '#2D3748',
+    border: '1px solid #4A5568',
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    backgroundColor: state.isFocused ? '#4A5568' : '#2D3748',
+    color: '#E2E8F0',
+    '&:active': { backgroundColor: '#4A5568' },
+  }),
+  singleValue: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  multiValue: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
+  multiValueLabel: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  multiValueRemove: (base: any) => ({
+    ...base,
+    color: '#A0AEC0',
+    '&:hover': { backgroundColor: '#718096', color: 'white' },
+  }),
+  placeholder: (base: any) => ({ ...base, color: '#718096' }),
+  input: (base: any) => ({ ...base, color: '#E2E8F0' }),
+  noOptionsMessage: (base: any) => ({ ...base, color: '#718096' }),
+  clearIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
+  dropdownIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
+  indicatorSeparator: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
+};

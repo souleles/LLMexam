@@ -244,7 +244,7 @@ export class SubmissionsService {
       submission = await this.prisma.submission.update({
         where: { id: existingSubmissionId },
         data: {
-          fileName: file.originalname,
+          fileName: decodeFilename(file.originalname),
           fileUrl: `/uploads/submissions/${file.filename}`,
           fileType: path.extname(file.originalname),
           content: combinedContent,
@@ -262,7 +262,7 @@ export class SubmissionsService {
       submission = await this.prisma.submission.create({
         data: {
           exerciseId,
-          fileName: file.originalname,
+          fileName: decodeFilename(file.originalname),
           fileUrl: `/uploads/submissions/${file.filename}`,
           fileType: path.extname(file.originalname),
           content: combinedContent,

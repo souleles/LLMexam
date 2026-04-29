@@ -33,7 +33,7 @@ interface GradingAccordionProps {
   items: CheckpointAccordionItem[];
 }
 
-function SnippetList({ snippets, colorScheme }: { snippets: SnippetMatch[]; colorScheme?: string }) {
+function SnippetList({ snippets, colorScheme = 'blue' }: { snippets: SnippetMatch[]; colorScheme?: string }) {
   return (
     <VStack align="stretch" spacing={2}>
       <Text fontWeight="medium" fontSize="sm">Βρέθηκε στις γραμμές:</Text>
@@ -62,8 +62,8 @@ export function GradingAccordion({ items }: GradingAccordionProps) {
     <Accordion allowMultiple>
       {items.map((item, index) => {
         const overallMatched = item.regexMatched || item.llmMatched;
-        const hasRegex = item.regexMatched !== undefined;
-        const hasLlm = item.llmMatched !== undefined;
+        const hasRegex = item.regexMatched !== null;
+        const hasLlm = item.llmMatched !== null;
 
         return (
           <AccordionItem key={item.checkpointId}>

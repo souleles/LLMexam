@@ -29,45 +29,10 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FiCpu, FiSave, FiUpload } from 'react-icons/fi';
 import ReactSelect from 'react-select';
-
-const darkSelectStyles = {
-  control: (base: any) => ({
-    ...base,
-    backgroundColor: '#2D3748',
-    borderColor: '#4A5568',
-    color: '#E2E8F0',
-    '&:hover': { borderColor: '#718096' },
-    boxShadow: 'none',
-  }),
-  menu: (base: any) => ({
-    ...base,
-    backgroundColor: '#2D3748',
-    border: '1px solid #4A5568',
-  }),
-  option: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: state.isFocused ? '#4A5568' : '#2D3748',
-    color: '#E2E8F0',
-    '&:active': { backgroundColor: '#4A5568' },
-  }),
-  singleValue: (base: any) => ({ ...base, color: '#E2E8F0' }),
-  multiValue: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
-  multiValueLabel: (base: any) => ({ ...base, color: '#E2E8F0' }),
-  multiValueRemove: (base: any) => ({
-    ...base,
-    color: '#A0AEC0',
-    '&:hover': { backgroundColor: '#718096', color: 'white' },
-  }),
-  placeholder: (base: any) => ({ ...base, color: '#718096' }),
-  input: (base: any) => ({ ...base, color: '#E2E8F0' }),
-  noOptionsMessage: (base: any) => ({ ...base, color: '#718096' }),
-  clearIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
-  dropdownIndicator: (base: any) => ({ ...base, color: '#A0AEC0', '&:hover': { color: '#E2E8F0' } }),
-  indicatorSeparator: (base: any) => ({ ...base, backgroundColor: '#4A5568' }),
-};
+import { darkSelectStyles } from '@/lib/helpers';
 
 export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
@@ -83,17 +48,17 @@ export function StudentExercisesPage() {
   const { data: exercises = [] } = useGetExercises();
   const { data: students = [] } = useGetStudents();
 
-  const exerciseOptions = exercises
+  const exerciseOptions = useMemo(() => exercises
     .filter((ex) => ex.status === 'approved')
     .map((ex) => ({
       value: ex.id,
       label: ex.title,
-    }));
+    })), [exercises]);
 
-  const studentOptions = students.map((s) => ({
+  const studentOptions = useMemo(() => students.map((s) => ({
     value: s.id,
     label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
-  }));
+  })), [students]);
 
   const regexGradeMutation = useUploadAndGrade({
     onSuccess: (data: any) => {
@@ -166,7 +131,7 @@ export function StudentExercisesPage() {
     },
   });
 
-  const handleGrade = (method: 'regex' | 'llm') => {
+  const handleGrade = async (method: 'regex' | 'llm') => {
     if (!selectedExerciseId || !file || selectedStudentIds.length === 0) {
       toast({
         title: 'Λείπουν πληροφορίες',
@@ -178,11 +143,13 @@ export function StudentExercisesPage() {
     }
     const vars = { exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file, method };
     if (method === 'regex') {
-      regexGradeMutation.mutateAsync(vars);
+      await regexGradeMutation.mutateAsync(vars);
     } else {
-      llmGradeMutation.mutateAsync(vars);
+      await llmGradeMutation.mutateAsync(vars);
     }
   };
+
+  const handleTeacherGrade = async () => await saveScoreMutation.mutateAsync({ submissionId: submissionId!, score: teacherPassed })
 
   // Use whichever result set is non-empty to drive the accordion structure
   const allCheckpoints = regexResults.length > 0 ? regexResults : llmResults;
@@ -360,7 +327,7 @@ export function StudentExercisesPage() {
                         <Button
                           rightIcon={<FiSave />}
                           colorScheme="green"
-                          onClick={() => saveScoreMutation.mutate({ submissionId: submissionId!, score: teacherPassed })}
+                          onClick={handleTeacherGrade}
                           isLoading={saveScoreMutation.isPending}
                           isDisabled={!submissionId}
                         >
