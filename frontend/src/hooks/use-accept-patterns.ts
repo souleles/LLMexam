@@ -1,7 +1,7 @@
 import { api, Checkpoint } from '@/lib/api';
 import { UseMutationOptions, useMutation } from '@tanstack/react-query';
 
-type PatternInput = { order: number; pattern: string; patternDescription: string };
+type PatternInput = { order: number; pattern: string; patternDescription: string; indicatorSolution: string };
 
 export function useAcceptPatterns(
   exerciseId: string,

@@ -55,6 +55,11 @@ export function CheckpointsCard({ checkpoints }: CheckpointsCardProps) {
                             {checkpoint.patternDescription}
                           </Text>
                         )}
+                        {checkpoint.indicatorSolution && (
+                          <Text fontSize="xs" color="blue.300">
+                            Ενδεικτική λύση: {checkpoint.indicatorSolution}
+                          </Text>
+                        )}
                       </VStack>
                     </HStack>
                   </ListItem>

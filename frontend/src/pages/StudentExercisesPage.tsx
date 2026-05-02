@@ -310,7 +310,7 @@ export function StudentExercisesPage() {
                           max={totalCount}
                           size="sm"
                           w="80px"
-                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : val)}
+                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : Math.min(totalCount, Math.max(0, val)))}
                         >
                           <NumberInputField />
                           <NumberInputStepper>

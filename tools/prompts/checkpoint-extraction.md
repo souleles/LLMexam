@@ -67,6 +67,7 @@ The object must have:
 - "description": string — a short label for this checkpoint (max 100 chars)
 - "patterns": array of strings — regex patterns to search for in the student's answer
   (case-insensitive by default, escape regex special chars with \\)
+- "indicatorSolution": string — a brief indicator solution or implementation hint (1-3 sentences in Greek)
 - "match_mode": "any" | "all"
   - "any": student passes if at least one pattern matches
   - "all": student passes only if every pattern matches
@@ -146,6 +147,7 @@ The final checkpoint JSON must pass this Zod schema before being stored:
 const CheckpointSchema = z.object({
   description: z.string().max(500),
   patterns: z.array(z.string()).min(1),
+  indicatorSolution: z.string().optional(),
   match_mode: z.enum(['any', 'all']),
   check_type: z.enum(['keyword', 'structural']),
   case_sensitive: z.boolean().default(false),

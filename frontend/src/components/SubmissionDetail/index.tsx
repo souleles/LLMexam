@@ -1,4 +1,6 @@
+import { DownloadButton } from '@/components/DownloadButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
+import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
 import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import { Submission } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
@@ -29,7 +31,7 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FiDownload, FiEdit2 } from 'react-icons/fi';
+import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
@@ -47,7 +49,7 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
   const saveScoreMutation = useSaveTeacherScore({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
-      toast({ title: 'Βαθμολογία αποθηκεύτηκε', status: 'success', duration: 3000 });
+      toast({ title: 'Η βαθμολογία αποθηκεύτηκε', status: 'success', duration: 3000 });
       onClose();
     },
     onError: () => {
@@ -65,11 +67,18 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
     await saveScoreMutation.mutateAsync({ submissionId: submission.id, score: scoreValue });
   };
 
-  const handleDownload = (fileUrl: string, fileName: string) => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = fileName;
-    link.click();
+  const regradeMutation = useRegradeSubmission({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
+      toast({ title: 'Η βαθμολόγηση ολοκληρώθηκε', status: 'success', duration: 3000 });
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα βαθμολόγησης', status: 'error', duration: 3000 });
+    },
+  });
+
+  const handleRegrade = (method: 'regex' | 'llm') => {
+    regradeMutation.mutate({ submissionId: submission.id, method });
   };
 
   return (
@@ -87,15 +96,10 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
                 {new Date(submission.createdAt).toLocaleDateString('el-GR')}
               </Text>
             </VStack>
-            <Button
-              leftIcon={<FiDownload />}
-              size="sm"
+            <DownloadButton
+              url={`${import.meta.env.VITE_API_BASE_URL}/api/submissions/${submission.id}/download`}
               colorScheme="blue"
-              variant="outline"
-              onClick={() => handleDownload(submission.fileUrl, submission.fileName)}
-            >
-              Λήψη
-            </Button>
+            />
           </HStack>
         </CardBody>
       </Card>
@@ -125,15 +129,40 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
             <VStack align="stretch" spacing={4}>
               <HStack justify="space-between">
                 <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
-                <Button
-                  leftIcon={<FiEdit2 />}
-                  size="sm"
-                  variant="outline"
-                  colorScheme="blue"
-                  onClick={handleOpen}
-                >
-                  {existingScore != null ? 'Επεξεργασία Βαθμού' : 'Προσθήκη Βαθμού'}
-                </Button>
+                <HStack>
+                  <Button
+                    leftIcon={<FiRefreshCw />}
+                    size="sm"
+                    variant="outline"
+                    colorScheme="teal"
+                    onClick={() => handleRegrade('regex')}
+                    isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                    isDisabled={regradeMutation.isPending}
+                  >
+                    Regex
+                  </Button>
+                  <Button
+                    leftIcon={<FiRefreshCw />}
+                    size="sm"
+                    variant="outline"
+                    colorScheme="purple"
+                    onClick={() => handleRegrade('llm')}
+                    isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'llm'}
+                    isDisabled={regradeMutation.isPending}
+                  >
+                    LLM
+                  </Button>
+                  <Button
+                    leftIcon={<FiEdit2 />}
+                    size="sm"
+                    variant="outline"
+                    colorScheme="blue"
+                    onClick={handleOpen}
+                    isDisabled={regradeMutation.isPending}
+                  >
+                    {existingScore != null ? 'Επεξεργασία Βαθμού' : 'Προσθήκη Βαθμού'}
+                  </Button>
+                </HStack>
               </HStack>
 
               {/* Summary */}
@@ -217,9 +246,35 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
         </Card>
       ) : (
         <Box p={4} bg="yellow.900" borderRadius="md">
-          <Text fontSize="sm" color="yellow.300">
-            Η εργασία δεν έχει βαθμολογηθεί ακόμα
-          </Text>
+          <HStack justify="space-between">
+            <Text fontSize="sm" color="yellow.300">
+              Η εργασία δεν έχει βαθμολογηθεί ακόμα
+            </Text>
+            <HStack>
+              <Button
+                leftIcon={<FiRefreshCw />}
+                size="sm"
+                variant="outline"
+                colorScheme="teal"
+                onClick={() => handleRegrade('regex')}
+                isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                isDisabled={regradeMutation.isPending}
+              >
+                Regex
+              </Button>
+              <Button
+                leftIcon={<FiRefreshCw />}
+                size="sm"
+                variant="outline"
+                colorScheme="purple"
+                onClick={() => handleRegrade('llm')}
+                isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'llm'}
+                isDisabled={regradeMutation.isPending}
+              >
+                LLM
+              </Button>
+            </HStack>
+          </HStack>
         </Box>
       )}
 

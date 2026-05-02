@@ -5,7 +5,7 @@ import { parseMessageContent } from '@/lib/parseMessageContent';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 type PendingCheckpoint = Pick<Checkpoint, 'order' | 'description' | 'pattern' | 'caseSensitive' | 'patternDescription'>;
-type PendingPattern = { order: number; pattern: string; description: string; patternDescription: string };
+type PendingPattern = { order: number; pattern: string; description: string; patternDescription: string; indicatorSolution: string };
 
 interface UseLlmStreamResult {
   buffer: string;

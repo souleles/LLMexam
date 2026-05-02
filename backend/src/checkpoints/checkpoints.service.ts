@@ -24,7 +24,7 @@ export class CheckpointsService {
     }
 
     return await this.prisma.checkpoint.create({
-      data: createCheckpointDto,
+      data: { ...createCheckpointDto, indicatorSolution: createCheckpointDto.indicatorSolution ?? '' },
     });
   }
 
@@ -59,6 +59,7 @@ export class CheckpointsService {
           data: {
             ...checkpoint,
             exerciseId,
+            indicatorSolution: checkpoint.indicatorSolution ?? '',
           },
         }),
       ),
@@ -128,7 +129,7 @@ export class CheckpointsService {
 
   async bulkUpdatePatterns(
     exerciseId: string,
-    patterns: { order: number; pattern: string; patternDescription?: string }[],
+    patterns: { order: number; pattern: string; patternDescription?: string; indicatorSolution?: string }[],
   ): Promise<CheckpointResponseDto[]> {
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -139,10 +140,10 @@ export class CheckpointsService {
     }
 
     await this.prisma.$transaction(
-      patterns.map(({ order, pattern, patternDescription }) =>
+      patterns.map(({ order, pattern, patternDescription, indicatorSolution }) =>
         this.prisma.checkpoint.updateMany({
           where: { exerciseId, order },
-          data: { pattern, patternDescription },
+          data: { pattern, patternDescription, indicatorSolution },
         }),
       ),
     );

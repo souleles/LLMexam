@@ -42,7 +42,7 @@ export function Header() {
               cursor="pointer"
               _hover={{ color: 'brand.300' }}
             >
-              ExamChecker
+              ExamGrader
             </Heading>
             <HStack spacing={1}>
               {[

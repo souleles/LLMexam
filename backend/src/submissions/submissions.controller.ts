@@ -4,9 +4,11 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
   UseGuards,
@@ -15,7 +17,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import * as fs from 'fs';
+import { Response } from 'express';
 import { CheckpointMatch, SubmissionsService } from './submissions.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 
@@ -78,6 +82,15 @@ export class SubmissionsController {
     return this.submissionsService.uploadAndGradeZip(exerciseId, studentIds, file, gradingMethod);
   }
 
+  @Post(':id/regrade')
+  async regrade(
+    @Param('id') id: string,
+    @Query('method', new DefaultValuePipe('regex')) method: string,
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
+    const gradingMethod = method === 'llm' ? 'llm' : 'regex';
+    return this.submissionsService.regradeSubmission(id, gradingMethod);
+  }
+
   @Get()
   findAll(
     @Query('studentId') studentId?: string,
@@ -98,6 +111,16 @@ export class SubmissionsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.submissionsService.findOne(id);
+  }
+
+  @Get(':id/download')
+  async downloadFile(@Param('id') id: string, @Res() res: Response) {
+    const submission = await this.submissionsService.findOne(id);
+    const filePath = join(process.cwd(), submission.fileUrl);
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('File not found');
+    }
+    (res as any).download(filePath, submission.fileName);
   }
 
   @Delete(':id')

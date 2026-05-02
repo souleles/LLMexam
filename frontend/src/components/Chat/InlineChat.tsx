@@ -141,6 +141,7 @@ export function InlineChat({
             content: [
               { title: 'Pattern', description: p.pattern },
               { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
+              ...(p.indicatorSolution ? [{ title: 'Ενδεικτική Λύση', description: p.indicatorSolution }] : []),
             ],
           })),
           createdAt: new Date().toISOString(),
@@ -184,7 +185,7 @@ export function InlineChat({
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingCheckpoints();
       onAccepted();
-      toast({ title: 'Checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
+      toast({ title: 'Τα checkpoints αποθηκεύτηκαν', status: 'success', duration: 3000 });
     },
     onError: () => {
       toast({ title: 'Σφάλμα αποθήκευσης checkpoints', status: 'error', duration: 3000 });
@@ -196,7 +197,7 @@ export function InlineChat({
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Checkpoints, exerciseId] });
       clearPendingPatterns();
       onAccepted();
-      toast({ title: 'Patterns αποθηκεύτηκαν', status: 'success', duration: 3000 });
+      toast({ title: 'Τα patterns αποθηκεύτηκαν', status: 'success', duration: 3000 });
     },
     onError: () => {
       toast({ title: 'Σφάλμα αποθήκευσης patterns', status: 'error', duration: 3000 });
@@ -256,6 +257,7 @@ export function InlineChat({
                       order: p.order,
                       pattern: p.pattern,
                       patternDescription: p.patternDescription,
+                      indicatorSolution: p.indicatorSolution,
                     })),
                   )
               }

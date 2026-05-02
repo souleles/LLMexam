@@ -1,14 +1,16 @@
-import { PageTransition } from '@/components/PageTransition';
+import { BackButton } from '@/components/BackButton';
 import { InlineChat } from '@/components/Chat/InlineChat';
+import { DownloadButton } from '@/components/DownloadButton';
 import { CheckpointsCard } from '@/components/Exercise/CheckpointsCard';
+import { PageTransition } from '@/components/PageTransition';
 import { SubmissionsList } from '@/components/SubmissionsList';
+import { useApproveExercise } from '@/hooks/use-approve-exercise';
+import { useDeleteExercise } from '@/hooks/use-delete-exercise';
+import { useGetCheckpoints } from '@/hooks/use-get-checkpoints';
+import { useGetExercise } from '@/hooks/use-get-exercise';
+import { useGetSubmissions } from '@/hooks/use-get-submissions';
 import { ExerciseStatus } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
-import { useGetExercise } from '@/hooks/use-get-exercise';
-import { useGetCheckpoints } from '@/hooks/use-get-checkpoints';
-import { useGetSubmissions } from '@/hooks/use-get-submissions';
-import { useDeleteExercise } from '@/hooks/use-delete-exercise';
-import { useApproveExercise } from '@/hooks/use-approve-exercise';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -25,7 +27,6 @@ import {
   Heading,
   HStack,
   Icon,
-  Link,
   Skeleton,
   Stack,
   Tab,
@@ -40,8 +41,7 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { BackButton } from '@/components/BackButton';
-import { FiCheck, FiDownload, FiFileText, FiFolder, FiMessageCircle, FiMessageSquare, FiTrash2 } from 'react-icons/fi';
+import { FiCheck, FiFileText, FiFolder, FiMessageSquare, FiTrash2 } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function ExerciseDetailPage() {
@@ -168,14 +168,9 @@ export function ExerciseDetailPage() {
                     <FiFileText size={16} />
                     <Text fontSize="sm" color="gray.300">{exercise.title}.pdf</Text>
                   </HStack>
-                  <Link
-                    href={`${import.meta.env.VITE_API_BASE_URL}/api/exercises/${exercise.id}/download`}
-                    download
-                  >
-                    <Button leftIcon={<FiDownload />} size="sm" variant="outline">
-                      Λήψη
-                    </Button>
-                  </Link>
+                  <DownloadButton
+                    url={`${import.meta.env.VITE_API_BASE_URL}/api/exercises/${exercise.id}/download`}
+                  />
                 </HStack>
               </VStack>
             </CardBody>

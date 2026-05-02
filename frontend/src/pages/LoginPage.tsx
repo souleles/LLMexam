@@ -116,7 +116,7 @@ export function LoginPage() {
                       <FiLogIn size={32} color="white" />
                     </Box>
                     <Heading size="xl" textAlign="center" color="brand.300">
-                      LLM Exam Checker
+                      LLM Exam Grader
                     </Heading>
                     <Text color="gray.400" textAlign="center">
                       Σύνδεση στο σύστημα βαθμολόγησης

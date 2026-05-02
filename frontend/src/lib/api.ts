@@ -21,6 +21,7 @@ export interface Checkpoint {
   description: string;
   pattern: string;
   patternDescription?: string;
+  indicatorSolution?: string;
   caseSensitive: boolean;
   order: number;
 }
@@ -172,7 +173,7 @@ export const api = {
     },
     bulkUpdatePatterns: async (
       exerciseId: string,
-      patterns: { order: number; pattern: string; patternDescription: string }[],
+      patterns: { order: number; pattern: string; patternDescription: string; indicatorSolution: string }[],
     ): Promise<Checkpoint[]> => {
       const { data } = await httpClient.patch(`/api/checkpoints/bulk-patterns/${exerciseId}`, patterns);
       return data;
@@ -198,6 +199,13 @@ export const api = {
       const { data } = await httpClient.post(`/api/submissions/upload-and-grade?method=${method}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      return data;
+    },
+    regrade: async (
+      submissionId: string,
+      method: 'regex' | 'llm',
+    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm' }> => {
+      const { data } = await httpClient.post(`/api/submissions/${submissionId}/regrade?method=${method}`);
       return data;
     },
     list: async (exerciseId: string): Promise<Submission[]> => {

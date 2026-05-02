@@ -18,6 +18,8 @@ from prompts.checkpoint_prompts import (
 from prompts.patterns_prompts import (
     SYSTEM_PROMPT_PATTERNS,
     USER_PROMPT_PATTERNS,
+    SYSTEM_PROMPT_INDICATOR_SOLUTIONS,
+    USER_PROMPT_INDICATOR_SOLUTIONS,
 )
 from prompts.mini_report_prompts import (
     SYSTEM_PROMPT_MINI_REPORT,
@@ -197,6 +199,50 @@ def _build_pattern_messages(request: GeneratePatternsRequest) -> list:
     return messages
 
 
+async def _generate_indicator_solutions(patterns: list[dict], extracted_text: str, api_key: str) -> list[dict]:
+    """Second LLM call: generate indicatorSolution for each pattern independently."""
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        streaming=False,
+        temperature=0.2,
+        api_key=api_key,
+        http_client=httpx.Client(),
+        http_async_client=httpx.AsyncClient(),
+    )
+
+    checkpoints_json = json.dumps(
+        [{"order": p["order"], "description": p["description"], "pattern": p["pattern"]} for p in patterns],
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT_INDICATOR_SOLUTIONS),
+        HumanMessage(content=USER_PROMPT_INDICATOR_SOLUTIONS.format(
+            extracted_text=extracted_text,
+            patterns=checkpoints_json,
+        )),
+    ]
+
+    logger.info("Starting indicator solutions LLM call (gpt-4o-mini)...")
+    response = await llm.ainvoke(messages)
+
+    cleaned = response.content.strip()
+    if "```" in cleaned:
+        fenced = cleaned.split("```", 1)[1]
+        fenced = fenced.split("```", 1)[0]
+        cleaned = fenced.lstrip("json").strip()
+    if not cleaned.startswith("["):
+        start = cleaned.find("[")
+        end = cleaned.rfind("]")
+        if start != -1 and end != -1:
+            cleaned = cleaned[start:end + 1]
+
+    results = json.loads(cleaned)
+    logger.info(f"Parsed {len(results)} indicator solutions")
+    return results
+
+
 async def stream_pattern_generation(request: GeneratePatternsRequest) -> AsyncIterator[str]:
     """
     Stream LLM responses for regex pattern generation using SSE format.
@@ -250,10 +296,20 @@ async def stream_pattern_generation(request: GeneratePatternsRequest) -> AsyncIt
                 "pattern": item.get("pattern", ""),
                 "description": item.get("description", ""),
                 "patternDescription": item.get("patternDescription", ""),
+                "indicatorSolution": "",
             })
 
         count = len(normalized)
         logger.info(f"Parsed {count} patterns")
+
+        # Request 2: indicator solutions via a focused gpt-4o-mini call
+        try:
+            solutions = await _generate_indicator_solutions(normalized, request.extracted_text, api_key)
+            solutions_map = {s["order"]: s.get("indicatorSolution", "") for s in solutions}
+            for item in normalized:
+                item["indicatorSolution"] = solutions_map.get(item["order"], "")
+        except Exception as e:
+            logger.warning(f"Indicator solutions generation failed, continuing without: {e}")
 
         yield f"data: Δημιουργήθηκαν {count} regex patterns.\n\n"
         yield f"data: {json.dumps({'type': 'patterns', 'data': normalized})}\n\n"
