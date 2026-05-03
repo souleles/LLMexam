@@ -256,21 +256,19 @@ async def stream_pattern_generation(request: GeneratePatternsRequest) -> AsyncIt
             raise ValueError("OPENAI_API_KEY not found in environment")
 
         llm = ChatOpenAI(
-            model="gpt-4o",
-            streaming=True,
-            temperature=0.2,
+            model="o3",
+            streaming=False,
+            temperature=1,
             api_key=api_key,
             http_client=httpx.Client(),
             http_async_client=httpx.AsyncClient(),
         )
 
         messages = _build_pattern_messages(request)
-        logger.info("Starting pattern generation LLM call...")
+        logger.info("Starting pattern generation LLM call (o3)...")
 
-        full_response = ""
-        async for chunk in llm.astream(messages):
-            if chunk.content:
-                full_response += chunk.content
+        response = await llm.ainvoke(messages)
+        full_response = response.content
 
         logger.info(f"Pattern LLM call completed. length={len(full_response)}")
 

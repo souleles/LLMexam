@@ -62,8 +62,8 @@ export function GradingAccordion({ items }: GradingAccordionProps) {
     <Accordion allowMultiple>
       {items.map((item, index) => {
         const overallMatched = item.regexMatched || item.llmMatched;
-        const hasRegex = item.regexMatched !== undefined;
-        const hasLlm = item.llmMatched !== undefined;
+        const hasRegex = item.regexMatched !== null && item.regexMatched !== undefined;
+        const hasLlm = item.llmMatched !== null && item.regexMatched !== undefined;
 
         return (
           <AccordionItem key={item.checkpointId}>
