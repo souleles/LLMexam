@@ -41,12 +41,13 @@ export function parseMessageContent(raw: string): ParsedSegment[] {
       if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
         flushText();
         segments.push(
-          (parsed.data as { order: number; description: string; pattern: string; patternDescription: string }[])
+          (parsed.data as { order: number; description: string; pattern: string; patternDescription: string; indicatorSolution?: string }[])
             .map(p => ({
               title: p.description,
               content: [
                 { title: 'Pattern', description: p.pattern },
                 { title: 'Περιγραφή Pattern', description: p.patternDescription ?? '' },
+                ...(p.indicatorSolution ? [{ title: 'Ενδεικτική Λύση', description: p.indicatorSolution }] : []),
               ],
             }))
         );
