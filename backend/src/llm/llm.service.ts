@@ -94,6 +94,27 @@ export class LlmService {
     }
   }
 
+  private extractPendingPatterns(history: { role: string; content: string }[]): Map<number, string> | null {
+    const lastAssistant = [...history].reverse().find((m) => m.role === ConversationRole.ASSISTANT);
+    if (!lastAssistant) return null;
+
+    const chunks = lastAssistant.content
+      .split(/\n\n/)
+      .map((c) => c.replace(/^data:\s*/, '').trim())
+      .filter((c) => c && c !== '[DONE]');
+
+    for (const chunk of chunks) {
+      try {
+        const parsed = JSON.parse(chunk) as { type?: string; data?: { order: number; pattern: string }[] };
+        if (parsed.type === 'patterns' && Array.isArray(parsed.data)) {
+          return new Map(parsed.data.map((p) => [p.order, p.pattern]));
+        }
+      } catch { /* not JSON */ }
+    }
+
+    return null;
+  }
+
   async *streamPatternResponse(exerciseId: string, message: string): AsyncGenerator<string> {
     await this.saveMessage(exerciseId, ConversationRole.PROFESSOR, message, ConversationType.PATTERN);
 
@@ -108,6 +129,10 @@ export class LlmService {
       throw new NotFoundException(`No checkpoints found for exercise ${exerciseId}`);
     }
 
+    // Use patterns from the latest assistant response if the user hasn't accepted yet,
+    // so unaccepted changes aren't lost when a follow-up message is sent.
+    const pendingPatterns = this.extractPendingPatterns(history.slice(0, -1));
+
     try {
       const response = await axios.post(
         `${this.pythonServiceUrl}/generate-patterns`,
@@ -115,7 +140,7 @@ export class LlmService {
           checkpoints: checkpoints.map((cp) => ({
             order: cp.order,
             description: cp.description,
-            current_pattern: cp.pattern,
+            current_pattern: pendingPatterns?.get(cp.order) ?? cp.pattern,
           })),
           message,
           history: history.slice(0, -1).map((msg) => ({
