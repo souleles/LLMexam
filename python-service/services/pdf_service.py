@@ -38,11 +38,20 @@ async def extract_text_from_pdf(file: UploadFile) -> str:
         
         # Join all pages
         full_text = "\n\n".join(text_parts)
-        
+
         if not full_text.strip():
             logger.warning("PDF extraction resulted in empty text - may be scanned/image-based")
             return ""
-        
+
+        # Normalize typographic quotes to ASCII so regex patterns match reliably.
+        # PDF fonts often render ' as U+2018/U+2019 and " as U+201C/U+201D.
+        full_text = (
+            full_text
+            .replace('‘', "'").replace('’', "'")   # left/right single quotes
+            .replace('“', '"').replace('”', '"')   # left/right double quotes
+            .replace('′', "'")                           # prime (′)
+        )
+
         logger.info(f"Successfully extracted {len(full_text)} characters from PDF")
         return full_text.strip()
         

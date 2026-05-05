@@ -109,7 +109,7 @@ export function ExerciseDetailPage() {
 
   // const isReadOnly = exercise.status !== ExerciseStatus.DRAFT;
   const isReadOnly = false;
-  const canApprove = !isReadOnly && checkpoints.length > 0 && checkpoints.every((cp) => cp.pattern);
+  const canApprove = exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every((cp) => cp.pattern);
 
   return (
     <PageTransition>
