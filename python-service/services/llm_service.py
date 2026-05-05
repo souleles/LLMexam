@@ -353,7 +353,8 @@ async def generate_mini_report(request: MiniReportRequest) -> str:
         lines = []
         for i, sub in enumerate(request.submissions, 1):
             if sub.teacher_score is not None:
-                score_str = f"Βαθμός καθηγητή: {sub.teacher_score}/{sub.total_checkpoints}"
+                teacher_pct = (sub.teacher_score / sub.total_checkpoints * 100) if sub.total_checkpoints else 0
+                score_str = f"Βαθμός καθηγητή: {int(sub.teacher_score)}/{sub.total_checkpoints} ({teacher_pct:.0f}%)"
             else:
                 score_str = f"Αυτόματος βαθμός: {sub.passed_checkpoints}/{sub.total_checkpoints} ({sub.score:.0f}%)"
             lines.append(f"{i}. Εργασία: {sub.exercise_title} | Ημερομηνία: {sub.submitted_at} | {score_str}")
