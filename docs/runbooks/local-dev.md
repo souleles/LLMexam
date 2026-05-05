@@ -7,14 +7,13 @@ Complete guide to running all three ExamChecker services locally.
 - Node.js >= 20
 - Python >= 3.11
 - PostgreSQL >= 15 (running locally or via Docker)
-- An OpenAI API key (or compatible provider)
+- An OpenAI API key
 
 ---
 
 ## 1. Clone & Environment Files
 
 ```bash
-# Copy environment templates (create these files first)
 cp backend/.env.example backend/.env
 cp python-service/.env.example python-service/.env
 ```
@@ -24,12 +23,12 @@ cp python-service/.env.example python-service/.env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/examchecker
 PYTHON_SERVICE_URL=http://localhost:8000
 PORT=3001
+JWT_SECRET=your-secret-key-here
 ```
 
 **`python-service/.env`**
 ```
 OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/examchecker
 PORT=8000
 ```
 
@@ -42,7 +41,7 @@ See `database-setup.md` for full schema instructions.
 Quick start (if PostgreSQL is running):
 ```bash
 createdb examchecker
-cd backend && npm run db:migrate
+cd backend && npx prisma migrate dev
 ```
 
 ---
@@ -54,7 +53,7 @@ cd python-service
 
 # Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -63,7 +62,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-**Verify:** `curl http://localhost:8000/health` → `{"status":"ok"}`
+**Verify:** `curl http://localhost:8000/health` → `{"status":"ok","version":"1.0.0"}`
 
 ---
 
@@ -74,6 +73,9 @@ cd backend
 
 # Install dependencies
 npm install
+
+# Generate Prisma client
+npx prisma generate
 
 # Start in watch mode
 npm run start:dev
@@ -95,13 +97,14 @@ npm install
 npm run dev
 ```
 
-**Verify:** Open `http://localhost:3000` in browser.
+**Verify:** Open `http://localhost:3000` in browser. Log in with the credentials
+created via `POST /auth/register`.
 
 ---
 
 ## 6. Running All Services at Once (optional)
 
-If you add a root `package.json` with `concurrently`:
+If a root `package.json` with `concurrently` is configured:
 
 ```bash
 npm run dev  # starts all 3 services
@@ -118,8 +121,6 @@ npm run dev  # starts all 3 services
 | Python service | 8000 | http://localhost:8000 |
 | PostgreSQL | 5432 | localhost:5432 |
 
-> **macOS note:** Port 5000 is often occupied by AirPlay Receiver. Do not use it.
-
 ---
 
 ## Troubleshooting
@@ -129,7 +130,7 @@ npm run dev  # starts all 3 services
 # Check status
 pg_isready
 
-# Start (Homebrew)
+# Start (Homebrew / macOS)
 brew services start postgresql@15
 
 # Start (Docker)
@@ -137,10 +138,16 @@ docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
 ```
 
 ### Python service can't find OpenAI key
-Verify `python-service/.env` contains `OPENAI_API_KEY` and the venv is activated.
+Verify `python-service/.env` contains `OPENAI_API_KEY` and the virtual environment
+is activated before starting uvicorn.
 
 ### NestJS can't reach Python service
-Ensure Python service is running on port 8000 and `PYTHON_SERVICE_URL` in `backend/.env` matches.
+Ensure the Python service is running on port 8000 and `PYTHON_SERVICE_URL` in
+`backend/.env` is set to `http://localhost:8000`.
 
 ### Frontend CORS errors
-Check that `backend/.env` has the frontend origin in CORS config (or NestJS CORS is set to `*` for dev).
+Check that NestJS CORS is configured to allow the frontend origin
+(`http://localhost:3000` by default in dev).
+
+### JWT errors on login
+Ensure `JWT_SECRET` is set in `backend/.env` and matches what was used to sign existing tokens.

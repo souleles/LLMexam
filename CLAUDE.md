@@ -4,10 +4,9 @@
 
 ExamChecker is a web application for university professors to:
 1. Upload exercise PDFs and chat with an LLM to extract structured grading checkpoints
-2. Upload batches of student submissions
-3. Automatically grade submissions against checkpoints using **deterministic** regex/pattern matching
-
-**Core principle: LLM is used ONLY during exercise setup. All grading is deterministic and reproducible.**
+2. Upload batches of student submissions (as ZIP/RAR archives)
+3. Automatically grade submissions using **deterministic regex** and/or **LLM semantic** matching
+4. Review, compare, and optionally override grades; generate per-student narrative reports
 
 ---
 
@@ -16,7 +15,7 @@ ExamChecker is a web application for university professors to:
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React (Vite + TypeScript), Chakra UI, React Query, SSE |
-| Backend | NestJS (TypeScript), PostgreSQL via Prisma |
+| Backend | NestJS (TypeScript), PostgreSQL via Prisma, JWT Auth |
 | Python Service | FastAPI, LangChain, pdfplumber, sqlparse |
 | Database | PostgreSQL |
 
@@ -26,54 +25,93 @@ ExamChecker is a web application for university professors to:
 
 ### Phase 1: Exercise Upload & Checkpoint Extraction
 1. Professor uploads exercise PDF via React frontend
-2. NestJS receives PDF, forwards to Python microservice
-3. Python extracts text via `pdfplumber`
-4. LangChain runs **two-pass** LLM extraction:
-   - Pass 1: extract all tasks/requirements as structured list
-   - Pass 2: for each requirement, generate: description, regex patterns
-5. LLM response streams back via SSE → NestJS SSE proxy → React chat UI
-6. Professor reviews/refines via chat (conversation history in PostgreSQL, trimmed context)
-7. On approval: checkpoint JSON is Zod-validated and stored in PostgreSQL
+2. NestJS receives PDF, forwards to Python `/extract-pdf` (pdfplumber)
+3. Python returns extracted text; NestJS creates an exercise with `status: DRAFT`
+4. Professor chats with LLM via SSE stream (`GET /llm/chat`) to generate checkpoints
+5. Professor optionally refines patterns via second chat tab (`GET /llm/chat-patterns`)
+6. Both chats stream through NestJS → Python → OpenAI (LangChain `astream`)
+7. Frontend parses SSE JSON chunks into structured `PendingCheckpoint[]`
+8. On "Accept": frontend calls `POST /checkpoints/bulk/:exerciseId` to save; NestJS validates each regex
+9. Exercise status set to `APPROVED`
 
 ### Phase 2: Student Submission Upload
-- Supported: `.sql`, `.txt`, `.py`, `.pdf`, `.docx`, `.js`, `.ts`, `.tsx`
-- `.sql/.txt/.py./js./ts./tsx`: read directly in NestJS
-- `.pdf`: forward to Python microservice
-- `.docx`: Node library or Python microservice
+- Professor selects student(s) + uploads a ZIP or RAR archive
+- Supported file types inside archive: `.sql`, `.txt`, `.py`, `.js`, `.ts`, `.tsx`, `.pdf`, `.docx`
+- `.pdf` forwarded to Python `/extract-pdf`; others read directly in NestJS
+- All extracted content concatenated with `// File: <path>` markers → stored as `submission.content`
+- Submission linked to student(s) via `submission_students` M:M junction table
+- Grading runs automatically immediately after upload (method chosen by professor: `regex` or `llm`)
 
-### Phase 3: Automated Grading (NO LLM)
-For each student file × each checkpoint:
-1. Strip comments (SQL: `--` and `/* */`, Python: `#`)
-2. Strip string literals
-3. Match by  regex against `patterns[]`
-4. Results are shown to professor in ui, if each checkpoint was found or not, and if found where found, file > line
-5. Store result on professor clicking save
+### Phase 3: Automated Grading
+Two grading methods can be run on the same submission; results are stored separately.
+
+**Method A — Deterministic Regex** (Python `grading_service.py`, via `/grade`):
+1. For each checkpoint, compile `re.compile(pattern, flags)` (IGNORECASE unless caseSensitive)
+2. For `.sql` content: split into blocks (PROCEDURE/TRIGGER/FUNCTION/EVENT) before matching
+3. Search each file; collect `{file, line_number, full_line_text}` snippets
+4. Store in `checkpoint_results.matched` + `.matchedSnippets`
+5. Aggregate: `grading_results.score = (passedCheckpoints / totalCheckpoints) * 100`
+
+**Method B — LLM Semantic** (Python `llm_grading_service.py`, via `/grade-llm`):
+1. Annotate each file with line numbers (`"  42 | code line text"`)
+2. Format checkpoints: `ID`, `Description`, `Regex hint`
+3. Call GPT-4o (via LangChain) requesting structured JSON output
+4. LLM returns `{checkpoint_id, matched, matched_snippets[]}`
+5. Store in `checkpoint_results.llmMatched` + `.llmMatchedSnippets`
+6. Aggregate: `grading_results.llmScore`
+
+Both scores coexist. Professor can also set `teacherScore` as a manual override.
 
 ---
 
 ## Database Schema
 
 ```sql
--- exercises
-id UUID PK | title VARCHAR | original_pdf_path VARCHAR
-extracted_text TEXT | status ENUM(draft,approved) | created_at | updated_at
+-- users (teacher authentication)
+id UUID PK | username (unique) | password (hashed) | role | createdAt | updatedAt
 
--- conversation_messages
-id UUID PK | exercise_id FK | role ENUM(professor,assistant) | content TEXT | created_at
+-- exercises
+id UUID PK | title | pdfUrl | extractedText
+status ENUM(DRAFT, APPROVED, GRADED)
+teacherid FK→users | createdAt | updatedAt
 
 -- checkpoints
-id UUID PK | exercise_id FK | description VARCHAR
-patterns JSONB
-case_sensitive BOOLEAN DEFAULT false | order_index INTEGER
+id UUID PK | exerciseId FK (CASCADE) | order INT
+description | pattern (regex string) | caseSensitive BOOLEAN
+patternDescription | indicatorSolution
+createdAt | updatedAt
+
+-- conversations (chat history, two types)
+id UUID PK | exerciseId FK (CASCADE)
+role ENUM(PROFESSOR, ASSISTANT)
+content TEXT
+type ENUM(CHECKPOINT, PATTERN)
+createdAt
 
 -- submissions
-id UUID PK | exercise_id FK | student_identifier VARCHAR
-original_file_path VARCHAR | extracted_text TEXT | created_at
+id UUID PK | exerciseId FK (CASCADE)
+fileName | fileUrl | fileType | content (combined text from archive)
+createdAt | updatedAt
 
--- grading_results
-id UUID PK | submission_id FK | checkpoint_id FK
-matched BOOLEAN | confidence FLOAT
-matched_patterns JSONB | matched_snippets JSONB
+-- submission_students (M:M junction)
+id UUID PK | submissionId FK (CASCADE) | studentId FK (CASCADE)
+createdAt | UNIQUE(submissionId, studentId)
+
+-- grading_results (one per submission)
+id UUID PK | submissionId FK UNIQUE (CASCADE)
+totalCheckpoints | passedCheckpoints | score FLOAT
+teacherScore FLOAT? (override) | gradedAt
+llmPassedCheckpoints INT? | llmScore FLOAT?
+
+-- checkpoint_results (one per checkpoint per grading)
+id UUID PK | gradingResultId FK (CASCADE) | checkpointId FK (CASCADE)
+matched BOOLEAN | matchedSnippets String[]    -- regex grading
+llmMatched BOOLEAN? | llmMatchedSnippets String[]  -- LLM grading
+UNIQUE(gradingResultId, checkpointId)
+
+-- students
+id UUID PK | studentIdentifier (unique) | firstName | lastName | email?
+miniReport TEXT? | miniReportAt DateTime? | teacherid FK→users | createdAt | updatedAt
 ```
 
 ---
@@ -82,34 +120,44 @@ matched_patterns JSONB | matched_snippets JSONB
 
 | Module | Responsibility |
 |--------|---------------|
-| `ExerciseModule` | PDF upload, exercise CRUD |
-| `LlmModule` | SSE proxy to Python microservice, streaming endpoint |
-| `CheckpointModule` | Checkpoint CRUD, Zod validation, approval flow |
-| `GradingModule` | Student file upload, matching pipeline, result storage |
-| `ReportModule` | Per-student and per-exercise result aggregation |
+| `AuthModule` | JWT register/login, guards |
+| `ExercisesModule` | PDF upload, exercise CRUD, approve action |
+| `LlmModule` | SSE proxy to Python for checkpoint + pattern generation |
+| `CheckpointsModule` | Checkpoint CRUD, bulk save, regex validation |
+| `ConversationsModule` | Chat history storage (CHECKPOINT + PATTERN types) |
+| `SubmissionsModule` | ZIP/RAR upload, file extraction, grade orchestration |
+| `GradingModule` | Grading result CRUD, teacher score override |
+| `StudentsModule` | Student management, CSV upload, mini-report generation |
 
 ---
 
-## Python Microservice Endpoints (FastAPI, internal only)
+## Python Microservice Endpoints (FastAPI :8000, internal only)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/extract-pdf` | Receives PDF file, returns extracted text |
-| POST | `/generate-checkpoints` | Receives text + conversation history, streams LLM via SSE |
-| POST | `/parse-sql` | Receives SQL text, returns sqlparse token tree |
+| GET | `/health` | Health check |
+| POST | `/extract-pdf` | PDF text extraction via pdfplumber |
+| POST | `/generate-checkpoints` | SSE stream: LLM checkpoint generation (two-pass) |
+| POST | `/generate-patterns` | SSE stream: LLM pattern refinement |
+| POST | `/grade` | Deterministic regex grading |
+| POST | `/grade-llm` | LLM semantic grading (GPT-4o) |
+| POST | `/generate-mini-report` | LLM Greek-language student performance report |
+| POST | `/parse-sql` | sqlparse SQL token tree |
 
 ---
 
 ## Build Order Roadmap
 
 1. Set up monorepo structure (`frontend/`, `backend/`, `python-service/`)
-2. Set up PostgreSQL schema with migrations
+2. Set up PostgreSQL schema with Prisma migrations
 3. Build Python microservice (PDF extraction + LangChain)
 4. Build NestJS `LlmModule` with SSE proxy to Python service
 5. Build React chat interface consuming SSE stream
 6. Build checkpoint approval and storage flow
-7. Build student upload and grading pipeline
-8. Build results dashboard
+7. Build student upload and submission grading pipeline (regex)
+8. Build LLM semantic grading as parallel option
+9. Build results dashboard with teacher score override
+10. Build student management + mini-report generation
 
 ---
 
@@ -132,7 +180,7 @@ matched_patterns JSONB | matched_snippets JSONB
 ### Git
 - Conventional commits (`feat:`, `fix:`, `chore:`, etc.)
 - Atomic commits — one logical change per commit
-- No co-author lines for AI tools in commit messages
+- No co-author lines in commit messages
 
 ---
 
@@ -145,14 +193,12 @@ matched_patterns JSONB | matched_snippets JSONB
 | Python service (FastAPI) | 8000 |
 | PostgreSQL | 5432 |
 
-> Note: Port 5000 on macOS is often occupied by AirPlay Receiver — avoid it.
-
 ---
 
 ## Key Documents
 
-- `docs/architecture.md` — Mermaid architecture diagram + data flow
-- `docs/decisions/` — Architecture Decision Records (ADRs)
+- `docs/architecture.md` — Mermaid architecture diagram + data flow sequences
+- `docs/decisions/0002-deterministic-grading.md` — ADR: grading strategy (regex + LLM)
+- `docs/decisions/0003-python-microservice.md` — ADR: why Python handles grading + PDF + LLM
 - `docs/runbooks/local-dev.md` — Full local development setup
-- `docs/runbooks/database-setup.md` — PostgreSQL schema + migrations
-- `tools/prompts/checkpoint-extraction.md` — LLM prompt templates
+- `docs/runbooks/database-setup.md` — PostgreSQL schema + Prisma migrations

@@ -6,6 +6,7 @@ PostgreSQL schema creation and migration guide for ExamChecker.
 
 - PostgreSQL >= 15 running
 - `createdb` and `psql` available in PATH
+- Prisma CLI (`npx prisma`) available in the `backend/` directory
 
 ---
 
@@ -19,94 +20,115 @@ createdb -U postgres examchecker
 
 ---
 
-## 2. Full Schema (manual setup)
+## 2. Run Prisma Migrations (preferred)
 
-```sql
--- Connect to the database
-\c examchecker
+```bash
+cd backend
+npx prisma migrate dev
+```
 
--- Enable UUID generation
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+To apply existing migrations without generating a new one:
 
--- exercises
-CREATE TABLE exercises (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
-  original_pdf_path VARCHAR(512),
-  extracted_text TEXT,
-  status VARCHAR(20) NOT NULL DEFAULT 'draft'
-    CHECK (status IN ('draft', 'approved')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+```bash
+npx prisma migrate deploy
+```
 
--- conversation_messages
-CREATE TABLE conversation_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('professor', 'assistant')),
-  content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+To regenerate the Prisma client after schema changes:
 
--- checkpoints
-CREATE TABLE checkpoints (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-  description VARCHAR(500) NOT NULL,
-  patterns JSONB NOT NULL DEFAULT '[]',
-  match_mode VARCHAR(10) NOT NULL DEFAULT 'any'
-    CHECK (match_mode IN ('any', 'all')),
-  check_type VARCHAR(20) NOT NULL DEFAULT 'keyword'
-    CHECK (check_type IN ('keyword', 'structural')),
-  case_sensitive BOOLEAN NOT NULL DEFAULT false,
-  order_index INTEGER NOT NULL DEFAULT 0
-);
-
--- submissions
-CREATE TABLE submissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-  student_identifier VARCHAR(255) NOT NULL,
-  original_file_path VARCHAR(512),
-  extracted_text TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- grading_results
-CREATE TABLE grading_results (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  submission_id UUID NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-  checkpoint_id UUID NOT NULL REFERENCES checkpoints(id) ON DELETE CASCADE,
-  matched BOOLEAN NOT NULL DEFAULT false,
-  confidence FLOAT NOT NULL DEFAULT 0,
-  matched_patterns JSONB NOT NULL DEFAULT '[]',
-  matched_snippets JSONB NOT NULL DEFAULT '[]',
-  UNIQUE (submission_id, checkpoint_id)
-);
-
--- Indexes
-CREATE INDEX idx_conversation_exercise ON conversation_messages(exercise_id);
-CREATE INDEX idx_checkpoints_exercise ON checkpoints(exercise_id, order_index);
-CREATE INDEX idx_submissions_exercise ON submissions(exercise_id);
-CREATE INDEX idx_grading_submission ON grading_results(submission_id);
-CREATE INDEX idx_grading_checkpoint ON grading_results(checkpoint_id);
+```bash
+npx prisma generate
 ```
 
 ---
 
-## 3. Via ORM Migrations (preferred)
+## 3. Current Schema (Prisma)
 
-If using **TypeORM**:
-```bash
-cd backend
-npm run typeorm migration:run
+The canonical schema lives at `backend/prisma/schema.prisma`. Summary:
+
 ```
+users
+  id            String   @id @default(uuid())
+  username      String   @unique
+  password      String
+  role          String   @default("teacher")
+  createdAt     DateTime
+  updatedAt     DateTime
 
-If using **Prisma**:
-```bash
-cd backend
-npx prisma migrate dev
+exercises
+  id            String         @id @default(uuid())
+  title         String
+  pdfUrl        String
+  status        ExerciseStatus  (DRAFT | APPROVED | GRADED)
+  extractedText String?
+  teacherid     String         FK → users
+  createdAt, updatedAt
+
+checkpoints
+  id                String   @id @default(uuid())
+  exerciseId        String   FK → exercises (CASCADE)
+  order             Int
+  description       String
+  pattern           String   — regex pattern string
+  caseSensitive     Boolean  @default(false)
+  patternDescription String  — human-readable explanation of the pattern
+  indicatorSolution String   — example of what a correct match looks like
+  createdAt, updatedAt
+
+conversations
+  id          String             @id @default(uuid())
+  exerciseId  String             FK → exercises (CASCADE)
+  role        ConversationRole   (PROFESSOR | ASSISTANT)
+  content     String
+  type        ConversationType   (CHECKPOINT | PATTERN)
+  createdAt   DateTime
+
+submissions
+  id          String   @id @default(uuid())
+  exerciseId  String   FK → exercises (CASCADE)
+  fileName    String
+  fileUrl     String
+  fileType    String   — e.g. ".sql", ".py"
+  content     String   — combined extracted text from all files in archive
+  createdAt, updatedAt
+
+submission_students  (M:M junction)
+  id           String   @id @default(uuid())
+  submissionId String   FK → submissions (CASCADE)
+  studentId    String   FK → students (CASCADE)
+  createdAt    DateTime
+  UNIQUE (submissionId, studentId)
+
+grading_results
+  id                    String   @id @default(uuid())
+  submissionId          String   @unique  FK → submissions (CASCADE)
+  totalCheckpoints      Int
+  passedCheckpoints     Int
+  score                 Float    — regex grading: (passed/total)*100
+  teacherScore          Float?   — optional professor override
+  llmPassedCheckpoints  Int?     — LLM grading result
+  llmScore              Float?   — LLM grading: (llmPassed/total)*100
+  gradedAt              DateTime
+
+checkpoint_results
+  id                  String   @id @default(uuid())
+  gradingResultId     String   FK → grading_results (CASCADE)
+  checkpointId        String   FK → checkpoints (CASCADE)
+  matched             Boolean  — regex grading result
+  matchedSnippets     String[] — JSON: [{file, line, snippet}]
+  llmMatched          Boolean? — LLM grading result
+  llmMatchedSnippets  String[] — JSON: [{file, line, snippet}]
+  UNIQUE (gradingResultId, checkpointId)
+
+students
+  id                 String   @id @default(uuid())
+  studentIdentifier  String   @unique  — e.g. student number
+  firstName          String
+  lastName           String
+  email              String?
+  miniReport         String?  — LLM-generated performance narrative
+  miniReportAt       DateTime?
+  teacherid          String   FK → users
+  createdAt, updatedAt
 ```
 
 ---
@@ -118,11 +140,15 @@ psql examchecker -c "\dt"
 ```
 
 Expected tables:
+- `users`
 - `exercises`
-- `conversation_messages`
 - `checkpoints`
+- `conversations`
 - `submissions`
+- `submission_students`
 - `grading_results`
+- `checkpoint_results`
+- `students`
 
 ---
 
@@ -130,25 +156,28 @@ Expected tables:
 
 ```bash
 dropdb examchecker && createdb examchecker
-cd backend && npm run db:migrate
+cd backend && npx prisma migrate dev
 ```
 
 ---
 
-## Checkpoint JSON Structure
+## Checkpoint Pattern Structure
 
-The `checkpoints.patterns` JSONB column stores an array of regex strings:
+Each checkpoint stores a **single regex string** (not an array) in the `pattern` column:
 
 ```json
 {
   "description": "Query uses a subquery in WHERE clause",
-  "patterns": ["WHERE\\s+.*\\(SELECT", "NOT\\s+IN\\s*\\(SELECT", "EXISTS\\s*\\(SELECT"],
-  "match_mode": "any",
-  "check_type": "keyword",
-  "case_sensitive": false,
-  "order_index": 0
+  "pattern": "WHERE\\s+.*\\(SELECT",
+  "caseSensitive": false,
+  "patternDescription": "Matches WHERE clause containing a SELECT subquery",
+  "indicatorSolution": "WHERE col IN (SELECT col FROM table)"
 }
 ```
 
-For `check_type: "structural"`, the Python service's `sqlparse` output is used instead of
-raw regex. The `patterns` array in this case holds token-path descriptors (TBD during implementation).
+The Python grading service compiles the pattern with `re.compile(pattern, re.IGNORECASE)`
+(unless `caseSensitive: true`) and searches the submission content.
+
+For `.sql` files, the content is first split into logical blocks (PROCEDURE, TRIGGER,
+FUNCTION, EVENT) before matching, to prevent greedy quantifiers from spanning
+unrelated procedures.

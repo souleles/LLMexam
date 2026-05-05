@@ -1,7 +1,8 @@
-# ADR-0002: LLM Only in Setup Phase — Deterministic Grading
+# ADR-0002: Grading Strategy — Deterministic Regex + Optional LLM Semantic
 
 **Date:** 2026-03-19
-**Status:** Accepted
+**Amended:** 2026-05-05
+**Status:** Amended
 **Deciders:** Project author (thesis)
 
 ---
@@ -21,49 +22,95 @@ several problems:
 
 ---
 
-## Decision
+## Original Decision (2026-03-19)
 
-The LLM is used **only once per exercise**, during the setup phase, to help the professor
-extract structured checkpoints from the exercise PDF. This output is a JSON array of
-checkpoint objects with explicit regex patterns, `match_mode`, and `check_type`.
+The LLM would be used **only once per exercise**, during setup, to extract structured
+checkpoints. All grading (Phase 3) would be **fully deterministic** regex matching in NestJS.
 
-All subsequent grading (Phase 3) is **fully deterministic**:
-- `keyword` checkpoints use regex pattern matching against preprocessed student text
-- `structural` checkpoints use `sqlparse` (Python) or AST parsing for structure analysis
-- No LLM calls happen during grading
+---
 
-The professor reviews and approves the checkpoints before any grading runs.
+## Amendment (2026-05-05)
+
+The implementation evolved to support **two parallel grading methods**:
+
+### Method A: Deterministic Regex Grading (primary, original design)
+
+Grading is handled by the Python microservice (`grading_service.py`), not NestJS:
+
+1. For each checkpoint, compile `re.compile(pattern, flags)` (case-insensitive by default)
+2. For `.sql` files, split into logical blocks (PROCEDURE / TRIGGER / FUNCTION / EVENT)
+   to prevent greedy quantifiers from matching across unrelated procedures
+3. Search each file; collect `{file, line_number, full_line_text}` for every match
+4. Return `matched: true/false` + `matched_snippets[]`
+
+Results are stored in `checkpoint_results.matched` + `checkpoint_results.matchedSnippets`.
+The aggregate score (`grading_results.score`) is `(passedCheckpoints / totalCheckpoints) * 100`.
+
+### Method B: LLM Semantic Grading (optional, added for research)
+
+Handled by `llm_grading_service.py`:
+
+1. Annotate submission files with line numbers (`"  42 | code line text"`)
+2. Format each checkpoint as: `ID`, `Description`, `Regex hint`
+3. Send to GPT-4o (via LangChain) requesting JSON output
+4. LLM returns `{checkpoint_id, matched, matched_snippets}` for each checkpoint
+5. Results stored separately: `checkpoint_results.llmMatched` + `llmMatchedSnippets`
+
+The aggregate LLM score (`grading_results.llmScore`) is stored alongside the regex score.
+
+### Coexistence
+
+Both methods can be run on the same submission. The `grading_results` table stores:
+- `score` / `passedCheckpoints` — from regex grading
+- `llmScore` / `llmPassedCheckpoints` — from LLM grading
+- `teacherScore` — optional professor override
+
+This dual-result design supports the thesis research goal of **comparing deterministic
+vs. semantic grading agreement** across a real dataset.
 
 ---
 
 ## Consequences
 
-### Positive
+### Positive (regex method)
 - Grading is reproducible: same input always produces same result
-- Audit trail: professors can see exactly which patterns matched/missed
-- No per-student LLM cost — grading is essentially free to run
-- Fast: grading a batch is pure regex/parsing, runs in seconds
+- Audit trail: professors see exactly which patterns matched/missed
+- No per-student LLM cost — grading runs in seconds
 - Defensible: professors can show students exactly what was checked
 
-### Negative
-- Cannot detect "semantically correct but differently structured" answers
-  (e.g., a subquery written as a CTE might not match a subquery pattern)
-- Quality of grading depends on quality of checkpoint extraction in setup phase
-- Professors must invest time in the setup phase to get good checkpoints
+### Negative (regex method)
+- Cannot detect semantically correct but differently structured answers
+  (e.g., a subquery written as a CTE may not match a subquery pattern)
+- Quality depends on checkpoint extraction quality in setup phase
+
+### Positive (LLM method)
+- Semantic understanding — detects equivalent code written in different styles
+- More flexible for varied student solutions
+- No complex regex authoring required
+
+### Negative (LLM method)
+- Non-deterministic — same submission may be graded differently on two runs
+- Per-call LLM cost (GPT-4o API)
+- Less transparent — harder to audit why a checkpoint passed or failed
+- Not suitable as the sole grading method for official university assessment
 
 ### Neutral
-- The LLM is used as a "checkpoint generation assistant", not an "answer checker"
-- Structural checks (`sqlparse`) add complexity to the Python microservice
+- The LLM is used as a "checkpoint generation assistant" in setup AND as an optional
+  "semantic checker" in grading — with different expectations for each role
+- Pattern matching moved to Python (`grading_service.py`) to keep all grading logic in one place
 
 ## Alternatives Considered
 
 | Alternative | Reason rejected |
 |-------------|----------------|
-| LLM grades each submission | Non-reproducible, expensive, opaque |
-| Pure regex with no LLM at all | Professors would need to write regex manually — bad UX |
-| LLM + regex hybrid in grading | Adds non-determinism back; harder to audit |
+| LLM grades only, no regex | Non-reproducible, expensive, opaque |
+| Pure regex with no LLM at all | Professors must write regex manually — bad UX |
+| Replace regex with LLM entirely | Loses reproducibility guarantee |
+| LLM grading in NestJS | Better in Python alongside regex grading and PDF handling |
 
 ## References
 
-- Product specification: Phase 3 section
-- `tools/prompts/checkpoint-extraction.md` — the two-pass LLM prompts
+- `docs/architecture.md` — Phase 3 sequence diagrams (both methods)
+- `python-service/services/grading_service.py` — Regex grading implementation
+- `python-service/services/llm_grading_service.py` — LLM grading implementation
+- `docs/decisions/0003-python-microservice.md` — Why grading lives in Python
