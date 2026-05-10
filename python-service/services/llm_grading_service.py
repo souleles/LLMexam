@@ -6,6 +6,8 @@ import json
 import logging
 import os
 import httpx
+from fastapi import HTTPException
+from openai import RateLimitError, APIError
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from models import LlmGradeRequest, LlmGradeResponse, LlmCheckpointResult, LlmMatchedSnippet
@@ -96,12 +98,30 @@ async def grade_submission_with_llm(request: LlmGradeRequest) -> LlmGradeRespons
         len(request.files),
     )
 
-    response = await llm.ainvoke([
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_prompt),
-    ])
+    try:
+        response = await llm.ainvoke([
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=user_prompt),
+        ])
+    except RateLimitError as e:
+        logger.error("OpenAI rate limit exceeded: %s", e)
+        raise HTTPException(
+            status_code=429,
+            detail="Υπέρβαση ορίου αιτημάτων OpenAI. Δοκιμάστε ξανά σε λίγο.",
+        )
+    except APIError as e:
+        logger.error("OpenAI API error during LLM grading: %s", e)
+        raise HTTPException(status_code=502, detail=f"Σφάλμα OpenAI API: {e.message}")
+    except Exception as e:
+        logger.error("Unexpected error during LLM grading: %s", e)
+        raise HTTPException(status_code=500, detail="Αδυναμία επικοινωνίας με το μοντέλο γλώσσας.")
 
-    result_json = json.loads(response.content)
+    try:
+        result_json = json.loads(response.content)
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse LLM JSON response: %s\nRaw: %s", e, response.content)
+        raise HTTPException(status_code=500, detail="Το μοντέλο επέστρεψε μη έγκυρο JSON.")
+
     logger.info("LLM grading response received, parsing results...")
 
     results: list[LlmCheckpointResult] = []

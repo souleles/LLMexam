@@ -75,6 +75,7 @@ export class ExercisesController {
     @AuthUser() user: AuthorizedUser,
     @UploadedFile() file: Express.Multer.File,
     @Body('title') title: string,
+    @Body('exerciseType') exerciseType: string,
   ): Promise<ExerciseResponseDto> {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -106,7 +107,7 @@ export class ExercisesController {
       console.error('PDF extraction failed:', err.message);
     }
 
-    return this.exercisesService.create({ title, pdfUrl, extractedText }, user.sub);
+    return this.exercisesService.create({ title, pdfUrl, extractedText, exerciseType: exerciseType as any }, user.sub);
   }
 
   @Get()

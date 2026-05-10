@@ -1,7 +1,7 @@
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
 import { GradingAccordion } from '@/components/GradingAccordion';
-import { GradingResult } from '@/lib/api';
+import { ExerciseType, GradingResult } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercises } from '@/hooks/use-get-exercises';
 import { useGetStudents } from '@/hooks/use-get-students';
@@ -55,6 +55,12 @@ export function StudentExercisesPage() {
       label: ex.title,
     })), [exercises]);
 
+  const selectedExercise = useMemo(
+    () => exercises.find((ex) => ex.id === selectedExerciseId),
+    [exercises, selectedExerciseId],
+  );
+  const isProjectExercise = selectedExercise?.exerciseType === ExerciseType.PROJECT;
+
   const studentOptions = useMemo(() => students.map((s) => ({
     value: s.id,
     label: `${s.lastName} ${s.firstName} - ${s.studentIdentifier}`,
@@ -83,6 +89,8 @@ export function StudentExercisesPage() {
         status: 'error',
         duration: 5000,
       });
+      setRegexResults([]);
+      setTeacherPassed(0);
     },
   });
 
@@ -108,6 +116,7 @@ export function StudentExercisesPage() {
         status: 'error',
         duration: 5000,
       });
+      setLlmResults([]);
     },
   });
 
@@ -142,6 +151,9 @@ export function StudentExercisesPage() {
       return;
     }
     const vars = { exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file, method };
+    setRegexResults([]);
+    setTeacherPassed(0);
+    setLlmResults([]);
     if (method === 'regex') {
       await regexGradeMutation.mutateAsync(vars);
     } else {
@@ -219,18 +231,20 @@ export function StudentExercisesPage() {
                   </FormHelperText>
                 </FormControl>
 
-                <HStack w="full" spacing={3}>
-                  <Button
-                    leftIcon={<FiUpload />}
-                    colorScheme="brand"
-                    size="lg"
-                    flex="1"
-                    onClick={() => handleGrade('regex')}
-                    isLoading={regexGradeMutation.isPending}
-                    loadingText="Βαθμολόγηση..."
-                  >
-                    Βαθμολόγηση με Regex Patterns
-                  </Button>
+                {selectedExercise?.exerciseType && <HStack w="full" spacing={3}>
+                  {!isProjectExercise && (
+                    <Button
+                      leftIcon={<FiUpload />}
+                      colorScheme="brand"
+                      size="lg"
+                      flex="1"
+                      onClick={() => handleGrade('regex')}
+                      isLoading={regexGradeMutation.isPending}
+                      loadingText="Βαθμολόγηση..."
+                    >
+                      Βαθμολόγηση με Regex Patterns
+                    </Button>
+                  )}
                   <Button
                     leftIcon={<FiCpu />}
                     colorScheme="purple"
@@ -242,104 +256,113 @@ export function StudentExercisesPage() {
                   >
                     Βαθμολόγηση με LLM
                   </Button>
-                </HStack>
+                </HStack>}
               </VStack>
             </CardBody>
           </Card>
 
           {/* Results */}
-          {hasAnyResults && (
-            <Card>
-              <CardBody>
-                <VStack align="stretch" spacing={4}>
-                  <VStack align="stretch" spacing={2}>
-                    <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
-                    <Text fontSize="sm" color="gray.500">
-                      {selectedStudentIds.map((s) => s.label).join(' · ')}
-                    </Text>
-                  </VStack>
-
-                  <GradingAccordion
-                    items={allCheckpoints.map((cp) => {
-                      const regex = regexResults.find((r) => r.checkpointId === cp.checkpointId);
-                      const llm = llmResults.find((r) => r.checkpointId === cp.checkpointId);
-                      return {
-                        checkpointId: cp.checkpointId,
-                        checkpointDescription: cp.checkpointDescription,
-                        ...(regex && { regexMatched: regex.matched, regexSnippets: regex.matchedSnippets }),
-                        ...(llm && { llmMatched: llm.matched, llmSnippets: llm.matchedSnippets }),
-                      };
-                    })}
-                  />
-
-                  <VStack align="stretch" spacing={2}>
-                    <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
-                      {regexResults.length > 0 && (
-                        <HStack flex="1" minW="160px">
-                          <Text fontWeight="medium" color="gray.400">Βαθμός Regex:</Text>
-                          <Text fontWeight="bold">{regexPassedCount}/{totalCount}</Text>
-                          <Badge colorScheme={regexPassedCount === totalCount ? 'green' : 'yellow'}>
-                            {Math.round((regexPassedCount / totalCount) * 100)}%
-                          </Badge>
-                        </HStack>
-                      )}
-                      <HStack flex="1" minW="160px">
-                        <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
-                        {llmResults.length > 0
-                          ? (
-                            <>
-                              <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
-                              <Badge colorScheme={llmPassedCount === totalCount ? 'green' : 'yellow'}>
-                                {Math.round((llmPassedCount / totalCount) * 100)}%
-                              </Badge>
-                            </>
-                          )
-                          : <Text fontWeight="bold">Δεν έχει βαθμολογηθεί</Text>
-                        }
-                      </HStack>
-                    </HStack>
-                  </VStack>
-                  <Divider />
-                  <VStack align="stretch">
-                    <HStack w="full" flexWrap="wrap">
-                      <HStack flex={1} minW="300px">
-                        <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
-                        <NumberInput
-                          value={teacherPassed}
-                          min={0}
-                          max={totalCount}
-                          size="sm"
-                          w="80px"
-                          onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : Math.min(totalCount, Math.max(0, val)))}
-                        >
-                          <NumberInputField />
-                          <NumberInputStepper>
-                            <NumberIncrementStepper />
-                            <NumberDecrementStepper />
-                          </NumberInputStepper>
-                        </NumberInput>
-                        <Text fontWeight="bold">/{totalCount}</Text>
-                        <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
-                          {Math.round((teacherPassed / totalCount) * 100)}%
-                        </Badge>
-                      </HStack>
-                      <HStack flex={1}>
-                        <Button
-                          rightIcon={<FiSave />}
-                          colorScheme="green"
-                          onClick={handleTeacherGrade}
-                          isLoading={saveScoreMutation.isPending}
-                          isDisabled={!submissionId}
-                        >
-                          Αποθήκευση βαθμολογίας Εκπαιδευτικού
-                        </Button>
-                      </HStack>
-                    </HStack>
-                  </VStack>
+          <Card>
+            <CardBody>
+              <VStack align="stretch" spacing={4}>
+                <VStack align="stretch" spacing={2}>
+                  <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
+                  <Text fontSize="sm" color="gray.500">
+                    {selectedStudentIds.map((s) => s.label).join(' · ')}
+                  </Text>
                 </VStack>
-              </CardBody>
-            </Card>
-          )}
+
+                {regexGradeMutation.isPending || llmGradeMutation.isPending ? (
+                  <HStack spacing={3} justify="center" py={10}>
+                    <Text fontSize="lg" color="gray.600">Βαθμολόγηση σε εξέλιξη...</Text>
+                  </HStack>
+                )
+                  : hasAnyResults
+                    ? <>
+                      <GradingAccordion
+                        items={allCheckpoints.map((cp) => {
+                          const regex = regexResults.find((r) => r.checkpointId === cp.checkpointId);
+                          const llm = llmResults.find((r) => r.checkpointId === cp.checkpointId);
+                          return {
+                            checkpointId: cp.checkpointId,
+                            checkpointDescription: cp.checkpointDescription,
+                            ...(regex && { regexMatched: regex.matched, regexSnippets: regex.matchedSnippets }),
+                            ...(llm && { llmMatched: llm.matched, llmSnippets: llm.matchedSnippets }),
+                          };
+                        })}
+                      />
+
+                      <VStack align="stretch" spacing={2}>
+                        <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
+                          {regexResults.length > 0 && (
+                            <HStack flex="1" minW="160px">
+                              <Text fontWeight="medium" color="gray.400">Βαθμός Regex:</Text>
+                              <Text fontWeight="bold">{regexPassedCount}/{totalCount}</Text>
+                              <Badge colorScheme={regexPassedCount === totalCount ? 'green' : 'yellow'}>
+                                {Math.round((regexPassedCount / totalCount) * 100)}%
+                              </Badge>
+                            </HStack>
+                          )}
+                          <HStack flex="1" minW="160px">
+                            <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
+                            {llmResults.length > 0
+                              ? (
+                                <>
+                                  <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
+                                  <Badge colorScheme={llmPassedCount === totalCount ? 'green' : 'yellow'}>
+                                    {Math.round((llmPassedCount / totalCount) * 100)}%
+                                  </Badge>
+                                </>
+                              )
+                              : <Text fontWeight="bold">Δεν έχει βαθμολογηθεί</Text>
+                            }
+                          </HStack>
+                        </HStack>
+                      </VStack>
+                      <Divider />
+                      <VStack align="stretch">
+                        <HStack w="full" flexWrap="wrap">
+                          <HStack flex={1} minW="300px">
+                            <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
+                            <NumberInput
+                              value={teacherPassed}
+                              min={0}
+                              max={totalCount}
+                              size="sm"
+                              w="80px"
+                              onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : Math.min(totalCount, Math.max(0, val)))}
+                            >
+                              <NumberInputField />
+                              <NumberInputStepper>
+                                <NumberIncrementStepper />
+                                <NumberDecrementStepper />
+                              </NumberInputStepper>
+                            </NumberInput>
+                            <Text fontWeight="bold">/{totalCount}</Text>
+                            <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
+                              {Math.round((teacherPassed / totalCount) * 100)}%
+                            </Badge>
+                          </HStack>
+                          <HStack flex={1}>
+                            <Button
+                              rightIcon={<FiSave />}
+                              colorScheme="green"
+                              onClick={handleTeacherGrade}
+                              isLoading={saveScoreMutation.isPending}
+                              isDisabled={!submissionId}
+                            >
+                              Αποθήκευση βαθμολογίας Εκπαιδευτικού
+                            </Button>
+                          </HStack>
+                        </HStack>
+                      </VStack>
+                    </>
+                    : <Text color="gray.500" fontStyle="italic">
+                      Δεν υπάρχουν αποτελέσματα προς εμφάνιση. Παρακαλώ ανεβάστε ένα αρχείο και βαθμολογήστε για να δείτε τα αποτελέσματα εδώ.
+                    </Text>}
+              </VStack>
+            </CardBody>
+          </Card>
         </VStack>
       </Box>
     </PageTransition>

@@ -5,9 +5,11 @@ import {
   Card,
   CardBody,
   FormControl,
+  FormHelperText,
   FormLabel,
   Heading,
   Input,
+  Select,
   VStack,
   useToast,
   HStack,
@@ -17,7 +19,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BackButton } from '@/components/BackButton';
-import { Exercise } from '@/lib/api';
+import { Exercise, ExerciseType } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useCreateExercise } from '@/hooks/use-create-exercise';
 import { FileUploader } from '@/components/FileUploader';
@@ -25,6 +27,7 @@ import { FileUploader } from '@/components/FileUploader';
 export function NewExercisePage() {
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [exerciseType, setExerciseType] = useState<ExerciseType | ''>('');
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -32,9 +35,12 @@ export function NewExercisePage() {
   const createMutation = useCreateExercise({
     onSuccess: (exercise: Exercise) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises] });
+      const isProject = exercise.exerciseType === ExerciseType.PROJECT;
       toast({
-        title: 'Επιτυχής δημιουργία άσκησης',
-        description: 'Τώρα μπορείτε να εξάγετε τα σημεία ελέγχου χρησιμοποιώντας το chat',
+        title: 'Επιτυχής δημιουργία',
+        description: isProject
+          ? 'Το project δημιουργήθηκε. Μπορείτε να το εγκρίνετε και να ανεβάσετε εργασίες.'
+          : 'Τώρα μπορείτε να εξάγετε τα σημεία ελέγχου χρησιμοποιώντας το chat',
         status: 'success',
         duration: 3000,
       });
@@ -43,7 +49,7 @@ export function NewExercisePage() {
     onError: () => {
       toast({
         title: 'Σφάλμα',
-        description: 'Αποτυχία δημιουργίας άσκησης',
+        description: 'Αποτυχία δημιουργίας',
         status: 'error',
         duration: 3000,
       });
@@ -51,16 +57,23 @@ export function NewExercisePage() {
   });
 
   const handleSubmit = () => {
-    if (!file || !title.trim()) {
+    if (!file || !title.trim() || !exerciseType) {
       toast({
         title: 'Λείπουν πληροφορίες',
-        description: 'Παρακαλώ δώστε τίτλο και αρχείο PDF',
+        description: 'Παρακαλώ δώστε τίτλο, τύπο και αρχείο PDF',
         status: 'warning',
         duration: 3000,
       });
       return;
     }
-    createMutation.mutate({ file, title });
+    createMutation.mutate({ file, title, exerciseType });
+  };
+
+  const helperText = {
+    [ExerciseType.EXERCISE]:
+      'Κλασική άσκηση με checkpoints και regex patterns. Το LLM σας βοηθά να ορίσετε τα κριτήρια βαθμολόγησης.',
+    [ExerciseType.PROJECT]:
+      'Ολοκληρωμένο project χωρίς προκαθορισμένα checkpoints. Η βαθμολόγηση γίνεται αποκλειστικά με LLM.',
   };
 
   return (
@@ -72,7 +85,7 @@ export function NewExercisePage() {
         <VStack align="start" spacing={1}>
           <Heading size="lg">Δημιουργία Νέας Άσκησης</Heading>
           <Text color="gray.400">
-            Ανεβάστε ένα PDF άσκησης και θα σας βοηθήσουμε να εξάγετε τα σημεία ελέγχου βαθμολόγησης
+            Ανεβάστε ένα PDF και επιλέξτε τον τύπο για να ξεκινήσετε
           </Text>
         </VStack>
 
@@ -80,7 +93,7 @@ export function NewExercisePage() {
           <CardBody>
             <VStack spacing={6}>
               <FormControl isRequired>
-                <FormLabel>Τίτλος Άσκησης</FormLabel>
+                <FormLabel>Τίτλος</FormLabel>
                 <Input
                   placeholder="π.χ. Εργασία SQL 1 - Ερωτήματα Βάσης Δεδομένων"
                   value={title}
@@ -90,7 +103,23 @@ export function NewExercisePage() {
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel>Αρχείο PDF Άσκησης</FormLabel>
+                <FormLabel>Τύπος</FormLabel>
+                <Select
+                  placeholder="Επιλέξτε τύπο..."
+                  value={exerciseType}
+                  onChange={(e) => setExerciseType(e.target.value as ExerciseType)}
+                  size="lg"
+                >
+                  <option value={ExerciseType.EXERCISE}>Άσκηση</option>
+                  <option value={ExerciseType.PROJECT}>Project</option>
+                </Select>
+                {exerciseType && (
+                  <FormHelperText>{helperText[exerciseType]}</FormHelperText>
+                )}
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel>Αρχείο PDF</FormLabel>
                 <FileUploader
                   accept=".pdf"
                   maxFiles={1}
@@ -108,7 +137,7 @@ export function NewExercisePage() {
                   isLoading={createMutation.isPending}
                   loadingText="Δημιουργία..."
                 >
-                  Δημιουργία & Εξαγωγή Checkpoints
+                  {exerciseType === ExerciseType.PROJECT ? 'Δημιουργία Project' : 'Δημιουργία & Εξαγωγή Checkpoints'}
                 </Button>
               </HStack>
             </VStack>

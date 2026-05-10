@@ -1,6 +1,6 @@
 import { PageTransition } from '@/components/PageTransition';
 import { DataTable } from '@/components/DataTable';
-import { api, Exercise, ExerciseStatus } from '@/lib/api';
+import { api, Exercise, ExerciseStatus, ExerciseType } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercises } from '@/hooks/use-get-exercises';
 import { useDeleteExercise } from '@/hooks/use-delete-exercise';
@@ -38,6 +38,14 @@ const RenderRow = ({ exercise, deleteMutation }: {
       onClick={() => navigate(`/exercises/${exercise.id}`)}
     >
       <Td fontWeight="medium">{exercise.title}</Td>
+      <Td>
+        <Badge
+          colorScheme={exercise.exerciseType === ExerciseType.PROJECT ? 'blue' : 'gray'}
+          textTransform="none"
+        >
+          {exercise.exerciseType === ExerciseType.PROJECT ? 'Project' : 'Άσκηση'}
+        </Badge>
+      </Td>
       <Td>
         <Badge
           colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'}

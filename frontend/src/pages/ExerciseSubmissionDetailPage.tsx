@@ -2,6 +2,7 @@ import { BackButton } from '@/components/BackButton';
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionDetail } from '@/components/SubmissionDetail';
 import { useGetSingleSubmission } from '@/hooks/use-get-single-submission';
+import { useGetExercise } from '@/hooks/use-get-exercise';
 import { Box, Skeleton, Stack, Text } from '@chakra-ui/react';
 import { useParams } from 'react-router-dom';
 
@@ -9,6 +10,7 @@ export function ExerciseSubmissionDetailPage() {
   const { exerciseId, submissionId } = useParams<{ exerciseId: string; submissionId: string }>();
 
   const { data: submission, isLoading } = useGetSingleSubmission(submissionId, true);
+  const { data: exercise } = useGetExercise(exerciseId);
 
   if (isLoading) {
     return (
@@ -37,7 +39,7 @@ export function ExerciseSubmissionDetailPage() {
     <PageTransition>
       <Box>
         <BackButton buttonText="Πίσω στην Άσκηση" navigationUrl={`/exercises/${exerciseId}`} mb={6} />
-        <SubmissionDetail submission={submission} />
+        <SubmissionDetail submission={submission} exerciseType={exercise?.exerciseType} />
       </Box>
     </PageTransition>
   );

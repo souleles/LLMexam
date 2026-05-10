@@ -42,6 +42,11 @@ export interface UploadAndGradeResult {
   method: 'regex' | 'llm';
 }
 
+type FetchedGradeData =
+  | { kind: 'standard'; method: 'regex' | 'llm'; checkpointMatches: CheckpointMatch[] }
+  | { kind: 'project-existing'; checkpointMatches: CheckpointMatch[] }
+  | { kind: 'project-new'; discovered: Array<{ description: string; matched: boolean; matched_snippets: Array<{ file: string; line: number; snippet: string }> }> };
+
 const SUBMISSION_INCLUDE = {
   submissionStudents: {
     include: { student: true },
@@ -80,7 +85,7 @@ export class SubmissionsService {
     if (exercise.status !== 'APPROVED') {
       throw new BadRequestException('Exercise must be approved before accepting submissions');
     }
-    if (exercise.checkpoints.length === 0) {
+    if (exercise.checkpoints.length === 0 && (exercise as any).exerciseType !== 'PROJECT') {
       throw new BadRequestException('Exercise has no checkpoints defined');
     }
 
@@ -235,40 +240,44 @@ export class SubmissionsService {
       .map(f => `// File: ${f.relativePath}\n${f.content}`)
       .join('\n\n');
 
-    // 5. Create or update submission
-    let submission: any;
+    // 5. Call Python grading service before any DB write — if it fails, nothing is persisted
+    const gradeData = await this.fetchGradeData(exercise, extractedFiles, method);
 
-    if (existingSubmissionId) {
-      submission = await this.prisma.submission.update({
-        where: { id: existingSubmissionId },
-        data: {
-          fileName: decodeFilename(file.originalname),
-          fileUrl: `/uploads/submissions/${file.filename}`,
-          fileType: path.extname(file.originalname),
-          content: combinedContent,
-          updatedAt: new Date(),
-        },
-      });
+    // 6. Atomically save submission + grading results
+    return this.prisma.$transaction(async (tx) => {
+      let submission: any;
+      if (existingSubmissionId) {
+        submission = await tx.submission.update({
+          where: { id: existingSubmissionId },
+          data: {
+            fileName: decodeFilename(file.originalname),
+            fileUrl: `/uploads/submissions/${file.filename}`,
+            fileType: path.extname(file.originalname),
+            content: combinedContent,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        submission = await tx.submission.create({
+          data: {
+            exerciseId,
+            fileName: decodeFilename(file.originalname),
+            fileUrl: `/uploads/submissions/${file.filename}`,
+            fileType: path.extname(file.originalname),
+            content: combinedContent,
+          },
+        });
+        await tx.submissionStudent.createMany({
+          data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
+          skipDuplicates: true,
+        });
+      }
 
-    } else {
-      submission = await this.prisma.submission.create({
-        data: {
-          exerciseId,
-          fileName: decodeFilename(file.originalname),
-          fileUrl: `/uploads/submissions/${file.filename}`,
-          fileType: path.extname(file.originalname),
-          content: combinedContent,
-        },
-      });
-
-      await this.prisma.submissionStudent.createMany({
-        data: studentIds.map((studentId) => ({ submissionId: submission.id, studentId })),
-        skipDuplicates: true,
-      });
-    }
-
-    // 6. Grade and save results
-    return this.gradeAndSave(submission.id, exercise, extractedFiles, method);
+      const { checkpointMatches, method: resolvedMethod } = await this.persistGradeData(
+        tx, submission.id, exercise.id, gradeData,
+      );
+      return { checkpoints: checkpointMatches, submissionId: submission.id, method: resolvedMethod };
+    });
   }
 
   async regradeSubmission(
@@ -298,7 +307,7 @@ export class SubmissionsService {
     if (exercise.status !== 'APPROVED') {
       throw new BadRequestException('Exercise must be approved before regrading');
     }
-    if (exercise.checkpoints.length === 0) {
+    if (exercise.checkpoints.length === 0 && (exercise as any).exerciseType !== 'PROJECT') {
       throw new BadRequestException('Exercise has no checkpoints defined');
     }
 
@@ -307,6 +316,9 @@ export class SubmissionsService {
       throw new BadRequestException('Could not parse stored submission content');
     }
 
+    if ((exercise as any).exerciseType === 'PROJECT') {
+      return this.gradeProjectAndSave(submissionId, exercise, extractedFiles);
+    }
     return this.gradeAndSave(submissionId, exercise, extractedFiles, method);
   }
 
@@ -432,6 +444,7 @@ export class SubmissionsService {
       id: submission.id,
       exerciseId: submission.exerciseId,
       exerciseTitle: submission.exercise.title,
+      exerciseType: submission.exercise.exerciseType.toLowerCase() as 'exercise' | 'project',
       fileName: submission.fileName,
       fileUrl: submission.fileUrl,
       fileType: submission.fileType,
@@ -487,6 +500,137 @@ export class SubmissionsService {
         return relativePath.length > 0 ? { relativePath, content: fileContent } : null;
       })
       .filter((f): f is { relativePath: string; content: string } => f !== null);
+  }
+
+  private async fetchGradeData(
+    exercise: { id: string; extractedText?: string | null; checkpoints: Array<{ id: string; description: string; pattern: string; caseSensitive: boolean; order: number }> },
+    extractedFiles: Array<{ relativePath: string; content: string }>,
+    method: 'regex' | 'llm',
+  ): Promise<FetchedGradeData> {
+    const isProject = (exercise as any).exerciseType === 'PROJECT';
+
+    if (isProject) {
+      if (exercise.checkpoints.length > 0) {
+        this.logger.log(`Project re-grade: reusing ${exercise.checkpoints.length} existing checkpoints via /grade-llm`);
+        const res = await firstValueFrom(
+          this.httpService.post(`${this.pythonServiceUrl}/grade-llm`, {
+            checkpoints: exercise.checkpoints.map((cp) => ({ id: cp.id, description: cp.description, pattern: '' })),
+            files: extractedFiles.map((f) => ({ relative_path: f.relativePath, content: f.content })),
+          }),
+        );
+        const checkpointMatches: CheckpointMatch[] = res.data.results.map((r: any) => {
+          const cp = exercise.checkpoints.find((c) => c.id === r.checkpoint_id)!;
+          return { checkpointId: r.checkpoint_id, checkpointDescription: cp.description, matched: r.matched, matchedSnippets: r.matched_snippets ?? [] };
+        });
+        return { kind: 'project-existing', checkpointMatches };
+      } else {
+        this.logger.log('Project first-grade: calling /grade-project-llm to discover questions');
+        const res = await firstValueFrom(
+          this.httpService.post(`${this.pythonServiceUrl}/grade-project-llm`, {
+            exercise_text: (exercise as any).extractedText || '',
+            files: extractedFiles.map((f) => ({ relative_path: f.relativePath, content: f.content })),
+          }),
+        );
+        const discovered = res.data.results;
+        if (discovered.length === 0) {
+          throw new BadRequestException('LLM could not identify any questions in the exercise text');
+        }
+        return { kind: 'project-new', discovered };
+      }
+    }
+
+    const pythonEndpoint = method === 'llm' ? '/grade-llm' : '/grade';
+    this.logger.log(`Sending grading request [${method}]: ${exercise.checkpoints.length} checkpoints, ${extractedFiles.length} files`);
+    const res = await firstValueFrom(
+      this.httpService.post(`${this.pythonServiceUrl}${pythonEndpoint}`, {
+        checkpoints: exercise.checkpoints.map((cp) => ({
+          id: cp.id,
+          description: cp.description,
+          pattern: cp.pattern,
+          case_sensitive: cp.caseSensitive,
+        })),
+        files: extractedFiles.map((f) => ({ relative_path: f.relativePath, content: f.content })),
+      }),
+    );
+    const checkpointMatches: CheckpointMatch[] = res.data.results.map((r: any) => {
+      const cp = exercise.checkpoints.find((c) => c.id === r.checkpoint_id)!;
+      this.logger.debug(`Checkpoint "${cp.description}" (${r.checkpoint_id}): matched=${r.matched}, snippets=${r.matched_snippets?.length ?? 0}`);
+      for (const s of r.matched_snippets ?? []) {
+        this.logger.debug(`  -> ${s.file}:${s.line} | ${String(s.snippet).slice(0, 120)}`);
+      }
+      return { checkpointId: r.checkpoint_id, checkpointDescription: cp.description, matched: r.matched, matchedSnippets: r.matched_snippets };
+    });
+    return { kind: 'standard', method, checkpointMatches };
+  }
+
+  private async persistGradeData(
+    tx: any,
+    submissionId: string,
+    exerciseId: string,
+    gradeData: FetchedGradeData,
+  ): Promise<{ checkpointMatches: CheckpointMatch[]; method: 'regex' | 'llm' }> {
+    let checkpointMatches: CheckpointMatch[];
+    const isLlm = gradeData.kind !== 'standard' || gradeData.method === 'llm';
+    const resolvedMethod: 'regex' | 'llm' = gradeData.kind === 'standard' ? gradeData.method : 'llm';
+
+    if (gradeData.kind === 'project-new') {
+      const createdCheckpoints = await Promise.all(
+        gradeData.discovered.map((q, idx) =>
+          tx.checkpoint.create({
+            data: { exerciseId, order: idx + 1, description: q.description, pattern: '', caseSensitive: false, patternDescription: '', indicatorSolution: '' },
+          }),
+        ),
+      );
+      checkpointMatches = gradeData.discovered.map((q, idx) => ({
+        checkpointId: createdCheckpoints[idx].id,
+        checkpointDescription: q.description,
+        matched: q.matched,
+        matchedSnippets: q.matched_snippets ?? [],
+      }));
+      this.logger.log(`Created ${createdCheckpoints.length} checkpoint records for project ${exerciseId}`);
+    } else {
+      checkpointMatches = gradeData.checkpointMatches;
+    }
+
+    const passed = checkpointMatches.filter((m) => m.matched).length;
+    const total = checkpointMatches.length;
+    this.logger.log(`Grading result [${resolvedMethod}]: ${passed}/${total} checkpoints passed`);
+
+    const gradingResult = await tx.gradingResult.upsert({
+      where: { submissionId },
+      create: isLlm
+        ? { submission: { connect: { id: submissionId } }, totalCheckpoints: total, passedCheckpoints: 0, score: 0, llmPassedCheckpoints: passed, llmScore: (passed / total) * 100 }
+        : { submission: { connect: { id: submissionId } }, totalCheckpoints: total, passedCheckpoints: passed, score: (passed / total) * 100 },
+      update: isLlm
+        ? { totalCheckpoints: total, llmPassedCheckpoints: passed, llmScore: (passed / total) * 100 }
+        : { totalCheckpoints: total, passedCheckpoints: passed, score: (passed / total) * 100 },
+    });
+
+    const existingCRs: Array<{ id: string; checkpointId: string }> = await tx.checkpointResult.findMany({
+      where: { gradingResultId: gradingResult.id },
+      select: { id: true, checkpointId: true },
+    });
+
+    for (const match of checkpointMatches) {
+      const snippetsJson = match.matchedSnippets.map((s) => JSON.stringify({ file: s.file, line: s.line, snippet: s.snippet }));
+      const existing = existingCRs.find((r) => r.checkpointId === match.checkpointId);
+      if (isLlm) {
+        if (existing) {
+          await tx.checkpointResult.update({ where: { id: existing.id }, data: { llmMatched: match.matched, llmMatchedSnippets: snippetsJson } });
+        } else {
+          await tx.checkpointResult.create({ data: { gradingResultId: gradingResult.id, checkpointId: match.checkpointId, matched: false, matchedSnippets: [], llmMatched: match.matched, llmMatchedSnippets: snippetsJson } });
+        }
+      } else {
+        if (existing) {
+          await tx.checkpointResult.update({ where: { id: existing.id }, data: { matched: match.matched, matchedSnippets: snippetsJson } });
+        } else {
+          await tx.checkpointResult.create({ data: { gradingResultId: gradingResult.id, checkpointId: match.checkpointId, matched: match.matched, matchedSnippets: snippetsJson } });
+        }
+      }
+    }
+
+    this.logger.log(`Saved grading result ${gradingResult.id} for submission ${submissionId}`);
+    return { checkpointMatches, method: resolvedMethod };
   }
 
   private async gradeAndSave(
@@ -622,6 +766,147 @@ export class SubmissionsService {
     }
 
     return { checkpoints: checkpointMatches, submissionId, method };
+  }
+
+  private async gradeProjectAndSave(
+    submissionId: string,
+    exercise: { id: string; extractedText?: string | null; checkpoints: Array<{ id: string; description: string; order: number; pattern: string; caseSensitive: boolean }> },
+    extractedFiles: Array<{ relativePath: string; content: string }>,
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
+    const exerciseText = (exercise as any).extractedText || '';
+
+    let checkpointMatches: CheckpointMatch[];
+
+    if (exercise.checkpoints.length > 0) {
+      // Questions were auto-created from a prior grading — reuse them via the standard LLM grader
+      this.logger.log(
+        `Project re-grade: reusing ${exercise.checkpoints.length} existing checkpoints via /grade-llm`,
+      );
+      const gradeResponse = await firstValueFrom(
+        this.httpService.post(`${this.pythonServiceUrl}/grade-llm`, {
+          checkpoints: exercise.checkpoints.map((cp) => ({
+            id: cp.id,
+            description: cp.description,
+            pattern: '',
+          })),
+          files: extractedFiles.map((f) => ({
+            relative_path: f.relativePath,
+            content: f.content,
+          })),
+        }),
+      );
+      checkpointMatches = gradeResponse.data.results.map((r: any) => {
+        const cp = exercise.checkpoints.find((c) => c.id === r.checkpoint_id)!;
+        return {
+          checkpointId: r.checkpoint_id,
+          checkpointDescription: cp.description,
+          matched: r.matched,
+          matchedSnippets: r.matched_snippets ?? [],
+        };
+      });
+    } else {
+      // First-time grading — ask the LLM to discover questions from the exercise text
+      this.logger.log('Project first-grade: calling /grade-project-llm to discover questions');
+      const gradeResponse = await firstValueFrom(
+        this.httpService.post(`${this.pythonServiceUrl}/grade-project-llm`, {
+          exercise_text: exerciseText,
+          files: extractedFiles.map((f) => ({
+            relative_path: f.relativePath,
+            content: f.content,
+          })),
+        }),
+      );
+
+      const discovered: Array<{
+        question_id: string;
+        description: string;
+        matched: boolean;
+        matched_snippets: Array<{ file: string; line: number; snippet: string }>;
+      }> = gradeResponse.data.results;
+
+      if (discovered.length === 0) {
+        throw new BadRequestException('LLM could not identify any questions in the exercise text');
+      }
+
+      // Create checkpoint records for the discovered questions
+      const createdCheckpoints = await this.prisma.$transaction(
+        discovered.map((q, idx) =>
+          this.prisma.checkpoint.create({
+            data: {
+              exerciseId: exercise.id,
+              order: idx + 1,
+              description: q.description,
+              pattern: '',
+              caseSensitive: false,
+              patternDescription: '',
+              indicatorSolution: '',
+            },
+          }),
+        ),
+      );
+
+      checkpointMatches = discovered.map((q, idx) => ({
+        checkpointId: createdCheckpoints[idx].id,
+        checkpointDescription: q.description,
+        matched: q.matched,
+        matchedSnippets: q.matched_snippets ?? [],
+      }));
+
+      this.logger.log(`Created ${createdCheckpoints.length} checkpoint records for project ${exercise.id}`);
+    }
+
+    const passed = checkpointMatches.filter((m) => m.matched).length;
+    const totalCheckpoints = checkpointMatches.length;
+    const llmScore = (passed / totalCheckpoints) * 100;
+
+    const gradingResult = await (this.prisma as any).gradingResult.upsert({
+      where: { submissionId },
+      create: {
+        submission: { connect: { id: submissionId } },
+        totalCheckpoints,
+        passedCheckpoints: 0,
+        score: 0,
+        llmPassedCheckpoints: passed,
+        llmScore,
+      },
+      update: { totalCheckpoints, llmPassedCheckpoints: passed, llmScore },
+    });
+
+    const existingCRs: Array<{ id: string; checkpointId: string }> =
+      await this.prisma.checkpointResult.findMany({
+        where: { gradingResultId: gradingResult.id },
+        select: { id: true, checkpointId: true },
+      });
+
+    for (const match of checkpointMatches) {
+      const snippetsJson = match.matchedSnippets.map((s) =>
+        JSON.stringify({ file: s.file, line: s.line, snippet: s.snippet }),
+      );
+      const existing = existingCRs.find((r) => r.checkpointId === match.checkpointId);
+      if (existing) {
+        await (this.prisma as any).checkpointResult.update({
+          where: { id: existing.id },
+          data: { llmMatched: match.matched, llmMatchedSnippets: snippetsJson },
+        });
+      } else {
+        await (this.prisma as any).checkpointResult.create({
+          data: {
+            gradingResultId: gradingResult.id,
+            checkpointId: match.checkpointId,
+            matched: false,
+            matchedSnippets: [],
+            llmMatched: match.matched,
+            llmMatchedSnippets: snippetsJson,
+          },
+        });
+      }
+    }
+
+    this.logger.log(
+      `Saved project LLM grading result ${gradingResult.id} for submission ${submissionId}: ${passed}/${totalCheckpoints}`,
+    );
+
+    return { checkpoints: checkpointMatches, submissionId, method: 'llm' };
   }
 
   private async extractPdfContent(buffer: Buffer, filename: string): Promise<string | null> {

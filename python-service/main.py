@@ -22,12 +22,15 @@ from models import (
     MiniReportResponse,
     LlmGradeRequest,
     LlmGradeResponse,
+    ProjectGradeRequest,
+    ProjectGradeResponse,
 )
 from services.pdf_service import extract_text_from_pdf
 from services.llm_service import stream_checkpoint_generation, stream_pattern_generation, generate_mini_report
 from services.sql_service import parse_sql
 from services.grading_service import grade_submission
 from services.llm_grading_service import grade_submission_with_llm
+from services.project_grading_service import grade_project_with_llm
 
 # Load environment variables
 load_dotenv()
@@ -170,6 +173,20 @@ async def grade_llm(request: LlmGradeRequest):
     """
     logger.info(f"Received LLM grading request: {len(request.checkpoints)} checkpoints, {len(request.files)} files")
     return await grade_submission_with_llm(request)
+
+
+@app.post("/grade-project-llm", response_model=ProjectGradeResponse)
+async def grade_project_llm(request: ProjectGradeRequest):
+    """
+    Grade a project submission by first discovering the questions in the exercise text,
+    then evaluating whether the student's submission addresses each one.
+    No pre-defined checkpoints needed — the LLM builds them from the PDF text.
+    """
+    logger.info(
+        f"Received project LLM grading request: {len(request.files)} files, "
+        f"exercise text length={len(request.exercise_text)}"
+    )
+    return await grade_project_with_llm(request)
 
 
 @app.post("/generate-mini-report", response_model=MiniReportResponse)

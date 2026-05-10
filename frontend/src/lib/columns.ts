@@ -9,6 +9,7 @@ export const StudentColumns = [
 
 export const ExerciseColumns = [
   { label: 'Τίτλος' },
+  { label: 'Τύπος' },
   { label: 'Κατάσταση' },
   { label: 'Δημιουργήθηκε' },
   { label: 'Ενημερώθηκε' },

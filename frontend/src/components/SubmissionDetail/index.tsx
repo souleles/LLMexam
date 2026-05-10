@@ -2,7 +2,7 @@ import { DownloadButton } from '@/components/DownloadButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
 import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
 import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
-import { Submission } from '@/lib/api';
+import { ExerciseType, Submission } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import {
   Badge,
@@ -35,9 +35,11 @@ import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
+  exerciseType?: ExerciseType;
 }
 
-export function SubmissionDetail({ submission }: SubmissionDetailProps) {
+export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailProps) {
+  const isProject = (exerciseType ?? submission.exerciseType) === ExerciseType.PROJECT;
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -130,17 +132,19 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
               <HStack justify="space-between">
                 <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
                 <HStack>
-                  <Button
-                    leftIcon={<FiRefreshCw />}
-                    size="sm"
-                    variant="outline"
-                    colorScheme="teal"
-                    onClick={() => handleRegrade('regex')}
-                    isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
-                    isDisabled={regradeMutation.isPending}
-                  >
-                    Regex
-                  </Button>
+                  {!isProject && (
+                    <Button
+                      leftIcon={<FiRefreshCw />}
+                      size="sm"
+                      variant="outline"
+                      colorScheme="teal"
+                      onClick={() => handleRegrade('regex')}
+                      isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                      isDisabled={regradeMutation.isPending}
+                    >
+                      Regex
+                    </Button>
+                  )}
                   <Button
                     leftIcon={<FiRefreshCw />}
                     size="sm"
@@ -167,22 +171,24 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
 
               {/* Summary */}
               <HStack spacing={12} p={3} bg="gray.700" borderRadius="md">
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="xs" color="gray.400">
-                    Βαθμός Regex
-                  </Text>
-                  <HStack>
-                    <Text fontWeight="bold">
-                      {submission.gradingResult.passedCheckpoints}/
-                      {submission.gradingResult.totalCheckpoints}
+                {!isProject && (
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="xs" color="gray.400">
+                      Βαθμός Regex
                     </Text>
-                    <Badge
-                      colorScheme={submission.gradingResult.score >= 50 ? 'green' : 'red'}
-                    >
-                      {Math.round(submission.gradingResult.score)}%
-                    </Badge>
-                  </HStack>
-                </VStack>
+                    <HStack>
+                      <Text fontWeight="bold">
+                        {submission.gradingResult.passedCheckpoints}/
+                        {submission.gradingResult.totalCheckpoints}
+                      </Text>
+                      <Badge
+                        colorScheme={submission.gradingResult.score >= 50 ? 'green' : 'red'}
+                      >
+                        {Math.round(submission.gradingResult.score)}%
+                      </Badge>
+                    </HStack>
+                  </VStack>
+                )}
                 {submission.gradingResult.llmScore != null && (
                   <VStack align="start" spacing={0}>
                     <Text fontSize="xs" color="gray.400">
@@ -251,17 +257,19 @@ export function SubmissionDetail({ submission }: SubmissionDetailProps) {
               Η εργασία δεν έχει βαθμολογηθεί ακόμα
             </Text>
             <HStack>
-              <Button
-                leftIcon={<FiRefreshCw />}
-                size="sm"
-                variant="outline"
-                colorScheme="teal"
-                onClick={() => handleRegrade('regex')}
-                isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
-                isDisabled={regradeMutation.isPending}
-              >
-                Regex
-              </Button>
+              {!isProject && (
+                <Button
+                  leftIcon={<FiRefreshCw />}
+                  size="sm"
+                  variant="outline"
+                  colorScheme="teal"
+                  onClick={() => handleRegrade('regex')}
+                  isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                  isDisabled={regradeMutation.isPending}
+                >
+                  Regex
+                </Button>
+              )}
               <Button
                 leftIcon={<FiRefreshCw />}
                 size="sm"

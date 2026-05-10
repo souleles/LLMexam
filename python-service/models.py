@@ -163,3 +163,23 @@ class LlmCheckpointResult(BaseModel):
 class LlmGradeResponse(BaseModel):
     """Response for /grade-llm endpoint."""
     results: list[LlmCheckpointResult]
+
+
+# Project grading models (no pre-defined checkpoints — LLM discovers questions from exercise text)
+
+class ProjectGradeRequest(BaseModel):
+    """Request body for /grade-project-llm endpoint."""
+    exercise_text: str = Field(..., description="Extracted text of the exercise PDF (contains the questions)")
+    files: list[FileContent]
+
+
+class ProjectQuestionResult(BaseModel):
+    question_id: str
+    description: str
+    matched: bool
+    matched_snippets: list[LlmMatchedSnippet]
+
+
+class ProjectGradeResponse(BaseModel):
+    """Response for /grade-project-llm endpoint."""
+    results: list[ProjectQuestionResult]

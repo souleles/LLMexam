@@ -9,7 +9,7 @@ import { useDeleteExercise } from '@/hooks/use-delete-exercise';
 import { useGetCheckpoints } from '@/hooks/use-get-checkpoints';
 import { useGetExercise } from '@/hooks/use-get-exercise';
 import { useGetSubmissions } from '@/hooks/use-get-submissions';
-import { ExerciseStatus } from '@/lib/api';
+import { ExerciseStatus, ExerciseType } from '@/lib/api';
 import { QueryKeys } from '@/lib/queryKeys';
 import {
   AlertDialog,
@@ -109,7 +109,10 @@ export function ExerciseDetailPage() {
 
   // const isReadOnly = exercise.status !== ExerciseStatus.DRAFT;
   const isReadOnly = false;
-  const canApprove = exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every((cp) => cp.pattern);
+  const isProject = exercise.exerciseType === ExerciseType.PROJECT;
+  const canApprove = isProject
+    ? exercise.status === ExerciseStatus.DRAFT
+    : exercise.status === ExerciseStatus.DRAFT && checkpoints.length > 0 && checkpoints.every((cp) => cp.pattern);
 
   return (
     <PageTransition>
@@ -122,6 +125,12 @@ export function ExerciseDetailPage() {
             <VStack align="start" spacing={2}>
               <Heading size="lg">{exercise.title}</Heading>
               <HStack>
+                <Badge
+                  colorScheme={isProject ? 'blue' : 'gray'}
+                  textTransform="none"
+                >
+                  {isProject ? 'Project' : 'Άσκηση'}
+                </Badge>
                 <Badge
                   colorScheme={exercise.status === ExerciseStatus.APPROVED ? 'green' : 'yellow'}
                   textTransform="none"
@@ -177,8 +186,8 @@ export function ExerciseDetailPage() {
             </CardBody>
           </Card>
 
-          {/* Checkpoints card */}
-          <CheckpointsCard checkpoints={checkpoints} />
+          {/* Checkpoints card — hidden for project exercises */}
+          {!isProject && <CheckpointsCard checkpoints={checkpoints} />}
 
           {/* Submissions card */}
           {exercise.status !== ExerciseStatus.DRAFT && (
@@ -200,55 +209,57 @@ export function ExerciseDetailPage() {
             </Card>
           )}
 
-          {/* Chat */}
-          <Card>
-            <CardBody>
-              <HStack spacing={3}>
-                <Icon as={FiMessageSquare} color="brand.400" boxSize={5} />
-                <Heading size="md">
-                  Συνομιλία & Εξαγωγή
-                  {isReadOnly && (
-                    <Badge ml={2} colorScheme="green" textTransform="none">
-                      Μόνο ανάγνωση
-                    </Badge>
-                  )}
-                </Heading>
-              </HStack>
-              <Divider my={4} />
-              <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior="unmount">
-                <TabList>
-                  <Tab>Checkpoints</Tab>
-                  <Tab isDisabled={checkpoints.length === 0}>
-                    Patterns
-                    {checkpoints.length === 0 && (
-                      <Text as="span" fontSize="xs" color="gray.400" ml={2}>
-                        (αποδεχτείτε checkpoints πρώτα)
-                      </Text>
+          {/* Chat — hidden for project exercises */}
+          {!isProject && (
+            <Card>
+              <CardBody>
+                <HStack spacing={3}>
+                  <Icon as={FiMessageSquare} color="brand.400" boxSize={5} />
+                  <Heading size="md">
+                    Συνομιλία & Εξαγωγή
+                    {isReadOnly && (
+                      <Badge ml={2} colorScheme="green" textTransform="none">
+                        Μόνο ανάγνωση
+                      </Badge>
                     )}
-                  </Tab>
-                </TabList>
-                <TabPanels>
-                  <TabPanel px={0} pt={4}>
-                    <InlineChat
-                      exerciseId={exerciseId!}
-                      mode="checkpoints"
-                      isReadOnly={isReadOnly}
-                      onAccepted={handleAccepted}
-                    />
-                  </TabPanel>
-                  <TabPanel px={0} pt={4}>
-                    <InlineChat
-                      exerciseId={exerciseId!}
-                      mode="patterns"
-                      patternsEnabled={checkpoints.length > 0}
-                      isReadOnly={isReadOnly}
-                      onAccepted={handleAccepted}
-                    />
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
-            </CardBody>
-          </Card>
+                  </Heading>
+                </HStack>
+                <Divider my={4} />
+                <Tabs variant="enclosed" colorScheme="brand" isLazy lazyBehavior="unmount">
+                  <TabList>
+                    <Tab>Checkpoints</Tab>
+                    <Tab isDisabled={checkpoints.length === 0}>
+                      Patterns
+                      {checkpoints.length === 0 && (
+                        <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                          (αποδεχτείτε checkpoints πρώτα)
+                        </Text>
+                      )}
+                    </Tab>
+                  </TabList>
+                  <TabPanels>
+                    <TabPanel px={0} pt={4}>
+                      <InlineChat
+                        exerciseId={exerciseId!}
+                        mode="checkpoints"
+                        isReadOnly={isReadOnly}
+                        onAccepted={handleAccepted}
+                      />
+                    </TabPanel>
+                    <TabPanel px={0} pt={4}>
+                      <InlineChat
+                        exerciseId={exerciseId!}
+                        mode="patterns"
+                        patternsEnabled={checkpoints.length > 0}
+                        isReadOnly={isReadOnly}
+                        onAccepted={handleAccepted}
+                      />
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
+              </CardBody>
+            </Card>
+          )}
         </VStack>
 
         {/* Delete dialog */}

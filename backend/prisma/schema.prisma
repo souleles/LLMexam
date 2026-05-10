@@ -12,6 +12,7 @@ model Exercise {
   title         String
   pdfUrl        String
   status        ExerciseStatus @default(DRAFT)
+  exerciseType  ExerciseType   @default(EXERCISE)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   extractedText String?
@@ -153,6 +154,11 @@ enum ExerciseStatus {
   DRAFT
   APPROVED
   GRADED
+}
+
+enum ExerciseType {
+  EXERCISE
+  PROJECT
 }
 
 enum ConversationRole {

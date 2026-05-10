@@ -92,6 +92,7 @@ export class ExercisesService {
       title: exercise.title,
       originalPdfPath: exercise.pdfUrl,
       status: exercise.status.toLowerCase() as 'draft' | 'approved',
+      exerciseType: exercise.exerciseType.toLowerCase() as 'exercise' | 'project',
       createdAt: exercise.createdAt.toISOString(),
       updatedAt: exercise.updatedAt.toISOString(),
       checkpointCount: exercise.checkpoints?.length || 0,

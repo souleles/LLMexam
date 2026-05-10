@@ -1,12 +1,12 @@
-import { api, Exercise } from '@/lib/api';
+import { api, Exercise, ExerciseType } from '@/lib/api';
 import { UseMutationOptions, useMutation } from '@tanstack/react-query';
 
 export function useCreateExercise(
-  options?: Omit<UseMutationOptions<Exercise, Error, { file: File; title: string }>, 'mutationFn'>,
+  options?: Omit<UseMutationOptions<Exercise, Error, { file: File; title: string; exerciseType: ExerciseType }>, 'mutationFn'>,
 ) {
   return useMutation({
-    mutationFn: ({ file, title }: { file: File; title: string }) =>
-      api.exercises.create(file, title),
+    mutationFn: ({ file, title, exerciseType }: { file: File; title: string; exerciseType: ExerciseType }) =>
+      api.exercises.create(file, title, exerciseType),
     ...options,
   });
 }

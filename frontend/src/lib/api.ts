@@ -5,12 +5,18 @@ export enum ExerciseStatus {
   APPROVED = 'approved',
 }
 
+export enum ExerciseType {
+  EXERCISE = 'exercise',
+  PROJECT = 'project',
+}
+
 export interface Exercise {
   id: string;
   title: string;
   originalPdfPath: string;
   extractedText?: string;
   status: ExerciseStatus;
+  exerciseType: ExerciseType;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +44,7 @@ export interface Submission {
   id: string;
   exerciseId: string;
   exerciseTitle: string;
+  exerciseType?: ExerciseType;
   fileName: string;
   fileUrl: string;
   fileType: string;
@@ -142,10 +149,11 @@ export const api = {
       const { data } = await httpClient.get(`/api/exercises/${id}`);
       return data;
     },
-    create: async (file: File, title: string): Promise<Exercise> => {
+    create: async (file: File, title: string, exerciseType: ExerciseType): Promise<Exercise> => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('title', title);
+      formData.append('exerciseType', exerciseType.toUpperCase());
       const { data } = await httpClient.post('/api/exercises/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
