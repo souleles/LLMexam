@@ -6,7 +6,19 @@ ExamChecker is a web application for university professors to:
 1. Upload exercise PDFs and chat with an LLM to extract structured grading checkpoints
 2. Upload batches of student submissions (as ZIP/RAR archives)
 3. Automatically grade submissions using **deterministic regex** and/or **LLM semantic** matching
-4. Review, compare, and optionally override grades; generate per-student narrative reports
+4. Grade open-ended **project submissions** without pre-defined checkpoints — the LLM discovers the questions from the exercise PDF automatically
+5. Review, compare, and optionally override grades; generate per-student narrative reports
+
+---
+
+## Exercise Types
+
+| Type | Description |
+|------|-------------|
+| `EXERCISE` | Standard exercise with professor-defined checkpoints. Uses the 3-phase workflow below (chat → checkpoint extraction → regex/LLM grading). |
+| `PROJECT` | Open-ended project with no pre-defined checkpoints. The LLM discovers questions from the exercise PDF at grading time. No chat interface shown; only LLM grading is available. |
+
+The `exerciseType` field on the `exercises` table controls which workflow applies.
 
 ---
 
@@ -22,6 +34,8 @@ ExamChecker is a web application for university professors to:
 ---
 
 ## 3-Phase Workflow
+
+> This workflow applies to **EXERCISE** type. See [Project Grading](#project-grading) below for PROJECT type.
 
 ### Phase 1: Exercise Upload & Checkpoint Extraction
 1. Professor uploads exercise PDF via React frontend
@@ -64,6 +78,37 @@ Both scores coexist. Professor can also set `teacherScore` as a manual override.
 
 ---
 
+## Project Grading
+
+For `PROJECT`-type exercises the workflow differs from the standard 3-phase flow.
+
+### Project Creation (simplified Phase 1)
+1. Professor uploads the exercise PDF and selects type **"Project"**
+2. NestJS extracts text via `/extract-pdf` and creates the exercise with `status: DRAFT`
+3. No chat interface is shown — no checkpoints are defined at this stage
+4. Professor clicks Approve; status becomes `APPROVED` immediately (no checkpoints required)
+
+### Project Grading — Method C: LLM Question Discovery (Python `project_grading_service.py`, via `/grade-project-llm`)
+Triggered on first submission upload for a PROJECT exercise.
+
+1. NestJS sends `exercise_text` (from the stored exercise PDF) plus annotated `files[]` to `/grade-project-llm`
+2. Python uses GPT-4o to **discover questions** directly from the exercise text — it identifies what the exercise requires without any pre-defined checkpoints
+3. LLM returns `{question_id, description, matched, matched_snippets[]}` for each discovered question (IDs are `Q1`, `Q2`, …)
+4. NestJS creates a `Checkpoint` record for each discovered question (populating `description`; `pattern` is empty)
+5. Results stored using the LLM fields: `checkpoint_results.llmMatched` + `llmMatchedSnippets`
+6. Aggregate: `grading_results.llmScore` and `llmPassedCheckpoints`
+
+### Re-grading a Project
+After the first grading the questions exist as checkpoints. Re-grading calls the standard `/grade-llm` endpoint (not `/grade-project-llm`) with those checkpoints — no re-discovery.
+
+### Frontend Differences for Projects
+- Chat tabs (checkpoint generation, pattern refinement) are hidden
+- Regex grading button is hidden (projects are LLM-only)
+- Exercise detail page shows a **"Project"** badge instead of **"Άσκηση"**
+- Approval requires only `status: DRAFT` (no checkpoint count check)
+
+---
+
 ## Database Schema
 
 ```sql
@@ -73,6 +118,7 @@ id UUID PK | username (unique) | password (hashed) | role | createdAt | updatedA
 -- exercises
 id UUID PK | title | pdfUrl | extractedText
 status ENUM(DRAFT, APPROVED, GRADED)
+exerciseType ENUM(EXERCISE, PROJECT) DEFAULT EXERCISE
 teacherid FK→users | createdAt | updatedAt
 
 -- checkpoints
@@ -140,7 +186,8 @@ miniReport TEXT? | miniReportAt DateTime? | teacherid FK→users | createdAt | u
 | POST | `/generate-checkpoints` | SSE stream: LLM checkpoint generation (two-pass) |
 | POST | `/generate-patterns` | SSE stream: LLM pattern refinement |
 | POST | `/grade` | Deterministic regex grading |
-| POST | `/grade-llm` | LLM semantic grading (GPT-4o) |
+| POST | `/grade-llm` | LLM semantic grading (GPT-4o) with pre-defined checkpoints |
+| POST | `/grade-project-llm` | LLM question discovery + grading for PROJECT exercises (GPT-4o) |
 | POST | `/generate-mini-report` | LLM Greek-language student performance report |
 | POST | `/parse-sql` | sqlparse SQL token tree |
 
