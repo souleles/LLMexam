@@ -107,7 +107,8 @@ class GradeResponse(BaseModel):
 class CheckpointResultInfo(BaseModel):
     """Checkpoint result for mini report."""
     description: str
-    matched: bool
+    matched: Optional[bool] = None      # regex grading result; None if not graded by regex
+    llm_matched: Optional[bool] = None  # LLM grading result; None if not graded by LLM
 
 
 class SubmissionSummary(BaseModel):
@@ -115,8 +116,10 @@ class SubmissionSummary(BaseModel):
     exercise_title: str
     submitted_at: str
     total_checkpoints: int
-    passed_checkpoints: int
-    score: float
+    passed_checkpoints: Optional[int] = None   # None when regex grading was not run
+    score: Optional[float] = None              # None when regex grading was not run
+    llm_passed_checkpoints: Optional[int] = None  # None when LLM grading was not run
+    llm_score: Optional[float] = None            # None when LLM grading was not run
     teacher_score: Optional[float] = None
     checkpoint_results: list[CheckpointResultInfo] = Field(default_factory=list)
 

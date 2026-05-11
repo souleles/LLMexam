@@ -352,15 +352,27 @@ async def generate_mini_report(request: MiniReportRequest) -> str:
     else:
         lines = []
         for i, sub in enumerate(request.submissions, 1):
-            if sub.teacher_score is not None:
-                teacher_pct = (sub.teacher_score / sub.total_checkpoints * 100) if sub.total_checkpoints else 0
-                score_str = f"Βαθμός καθηγητή: {int(sub.teacher_score)}/{sub.total_checkpoints} ({teacher_pct:.0f}%)"
-            else:
-                score_str = f"Αυτόματος βαθμός: {sub.passed_checkpoints}/{sub.total_checkpoints} ({sub.score:.0f}%)"
-            lines.append(f"{i}. Εργασία: {sub.exercise_title} | Ημερομηνία: {sub.submitted_at} | {score_str}")
+            lines.append(f"{i}. Εργασία: {sub.exercise_title} | Ημερομηνία: {sub.submitted_at}")
+
+            if sub.teacher_score is not None and sub.total_checkpoints:
+                teacher_pct = sub.teacher_score / sub.total_checkpoints * 100
+                lines.append(f"   Βαθμός καθηγητή: {int(sub.teacher_score)}/{sub.total_checkpoints} ({teacher_pct:.0f}%)")
+
+            if sub.passed_checkpoints is not None and sub.score is not None:
+                lines.append(f"   Αυτόματος βαθμός (Regex): {sub.passed_checkpoints}/{sub.total_checkpoints} ({sub.score:.0f}%)")
+
+            if sub.llm_passed_checkpoints is not None and sub.llm_score is not None:
+                lines.append(f"   Αυτόματος βαθμός (LLM): {sub.llm_passed_checkpoints}/{sub.total_checkpoints} ({sub.llm_score:.0f}%)")
+
             for cp in sub.checkpoint_results:
-                status = "Επιτυχία" if cp.matched else "Αποτυχία"
-                lines.append(f"   - {cp.description}: {status}")
+                parts = []
+                if cp.matched is not None:
+                    parts.append(f"Regex: {'✓' if cp.matched else '✗'}")
+                if cp.llm_matched is not None:
+                    parts.append(f"LLM: {'✓' if cp.llm_matched else '✗'}")
+                if parts:
+                    lines.append(f"   - {cp.description}: {', '.join(parts)}")
+
         submissions_text = "\n".join(lines)
 
     messages = [

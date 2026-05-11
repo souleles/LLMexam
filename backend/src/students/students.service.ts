@@ -32,7 +32,8 @@ export class StudentsService {
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
       rows = this.parseRows(raw);
     } catch (error) {
-      throw new BadRequestException(`Failed to parse file: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(`Failed to parse file: ${errorMessage}`);
     }
 
     if (rows.length === 0) {
@@ -193,18 +194,26 @@ export class StudentsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const submissions = submissionStudents.map((ss) => ({
-      exercise_title: ss.submission.exercise.title,
-      submitted_at: new Date(ss.submission.createdAt).toLocaleDateString('el-GR'),
-      total_checkpoints: ss.submission.gradingResult?.totalCheckpoints ?? 0,
-      passed_checkpoints: ss.submission.gradingResult?.passedCheckpoints ?? 0,
-      score: ss.submission.gradingResult?.score ?? 0,
-      teacher_score: ss.submission.gradingResult?.teacherScore ?? null,
-      checkpoint_results: (ss.submission.gradingResult?.checkpointResults ?? []).map((cr) => ({
-        description: cr.checkpoint.description,
-        matched: cr.matched,
-      })),
-    }));
+    const submissions = submissionStudents.map((ss) => {
+      const gr = ss.submission.gradingResult;
+      const regexDone = gr?.passedCheckpoints !== null && gr?.passedCheckpoints !== undefined;
+      const llmDone = gr?.llmPassedCheckpoints !== null && gr?.llmPassedCheckpoints !== undefined;
+      return {
+        exercise_title: ss.submission.exercise.title,
+        submitted_at: new Date(ss.submission.createdAt).toLocaleDateString('el-GR'),
+        total_checkpoints: gr?.totalCheckpoints ?? 0,
+        passed_checkpoints: regexDone ? gr.passedCheckpoints : null,
+        score: regexDone ? gr.score : null,
+        llm_passed_checkpoints: llmDone ? gr.llmPassedCheckpoints : null,
+        llm_score: llmDone ? gr.llmScore : null,
+        teacher_score: gr?.teacherScore ?? null,
+        checkpoint_results: (gr?.checkpointResults ?? []).map((cr) => ({
+          description: cr.checkpoint.description,
+          matched: regexDone ? cr.matched : null,
+          llm_matched: llmDone ? (cr.llmMatched ?? null) : null,
+        })),
+      };
+    });
 
     try {
       const response = await axios.post(
@@ -225,9 +234,10 @@ export class StudentsService {
 
       return { report };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Error generating mini report from Python service:', {
         studentId,
-        message: error.message,
+        message: errorMessage,
       });
       throw new Error('Failed to generate mini report from LLM service');
     }
