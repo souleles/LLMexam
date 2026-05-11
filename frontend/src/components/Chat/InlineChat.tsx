@@ -1,22 +1,22 @@
-import { useLlmStream } from '@/hooks/useLlmStream';
-import { QueryKeys } from '@/lib/queryKeys';
-import { useGetConversations } from '@/hooks/use-get-conversations';
 import { useAcceptCheckpoints } from '@/hooks/use-accept-checkpoints';
 import { useAcceptPatterns } from '@/hooks/use-accept-patterns';
+import { useGetConversations } from '@/hooks/use-get-conversations';
+import { useLlmStream } from '@/hooks/useLlmStream';
 import { parseMessageContent } from '@/lib/parseMessageContent';
+import { QueryKeys } from '@/lib/queryKeys';
 import {
   Box,
   Button,
   HStack,
-  Input,
   Spinner,
   Text,
-  VStack,
+  Textarea,
+  useToast,
+  VStack
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiCheck, FiSend } from 'react-icons/fi';
-import { useToast } from '@chakra-ui/react';
 import { MessageBubble } from './MessageBubble';
 import { ChatMessage } from './types';
 
@@ -303,12 +303,13 @@ export function InlineChat({
 
       {!isReadOnly && (
         <HStack>
-          <Input
+          <Textarea
             placeholder={mode === 'checkpoints' ? 'Ρωτήστε για checkpoints...' : 'Ρωτήστε για patterns...'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             disabled={streaming}
+            rows={2}
           />
           <Button
             leftIcon={streaming ? <Spinner size="sm" /> : <FiSend />}
