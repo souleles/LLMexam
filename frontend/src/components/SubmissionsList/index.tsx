@@ -97,13 +97,14 @@ export function SubmissionsList({
                 <HStack spacing={2}>
                   {submission.gradingResult && (
                     <>
-                      <Badge
-                        colorScheme={submission.gradingResult.passedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.passedCheckpoints > 0 ? 'yellow' : 'red'}
-                        textTransform="none"
-                      >
-                        Regex: {submission.gradingResult.passedCheckpoints}/
-                        {submission.gradingResult.totalCheckpoints}
-                      </Badge>
+                      {submission.gradingResult.passedCheckpoints != null && (
+                        <Badge
+                          colorScheme={submission.gradingResult.passedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.passedCheckpoints > 0 ? 'yellow' : 'red'}
+                          textTransform="none"
+                        >
+                          Regex: {submission.gradingResult.passedCheckpoints}/
+                          {submission.gradingResult.totalCheckpoints}
+                        </Badge>)}
                       {submission.gradingResult.llmPassedCheckpoints != null && (
                         <Badge
                           colorScheme={submission.gradingResult.llmPassedCheckpoints === submission.gradingResult.totalCheckpoints ? 'green' : submission.gradingResult.llmPassedCheckpoints > 0 ? 'yellow' : 'red'}
@@ -113,17 +114,12 @@ export function SubmissionsList({
                           {submission.gradingResult.totalCheckpoints}
                         </Badge>
                       )}
-                      {submission.gradingResult.teacherScore != null
-                        ? (
-                          <Badge colorScheme="blue" textTransform="none">
-                            Καθηγητής: {submission.gradingResult.teacherScore}/
-                            {submission.gradingResult.totalCheckpoints}
-                          </Badge>
-                        ) : (
-                          <Text fontSize="sm" fontWeight="bold">
-                            {Math.round(submission.gradingResult.score)}%
-                          </Text>
-                        )}
+                      {submission.gradingResult.teacherScore != null && (
+                        <Badge colorScheme="blue" textTransform="none">
+                          Καθηγητής: {submission.gradingResult.teacherScore}/
+                          {submission.gradingResult.totalCheckpoints}
+                        </Badge>
+                      )}
                     </>
                   )}
                   <Icon as={FiChevronRight} color="gray.400" />

@@ -3,12 +3,12 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmissionResponseDto } from './dto/submission.dto';
-import * as AdmZip from 'adm-zip';
+import AdmZip from 'adm-zip';
 import { createExtractorFromData } from 'node-unrar-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { firstValueFrom } from 'rxjs';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 
 const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cs', '.php', '.rb', '.go', '.pdf'];
 
@@ -229,7 +229,7 @@ export class SubmissionsService {
         }
       }
     } catch (error) {
-      throw new BadRequestException(`Failed to extract files: ${error.message}`);
+      throw new BadRequestException(`Failed to extract files: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     if (extractedFiles.length === 0) {
@@ -599,7 +599,7 @@ export class SubmissionsService {
     const gradingResult = await tx.gradingResult.upsert({
       where: { submissionId },
       create: isLlm
-        ? { submission: { connect: { id: submissionId } }, totalCheckpoints: total, passedCheckpoints: 0, score: 0, llmPassedCheckpoints: passed, llmScore: (passed / total) * 100 }
+        ? { submission: { connect: { id: submissionId } }, totalCheckpoints: total, passedCheckpoints: null, score: null, llmPassedCheckpoints: passed, llmScore: (passed / total) * 100 }
         : { submission: { connect: { id: submissionId } }, totalCheckpoints: total, passedCheckpoints: passed, score: (passed / total) * 100 },
       update: isLlm
         ? { totalCheckpoints: total, llmPassedCheckpoints: passed, llmScore: (passed / total) * 100 }
@@ -727,8 +727,8 @@ export class SubmissionsService {
         create: {
           submission: { connect: { id: submissionId } },
           totalCheckpoints,
-          passedCheckpoints: 0,
-          score: 0,
+          passedCheckpoints: null,
+          score: null,
           llmPassedCheckpoints: passed,
           llmScore,
         },
@@ -864,8 +864,8 @@ export class SubmissionsService {
       create: {
         submission: { connect: { id: submissionId } },
         totalCheckpoints,
-        passedCheckpoints: 0,
-        score: 0,
+        passedCheckpoints: null,
+        score: null,
         llmPassedCheckpoints: passed,
         llmScore,
       },
@@ -920,7 +920,8 @@ export class SubmissionsService {
       );
       return data.extracted_text ?? null;
     } catch (err) {
-      this.logger.error(`PDF extraction failed for ${filename}: ${err.message}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.error(`PDF extraction failed for ${filename}: ${errorMessage}`);
       return null;
     }
   }

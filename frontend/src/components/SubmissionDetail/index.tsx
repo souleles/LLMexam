@@ -171,7 +171,7 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
 
               {/* Summary */}
               <HStack spacing={12} p={3} bg="gray.700" borderRadius="md">
-                {!isProject && (
+                {!isProject && submission.gradingResult.passedCheckpoints != null && submission.gradingResult.passedCheckpoints != undefined && (
                   <VStack align="start" spacing={0}>
                     <Text fontSize="xs" color="gray.400">
                       Βαθμός Regex
@@ -238,8 +238,10 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                   return {
                     checkpointId: cr.checkpointId,
                     checkpointDescription: cr.checkpointDescription,
-                    regexMatched: cr.matched,
-                    regexSnippets: parseSnippets(cr.matchedSnippets),
+                    ...(submission?.gradingResult?.passedCheckpoints != null && submission?.gradingResult?.passedCheckpoints != undefined && {
+                      regexMatched: cr.matched,
+                      regexSnippets: parseSnippets(cr.matchedSnippets),
+                    }),
                     ...(cr.llmMatched !== undefined && {
                       llmMatched: cr.llmMatched,
                       llmSnippets: parseSnippets(cr.llmMatchedSnippets ?? []),
