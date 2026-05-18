@@ -186,3 +186,14 @@ class ProjectQuestionResult(BaseModel):
 class ProjectGradeResponse(BaseModel):
     """Response for /grade-project-llm endpoint."""
     results: list[ProjectQuestionResult]
+
+
+class ProjectReportRequest(BaseModel):
+    """Request body for /generate-project-report endpoint."""
+    exercise_title: str = ""
+    questions: list[dict]  # [{description: str, matched: bool}]
+
+
+class ProjectReportResponse(BaseModel):
+    """Response for /generate-project-report endpoint."""
+    report: str

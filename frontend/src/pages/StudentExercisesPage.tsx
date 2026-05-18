@@ -42,6 +42,7 @@ export function StudentExercisesPage() {
   const [llmResults, setLlmResults] = useState<GradingResult[]>([]);
   const [teacherPassed, setTeacherPassed] = useState<number>(0);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [projectReport, setProjectReport] = useState<string | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -73,6 +74,7 @@ export function StudentExercisesPage() {
         setRegexResults(data.checkpoints);
         setTeacherPassed(data.checkpoints.filter((r: any) => r.matched).length);
       }
+      setProjectReport(data.projectReport ?? null);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -100,6 +102,7 @@ export function StudentExercisesPage() {
       if (data.checkpoints) {
         setLlmResults(data.checkpoints);
       }
+      setProjectReport(data.projectReport ?? null);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -319,6 +322,15 @@ export function StudentExercisesPage() {
                           </HStack>
                         </HStack>
                       </VStack>
+                      {isProjectExercise && projectReport && (
+                        <>
+                          <Divider />
+                          <VStack align="stretch" spacing={1}>
+                            <Text fontWeight="bold" fontSize="sm">Project Report</Text>
+                            <Text fontSize="sm" color="gray.200" lineHeight="tall">{projectReport}</Text>
+                          </VStack>
+                        </>
+                      )}
                       <Divider />
                       <VStack align="stretch">
                         <HStack w="full" flexWrap="wrap">

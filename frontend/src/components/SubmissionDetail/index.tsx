@@ -288,6 +288,33 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
         </Box>
       )}
 
+      {/* Project Report */}
+      {isProject && submission.gradingResult?.projectReport && (
+        <Card>
+          <CardBody>
+            <VStack align="stretch" spacing={2}>
+              <HStack justify="space-between">
+                <Text fontWeight="bold">Project Report</Text>
+                {submission.gradingResult.projectReportAt && (
+                  <Text fontSize="xs" color="gray.500">
+                    {new Date(submission.gradingResult.projectReportAt).toLocaleDateString('el-GR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                )}
+              </HStack>
+              <Text fontSize="sm" lineHeight="tall" color="gray.200">
+                {submission.gradingResult.projectReport}
+              </Text>
+            </VStack>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Teacher Score Modal */}
       <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
         <ModalOverlay />

@@ -65,6 +65,8 @@ export interface Submission {
     teacherScore?: number | null;
     llmPassedCheckpoints?: number;
     llmScore?: number;
+    projectReport?: string | null;
+    projectReportAt?: string | null;
     checkpointResults?: Array<{
       id: string;
       checkpointId: string;
@@ -199,7 +201,7 @@ export const api = {
       studentIds: string[],
       file: File,
       method: 'regex' | 'llm' = 'regex',
-    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm' }> => {
+    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm'; projectReport?: string | null }> => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('exerciseId', exerciseId);

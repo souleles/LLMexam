@@ -8,7 +8,7 @@ import { createExtractorFromData } from 'node-unrar-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { firstValueFrom } from 'rxjs';
-import FormData from 'form-data';
+import FormData = require('form-data');
 
 const ALLOWED_EXTENSIONS = ['.sql', '.txt', '.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.cs', '.php', '.rb', '.go', '.pdf'];
 
@@ -40,6 +40,7 @@ export interface UploadAndGradeResult {
   submissionId: string;
   checkpoints: CheckpointMatch[];
   method: 'regex' | 'llm';
+  projectReport?: string | null;
 }
 
 type FetchedGradeData =
@@ -72,7 +73,7 @@ export class SubmissionsService {
     studentIds: string[],
     file: Express.Multer.File,
     method: 'regex' | 'llm' = 'regex',
-  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
+  ): Promise<UploadAndGradeResult> {
     // 1. Verify exercise exists and is approved
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -218,9 +219,10 @@ export class SubmissionsService {
         const originalName = decodeFilename(file.originalname);
         if (ext === '.pdf') {
           const text = await this.extractPdfContent(fs.readFileSync(file.path), originalName);
-          if (text !== null) {
-            extractedFiles.push({ relativePath: originalName, content: text });
+          if (text === null) {
+            throw new BadRequestException(`Failed to extract text from PDF "${originalName}". Ensure the Python service is running and the file is a valid PDF.`);
           }
+          extractedFiles.push({ relativePath: originalName, content: text });
         } else {
           extractedFiles.push({
             relativePath: originalName,
@@ -244,7 +246,7 @@ export class SubmissionsService {
     const gradeData = await this.fetchGradeData(exercise, extractedFiles, method);
 
     // 6. Atomically save submission + grading results
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       let submission: any;
       if (existingSubmissionId) {
         submission = await tx.submission.update({
@@ -278,6 +280,13 @@ export class SubmissionsService {
       );
       return { checkpoints: checkpointMatches, submissionId: submission.id, method: resolvedMethod };
     });
+
+    if ((exercise as any).exerciseType === 'PROJECT') {
+      const projectReport = await this.generateAndSaveProjectReport(result.submissionId, result.checkpoints, exercise!.title);
+      return { ...result, projectReport };
+    }
+
+    return result;
   }
 
   async regradeSubmission(
@@ -317,7 +326,9 @@ export class SubmissionsService {
     }
 
     if ((exercise as any).exerciseType === 'PROJECT') {
-      return this.gradeProjectAndSave(submissionId, exercise, extractedFiles);
+      const result = await this.gradeProjectAndSave(submissionId, exercise, extractedFiles);
+      await this.generateAndSaveProjectReport(submissionId, result.checkpoints, exercise.title);
+      return result;
     }
     return this.gradeAndSave(submissionId, exercise, extractedFiles, method);
   }
@@ -466,6 +477,8 @@ export class SubmissionsService {
             llmScore: submission.gradingResult.llmScore,
             teacherScore: submission.gradingResult.teacherScore,
             gradedAt: submission.gradingResult.gradedAt,
+            projectReport: (submission.gradingResult as any).projectReport ?? null,
+            projectReportAt: (submission.gradingResult as any).projectReportAt ?? null,
             checkpointResults: submission.gradingResult.checkpointResults.map((cr) => ({
               id: cr.id,
               checkpointId: cr.checkpointId,
@@ -768,6 +781,34 @@ export class SubmissionsService {
     return { checkpoints: checkpointMatches, submissionId, method };
   }
 
+  private async generateAndSaveProjectReport(
+    submissionId: string,
+    checkpoints: CheckpointMatch[],
+    exerciseTitle: string,
+  ): Promise<string | null> {
+    try {
+      const questions = checkpoints.map((c) => ({
+        description: c.checkpointDescription,
+        matched: c.matched,
+      }));
+      const { data } = await firstValueFrom(
+        this.httpService.post(`${this.pythonServiceUrl}/generate-project-report`, {
+          exercise_title: exerciseTitle,
+          questions,
+        }),
+      );
+      await (this.prisma as any).gradingResult.update({
+        where: { submissionId },
+        data: { projectReport: data.report, projectReportAt: new Date() },
+      });
+      this.logger.log(`Saved project report for submission ${submissionId}`);
+      return data.report as string;
+    } catch (err) {
+      this.logger.error(`Failed to generate project report for submission ${submissionId}: ${err}`);
+      return null;
+    }
+  }
+
   private async gradeProjectAndSave(
     submissionId: string,
     exercise: { id: string; extractedText?: string | null; checkpoints: Array<{ id: string; description: string; order: number; pattern: string; caseSensitive: boolean }> },
@@ -910,7 +951,7 @@ export class SubmissionsService {
   }
 
   private async extractPdfContent(buffer: Buffer, filename: string): Promise<string | null> {
-    try {
+    const attempt = async () => {
       const formData = new FormData();
       formData.append('file', buffer, { filename, contentType: 'application/pdf' });
       const { data } = await firstValueFrom(
@@ -919,10 +960,20 @@ export class SubmissionsService {
         }),
       );
       return data.extracted_text ?? null;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      this.logger.error(`PDF extraction failed for ${filename}: ${errorMessage}`);
-      return null;
+    };
+
+    try {
+      return await attempt();
+    } catch (firstErr) {
+      this.logger.warn(`PDF extraction failed for ${filename} (attempt 1), retrying in 500ms…`);
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        return await attempt();
+      } catch (secondErr) {
+        const errorMessage = secondErr instanceof Error ? secondErr.message : String(secondErr);
+        this.logger.error(`PDF extraction failed for ${filename} after 2 attempts: ${errorMessage}`);
+        return null;
+      }
     }
   }
 

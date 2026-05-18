@@ -98,6 +98,8 @@ model GradingResult {
   teacherScore         Float?
   llmPassedCheckpoints Int?
   llmScore             Float?
+  projectReport        String?
+  projectReportAt      DateTime?
   checkpointResults    CheckpointResult[]
   submission           Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 

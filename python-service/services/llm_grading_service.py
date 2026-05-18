@@ -11,44 +11,11 @@ from openai import RateLimitError, APIError
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from models import LlmGradeRequest, LlmGradeResponse, LlmCheckpointResult, LlmMatchedSnippet
+from prompts.llm_grading_prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
 MAX_CHUNK_CHARS = 80_000
-
-SYSTEM_PROMPT = """You are an expert code grader for a university exam. Analyze student code submissions and determine whether each requirement (checkpoint) is satisfied.
-
-For each checkpoint you receive:
-- An ID (use this exactly in your response)
-- A description of the requirement
-- An optional regex hint (for reference only — do NOT apply it mechanically)
-
-For each checkpoint determine:
-1. Is the requirement satisfied in the code? (matched: true/false)
-2. If matched, the file name, line number, and exact line text where the requirement is first satisfied.
-
-Rules:
-- Base your judgment on the DESCRIPTION, not the regex
-- Line numbers are shown as "  42 | code here" — use the number before the pipe
-- Provide at most 3 snippets per checkpoint (the most relevant ones)
-
-Respond with ONLY valid JSON, no explanation. Format:
-{
-  "results": [
-    {
-      "checkpoint_id": "<exact id>",
-      "matched": true,
-      "matched_snippets": [
-        {"file": "filename.sql", "line": 42, "snippet": "the exact line text"}
-      ]
-    },
-    {
-      "checkpoint_id": "<exact id>",
-      "matched": false,
-      "matched_snippets": []
-    }
-  ]
-}"""
 
 
 def _annotate_single_file(f) -> str:
@@ -191,10 +158,9 @@ async def grade_submission_with_llm(request: LlmGradeRequest) -> LlmGradeRespons
     all_chunk_results: list[list] = []
 
     for i, chunk in enumerate(file_chunks):
-        user_prompt = (
-            f"Checkpoints to evaluate:\n\n{checkpoints_text}\n"
-            f"Source code files:\n\n{chunk}\n\n"
-            "Evaluate each checkpoint and respond with JSON only."
+        user_prompt = USER_PROMPT_TEMPLATE.format(
+            checkpoints_text=checkpoints_text,
+            files_text=chunk,
         )
 
         try:

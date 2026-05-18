@@ -24,13 +24,15 @@ from models import (
     LlmGradeResponse,
     ProjectGradeRequest,
     ProjectGradeResponse,
+    ProjectReportRequest,
+    ProjectReportResponse,
 )
 from services.pdf_service import extract_text_from_pdf
 from services.llm_service import stream_checkpoint_generation, stream_pattern_generation, generate_mini_report
 from services.sql_service import parse_sql
 from services.grading_service import grade_submission
 from services.llm_grading_service import grade_submission_with_llm
-from services.project_grading_service import grade_project_with_llm
+from services.project_grading_service import grade_project_with_llm, generate_project_report
 
 # Load environment variables
 load_dotenv()
@@ -198,6 +200,21 @@ async def generate_mini_report_endpoint(request: MiniReportRequest):
     logger.info(f"Received mini report request for student {request.student_identifier}")
     report_text = await generate_mini_report(request)
     return MiniReportResponse(report=report_text)
+
+
+@app.post("/generate-project-report", response_model=ProjectReportResponse)
+async def generate_project_report_endpoint(request: ProjectReportRequest):
+    """
+    Generate a one-paragraph Greek report for a project submission.
+    Summarises what the student did well and where they fell short.
+    """
+    logger.info(
+        "Received project report request: %d questions, title=%r",
+        len(request.questions),
+        request.exercise_title,
+    )
+    report_text = await generate_project_report(request)
+    return ProjectReportResponse(report=report_text)
 
 
 @app.post("/parse-sql", response_model=SqlParseResponse)

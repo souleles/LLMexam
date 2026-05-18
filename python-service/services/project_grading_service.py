@@ -12,8 +12,9 @@ from fastapi import HTTPException
 from openai import RateLimitError, APIError
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
-from models import ProjectGradeRequest, ProjectGradeResponse, ProjectQuestionResult, LlmMatchedSnippet
+from models import ProjectGradeRequest, ProjectGradeResponse, ProjectQuestionResult, LlmMatchedSnippet, ProjectReportRequest
 from prompts.project_grading_prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+from prompts.project_report_prompts import SYSTEM_PROMPT_PROJECT_REPORT, USER_PROMPT_PROJECT_REPORT
 
 logger = logging.getLogger(__name__)
 
@@ -124,3 +125,47 @@ async def grade_project_with_llm(request: ProjectGradeRequest) -> ProjectGradeRe
     logger.info("Project grading complete: %d/%d questions matched", passed, len(results))
 
     return ProjectGradeResponse(results=results)
+
+
+async def generate_project_report(request: ProjectReportRequest) -> str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY not found in environment")
+
+    questions_lines = []
+    for q in request.questions:
+        mark = "✓" if q.get("matched") else "✗"
+        questions_lines.append(f"{mark} {q.get('description', '')}")
+    questions_text = "\n".join(questions_lines)
+
+    user_prompt = USER_PROMPT_PROJECT_REPORT.format(
+        exercise_title=request.exercise_title or "Project",
+        questions_text=questions_text,
+    )
+
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0.3,
+        api_key=api_key,
+        http_client=httpx.Client(),
+        http_async_client=httpx.AsyncClient(),
+    )
+
+    logger.info("Generating project report for %d questions", len(request.questions))
+
+    try:
+        response = await llm.ainvoke([
+            SystemMessage(content=SYSTEM_PROMPT_PROJECT_REPORT),
+            HumanMessage(content=user_prompt),
+        ])
+    except RateLimitError as e:
+        logger.error("OpenAI rate limit exceeded during project report: %s", e)
+        raise HTTPException(status_code=429, detail="Υπέρβαση ορίου αιτημάτων OpenAI.")
+    except APIError as e:
+        logger.error("OpenAI API error during project report: %s", e)
+        raise HTTPException(status_code=502, detail=f"Σφάλμα OpenAI API: {e.message}")
+    except Exception as e:
+        logger.error("Unexpected error during project report generation: %s", e)
+        raise HTTPException(status_code=500, detail="Αδυναμία δημιουργίας αναφοράς.")
+
+    return response.content.strip()

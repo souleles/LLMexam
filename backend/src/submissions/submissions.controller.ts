@@ -67,7 +67,7 @@ export class SubmissionsController {
     @Body('studentId') rawStudentId: string | string[],
     @UploadedFile() file: Express.Multer.File,
     @Query('method', new DefaultValuePipe('regex')) method: string,
-  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
+  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm'; projectReport?: string | null }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
