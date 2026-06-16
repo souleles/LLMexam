@@ -8,6 +8,11 @@ from models import GradeRequest, GradeResponse, CheckpointResult, MatchedSnippet
 
 logger = logging.getLogger(__name__)
 
+# File extensions treated as SQL content (split into statements before matching).
+# pdf is included because pdfplumber extracts text that preserves the semicolon
+# delimiters, so the same per-statement splitting logic applies.
+_SQL_EXTENSIONS = {'sql', 'txt', 'pdf'}
+
 # Splits SQL files into logical blocks (procedure, trigger, function, event) so
 # that a regex with [\s\S]*? cannot jump from one block into another.
 _BLOCK_BOUNDARY = re.compile(
@@ -39,6 +44,32 @@ def _split_into_blocks(content: str) -> list[tuple[int, str]]:
 
     logger.debug("Split file into %d block(s)", len(blocks))
     return blocks
+
+
+def _split_into_statements(block_start_line: int, block_text: str) -> list[tuple[int, str]]:
+    """
+    Split a SQL block into individual statements delimited by semicolons.
+    Each statement is matched independently so [\s\S]*? patterns cannot
+    jump from one SELECT into another.
+    Returns list of (start_line_1based, statement_text).
+    """
+    statements: list[tuple[int, str]] = []
+    pos = 0
+    current_line = block_start_line
+
+    for m in re.finditer(r';', block_text):
+        stmt = block_text[pos:m.end()]
+        if stmt.strip():
+            statements.append((current_line, stmt))
+        current_line += stmt.count('\n')
+        pos = m.end()
+
+    # Trailing text after the last semicolon (if any)
+    tail = block_text[pos:]
+    if tail.strip():
+        statements.append((current_line, tail))
+
+    return statements if statements else [(block_start_line, block_text)]
 
 
 def grade_submission(request: GradeRequest) -> GradeResponse:
@@ -77,15 +108,24 @@ def grade_submission(request: GradeRequest) -> GradeResponse:
 
             for f in request.files:
                 ext = f.relative_path.rsplit('.', 1)[-1].lower()
-                # Split SQL files into per-block sections so [\s\S]*? patterns
-                # cannot span from one CREATE PROCEDURE/TRIGGER into another.
-                blocks = _split_into_blocks(f.content) if ext == 'sql' else [(1, f.content)]
+                is_sql = ext in _SQL_EXTENSIONS
 
-                for block_start_line, block_text in blocks:
+                # For SQL/TXT files: first split into CREATE blocks, then split
+                # each block into individual statements by semicolon so that
+                # [\s\S]*? patterns cannot jump from one SELECT into another.
+                if is_sql:
+                    raw_blocks = _split_into_blocks(f.content)
+                    units: list[tuple[int, str]] = []
+                    for bline, btext in raw_blocks:
+                        units.extend(_split_into_statements(bline, btext))
+                else:
+                    units = [(1, f.content)]
+
+                for block_start_line, block_text in units:
                     block_matches = list(regex.finditer(block_text))
                     if block_matches:
                         logger.debug(
-                            "  File '%s' block@line%d: %d match(es) found",
+                            "  File '%s' stmt@line%d: %d match(es) found",
                             f.relative_path, block_start_line, len(block_matches),
                         )
                     for m in block_matches:
