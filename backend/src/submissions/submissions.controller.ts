@@ -91,6 +91,13 @@ export class SubmissionsController {
     return this.submissionsService.regradeSubmission(id, gradingMethod);
   }
 
+  @Post(':id/explain-regex-failures')
+  async explainRegexFailures(
+    @Param('id') id: string,
+  ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> }> {
+    return this.submissionsService.explainRegexFailures(id);
+  }
+
   @Get()
   findAll(
     @Query('studentId') studentId?: string,
