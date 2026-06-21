@@ -1,5 +1,6 @@
 import { DownloadButton } from '@/components/DownloadButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
+import { useExplainRegexFailures } from '@/hooks/use-explain-regex-failures';
 import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
 import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import { ExerciseType, Submission } from '@/lib/api';
@@ -31,7 +32,7 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
+import { FiEdit2, FiHelpCircle, FiRefreshCw } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
@@ -81,6 +82,49 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
 
   const handleRegrade = (method: 'regex' | 'llm') => {
     regradeMutation.mutate({ submissionId: submission.id, method });
+  };
+
+  const failedCheckpointResults = (submission.gradingResult?.checkpointResults ?? []).filter(
+    (cr) => cr.matched === false,
+  );
+  const hasFailedRegexCheckpoints = !isProject && failedCheckpointResults.length > 0;
+  const hasSavedExplanations = failedCheckpointResults.some((cr) => !!cr.regexFailureExplanation);
+
+  const {
+    isOpen: isExplainOpen,
+    onOpen: onExplainOpen,
+    onClose: onExplainClose,
+  } = useDisclosure();
+  const [explanations, setExplanations] = useState<
+    Array<{ checkpointId: string; checkpointDescription: string; explanation: string }>
+  >([]);
+
+  const explainMutation = useExplainRegexFailures({
+    onSuccess: (data) => {
+      setExplanations(data.explanations);
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
+      onExplainOpen();
+    },
+    onError: () => {
+      toast({ title: 'Σφάλμα κατά την αιτιολόγηση', status: 'error', duration: 3000 });
+    },
+  });
+
+  const handleExplainFailures = () => {
+    explainMutation.mutate({ submissionId: submission.id });
+  };
+
+  const handleViewSavedExplanations = () => {
+    setExplanations(
+      failedCheckpointResults
+        .filter((cr) => !!cr.regexFailureExplanation)
+        .map((cr) => ({
+          checkpointId: cr.checkpointId,
+          checkpointDescription: cr.checkpointDescription,
+          explanation: cr.regexFailureExplanation as string,
+        })),
+    );
+    onExplainOpen();
   };
 
   return (
@@ -156,6 +200,30 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                   >
                     LLM
                   </Button>
+                  {hasFailedRegexCheckpoints && (
+                    <Button
+                      leftIcon={<FiHelpCircle />}
+                      size="sm"
+                      variant="outline"
+                      colorScheme="orange"
+                      onClick={handleExplainFailures}
+                      isLoading={explainMutation.isPending}
+                      isDisabled={regradeMutation.isPending || explainMutation.isPending}
+                    >
+                      Αιτιολόγηση Αποτυχημένων Regex
+                    </Button>
+                  )}
+                  {hasFailedRegexCheckpoints && hasSavedExplanations && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="orange"
+                      onClick={handleViewSavedExplanations}
+                      isDisabled={explainMutation.isPending}
+                    >
+                      Προβολή Αιτιολογήσεων
+                    </Button>
+                  )}
                   <Button
                     leftIcon={<FiEdit2 />}
                     size="sm"
@@ -355,6 +423,32 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
             >
               Αποθήκευση
             </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Regex Failure Explanations Modal */}
+      <Modal isOpen={isExplainOpen} onClose={onExplainClose} isCentered size="xl" scrollBehavior="inside">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Αιτιολόγηση Αποτυχημένων Regex</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              {explanations.length === 0 ? (
+                <Text fontSize="sm" color="gray.400">Δεν υπάρχουν αιτιολογήσεις προς εμφάνιση.</Text>
+              ) : (
+                explanations.map((e) => (
+                  <Box key={e.checkpointId}>
+                    <Text fontWeight="medium" fontSize="sm" mb={1}>{e.checkpointDescription}</Text>
+                    <Text fontSize="sm" color="gray.300">{e.explanation}</Text>
+                  </Box>
+                ))
+              )}
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" onClick={onExplainClose}>Κλείσιμο</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
