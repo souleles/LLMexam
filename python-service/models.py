@@ -168,6 +168,32 @@ class LlmGradeResponse(BaseModel):
     results: list[LlmCheckpointResult]
 
 
+# Explain regex failures models
+
+class ExplainFailureCheckpoint(BaseModel):
+    """A failed checkpoint to be explained."""
+    id: str
+    description: str
+    pattern: str
+    case_sensitive: bool = False
+
+
+class ExplainFailuresRequest(BaseModel):
+    """Request body for /explain-regex-failures endpoint."""
+    checkpoints: list[ExplainFailureCheckpoint]
+    files: list[FileContent]
+
+
+class CheckpointExplanation(BaseModel):
+    checkpoint_id: str
+    explanation: str
+
+
+class ExplainFailuresResponse(BaseModel):
+    """Response for /explain-regex-failures endpoint."""
+    results: list[CheckpointExplanation]
+
+
 # Project grading models (no pre-defined checkpoints — LLM discovers questions from exercise text)
 
 class ProjectGradeRequest(BaseModel):
