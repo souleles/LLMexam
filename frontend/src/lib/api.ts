@@ -76,6 +76,7 @@ export interface Submission {
       matchedSnippets: Array<{ file?: string; line: number; snippet: string } | string>;
       llmMatched?: boolean;
       llmMatchedSnippets?: Array<{ file?: string; line: number; snippet: string } | string>;
+      regexFailureExplanation?: string | null;
     }>;
   } | null;
 }
@@ -216,6 +217,12 @@ export const api = {
       method: 'regex' | 'llm',
     ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm' }> => {
       const { data } = await httpClient.post(`/api/submissions/${submissionId}/regrade?method=${method}`);
+      return data;
+    },
+    explainRegexFailures: async (
+      submissionId: string,
+    ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> }> => {
+      const { data } = await httpClient.post(`/api/submissions/${submissionId}/explain-regex-failures`);
       return data;
     },
     list: async (exerciseId: string): Promise<Submission[]> => {
