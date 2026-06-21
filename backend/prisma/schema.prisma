@@ -107,16 +107,17 @@ model GradingResult {
 }
 
 model CheckpointResult {
-  id                 String        @id @default(uuid())
-  gradingResultId    String
-  checkpointId       String
-  matched            Boolean
-  matchedSnippets    String[]
-  createdAt          DateTime      @default(now())
-  llmMatched         Boolean?
-  llmMatchedSnippets String[]      @default([])
-  checkpoint         Checkpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
-  gradingResult      GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+  id                      String        @id @default(uuid())
+  gradingResultId         String
+  checkpointId            String
+  matched                 Boolean
+  matchedSnippets         String[]
+  createdAt               DateTime      @default(now())
+  llmMatched              Boolean?
+  llmMatchedSnippets      String[]      @default([])
+  regexFailureExplanation String?
+  checkpoint              Checkpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  gradingResult           GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
 
   @@unique([gradingResultId, checkpointId])
   @@index([gradingResultId])
