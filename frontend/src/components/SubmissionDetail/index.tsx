@@ -309,6 +309,7 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                     ...(submission?.gradingResult?.passedCheckpoints != null && submission?.gradingResult?.passedCheckpoints != undefined && {
                       regexMatched: cr.matched,
                       regexSnippets: parseSnippets(cr.matchedSnippets),
+                      regexFailureExplanation: cr.regexFailureExplanation,
                     }),
                     ...(cr.llmMatched !== undefined && {
                       llmMatched: cr.llmMatched,

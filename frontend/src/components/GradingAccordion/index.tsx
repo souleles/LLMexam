@@ -25,6 +25,7 @@ export interface CheckpointAccordionItem {
   checkpointDescription: string;
   regexMatched?: boolean;
   regexSnippets?: SnippetMatch[];
+  regexFailureExplanation?: string | null;
   llmMatched?: boolean;
   llmSnippets?: SnippetMatch[];
 }
@@ -103,6 +104,16 @@ export function GradingAccordion({ items }: GradingAccordionProps) {
                       <Text color="gray.500" fontSize="sm">
                         Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
                       </Text>
+                    )}
+                    {!item.regexMatched && item.regexFailureExplanation && (
+                      <Box mt={2} p={2} bg="orange.900" borderRadius="md">
+                        <Text fontSize="xs" color="orange.200" fontWeight="medium" mb={1}>
+                          Αιτιολόγηση Αποτυχίας
+                        </Text>
+                        <Text fontSize="sm" color="orange.100">
+                          {item.regexFailureExplanation}
+                        </Text>
+                      </Box>
                     )}
                   </Box>
                 )}
