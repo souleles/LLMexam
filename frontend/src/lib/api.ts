@@ -202,7 +202,7 @@ export const api = {
       studentIds: string[],
       file: File,
       method: 'regex' | 'llm' = 'regex',
-    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm'; projectReport?: string | null }> => {
+    ): Promise<Submission> => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('exerciseId', exerciseId);
@@ -215,7 +215,7 @@ export const api = {
     regrade: async (
       submissionId: string,
       method: 'regex' | 'llm',
-    ): Promise<{ checkpoints: GradingResult[]; submissionId: string; method: 'regex' | 'llm' }> => {
+    ): Promise<Submission> => {
       const { data } = await httpClient.post(`/api/submissions/${submissionId}/regrade?method=${method}`);
       return data;
     },

@@ -1,9 +1,10 @@
 import { DownloadButton } from '@/components/DownloadButton';
+import { ExplainRegexFailuresButton } from '@/components/ExplainRegexFailuresButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
-import { useExplainRegexFailures } from '@/hooks/use-explain-regex-failures';
 import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
 import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
 import { ExerciseType, Submission } from '@/lib/api';
+import { mapCheckpointResultsToAccordionItems } from '@/lib/helpers';
 import { QueryKeys } from '@/lib/queryKeys';
 import {
   Badge,
@@ -32,7 +33,7 @@ import {
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FiEdit2, FiHelpCircle, FiRefreshCw } from 'react-icons/fi';
+import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
@@ -88,30 +89,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
     (cr) => cr.matched === false,
   );
   const hasFailedRegexCheckpoints = !isProject && failedCheckpointResults.length > 0;
-
-  const {
-    isOpen: isExplainOpen,
-    onOpen: onExplainOpen,
-    onClose: onExplainClose,
-  } = useDisclosure();
-  const [explanations, setExplanations] = useState<
-    Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }>
-  >([]);
-
-  const explainMutation = useExplainRegexFailures({
-    onSuccess: (data) => {
-      setExplanations(data.explanations);
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
-      onExplainOpen();
-    },
-    onError: () => {
-      toast({ title: 'Σφάλμα κατά την αιτιολόγηση', status: 'error', duration: 3000 });
-    },
-  });
-
-  const handleExplainFailures = () => {
-    explainMutation.mutate({ submissionId: submission.id });
-  };
 
   return (
     <VStack align="stretch" spacing={6}>
@@ -186,19 +163,12 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                   >
                     LLM
                   </Button>
-                  {hasFailedRegexCheckpoints && (
-                    <Button
-                      leftIcon={<FiHelpCircle />}
-                      size="sm"
-                      variant="outline"
-                      colorScheme="orange"
-                      onClick={handleExplainFailures}
-                      isLoading={explainMutation.isPending}
-                      isDisabled={regradeMutation.isPending || explainMutation.isPending}
-                    >
-                      Αιτιολόγηση Αποτυχημένων Regex
-                    </Button>
-                  )}
+                  <ExplainRegexFailuresButton
+                    submissionId={submission.id}
+                    hasFailedRegex={hasFailedRegexCheckpoints}
+                    isDisabled={regradeMutation.isPending}
+                    onExplained={() => queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] })}
+                  />
                   <Button
                     leftIcon={<FiEdit2 />}
                     size="sm"
@@ -274,25 +244,7 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
               </HStack>
 
               {/* Checkpoint Results */}
-              <GradingAccordion
-                items={(submission.gradingResult.checkpointResults ?? []).map((cr) => {
-                  const parseSnippets = (raw: Array<{ file?: string; line: number; snippet: string } | string>) =>
-                    raw.map((s) => (typeof s === 'string' ? JSON.parse(s) : s));
-                  return {
-                    checkpointId: cr.checkpointId,
-                    checkpointDescription: cr.checkpointDescription,
-                    ...(submission?.gradingResult?.passedCheckpoints != null && submission?.gradingResult?.passedCheckpoints != undefined && {
-                      regexMatched: cr.matched,
-                      regexSnippets: parseSnippets(cr.matchedSnippets),
-                      regexFailureExplanation: cr.regexFailureExplanation,
-                    }),
-                    ...(cr.llmMatched !== undefined && {
-                      llmMatched: cr.llmMatched,
-                      llmSnippets: parseSnippets(cr.llmMatchedSnippets ?? []),
-                    }),
-                  };
-                })}
-              />
+              <GradingAccordion items={mapCheckpointResultsToAccordionItems(submission.gradingResult)} />
             </VStack>
           </CardBody>
         </Card>
@@ -399,34 +351,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
             >
               Αποθήκευση
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Regex Failure Explanations Modal */}
-      <Modal isOpen={isExplainOpen} onClose={onExplainClose} isCentered size="xl" scrollBehavior="inside">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Αιτιολόγηση Αποτυχημένων Regex</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack align="stretch" spacing={4}>
-              {explanations.length === 0 ? (
-                <Text fontSize="sm" color="gray.400">Δεν υπάρχουν αιτιολογήσεις προς εμφάνιση.</Text>
-              ) : (
-                explanations.map((e) => (
-                  <Box key={e.checkpointId}>
-                    <Text fontWeight="medium" fontSize="sm" mb={1}>
-                      Checkpoint {e.checkpointOrder}: {e.checkpointDescription}
-                    </Text>
-                    <Text fontSize="sm" color="gray.300">{e.explanation}</Text>
-                  </Box>
-                ))
-              )}
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" onClick={onExplainClose}>Κλείσιμο</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

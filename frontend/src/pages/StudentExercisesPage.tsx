@@ -1,7 +1,9 @@
+import { ExplainRegexFailuresButton } from '@/components/ExplainRegexFailuresButton';
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
 import { GradingAccordion } from '@/components/GradingAccordion';
-import { ExerciseType, GradingResult } from '@/lib/api';
+import { ExerciseType, Submission } from '@/lib/api';
+import { mapCheckpointResultsToAccordionItems } from '@/lib/helpers';
 import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercises } from '@/hooks/use-get-exercises';
 import { useGetStudents } from '@/hooks/use-get-students';
@@ -38,11 +40,8 @@ export function StudentExercisesPage() {
   const [selectedExerciseId, setSelectedExerciseId] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<Array<{ value: string; label: string }>>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [regexResults, setRegexResults] = useState<GradingResult[]>([]);
-  const [llmResults, setLlmResults] = useState<GradingResult[]>([]);
+  const [submission, setSubmission] = useState<Submission | null>(null);
   const [teacherPassed, setTeacherPassed] = useState<number>(0);
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
-  const [projectReport, setProjectReport] = useState<string | null>(null);
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -68,13 +67,11 @@ export function StudentExercisesPage() {
   })), [students]);
 
   const regexGradeMutation = useUploadAndGrade({
-    onSuccess: (data: any) => {
-      if (data.submissionId) setSubmissionId(data.submissionId);
-      if (data.checkpoints) {
-        setRegexResults(data.checkpoints);
-        setTeacherPassed(data.checkpoints.filter((r: any) => r.matched).length);
+    onSuccess: (data: Submission) => {
+      setSubmission(data);
+      if (data.gradingResult?.passedCheckpoints != null) {
+        setTeacherPassed(data.gradingResult.passedCheckpoints);
       }
-      setProjectReport(data.projectReport ?? null);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -91,18 +88,17 @@ export function StudentExercisesPage() {
         status: 'error',
         duration: 5000,
       });
-      setRegexResults([]);
-      setTeacherPassed(0);
     },
   });
 
   const llmGradeMutation = useUploadAndGrade({
-    onSuccess: (data: any) => {
-      if (data.submissionId) setSubmissionId(data.submissionId);
-      if (data.checkpoints) {
-        setLlmResults(data.checkpoints);
+    onSuccess: (data: Submission) => {
+      setSubmission(data);
+      // No regex results yet (first grade for this submission) — default the
+      // teacher override to the LLM pass count instead of leaving it at 0.
+      if (data.gradingResult?.passedCheckpoints == null && data.gradingResult?.llmPassedCheckpoints != null) {
+        setTeacherPassed(data.gradingResult.llmPassedCheckpoints);
       }
-      setProjectReport(data.projectReport ?? null);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -119,7 +115,6 @@ export function StudentExercisesPage() {
         status: 'error',
         duration: 5000,
       });
-      setLlmResults([]);
     },
   });
 
@@ -154,9 +149,6 @@ export function StudentExercisesPage() {
       return;
     }
     const vars = { exerciseId: selectedExerciseId, studentIds: selectedStudentIds, file, method };
-    setRegexResults([]);
-    setTeacherPassed(0);
-    setLlmResults([]);
     if (method === 'regex') {
       await regexGradeMutation.mutateAsync(vars);
     } else {
@@ -164,15 +156,16 @@ export function StudentExercisesPage() {
     }
   };
 
-  const handleTeacherGrade = async () => await saveScoreMutation.mutateAsync({ submissionId: submissionId!, score: teacherPassed })
+  const handleTeacherGrade = async () => await saveScoreMutation.mutateAsync({ submissionId: submission!.id, score: teacherPassed })
 
-  // Use whichever result set is non-empty to drive the accordion structure
-  const allCheckpoints = regexResults.length > 0 ? regexResults : llmResults;
-  const hasAnyResults = regexResults.length > 0 || llmResults.length > 0;
-
-  const regexPassedCount = regexResults.filter((r) => r.matched).length;
-  const llmPassedCount = llmResults.filter((r) => r.matched).length;
-  const totalCount = allCheckpoints.length;
+  const gradingResult = submission?.gradingResult ?? null;
+  const hasAnyResults = !!gradingResult;
+  const totalCount = gradingResult?.totalCheckpoints ?? 0;
+  const regexPassedCount = gradingResult?.passedCheckpoints ?? null;
+  const llmPassedCount = gradingResult?.llmPassedCheckpoints ?? null;
+  const projectReport = gradingResult?.projectReport ?? null;
+  const hasFailedRegexCheckpoints =
+    !isProjectExercise && (gradingResult?.checkpointResults ?? []).some((cr) => cr.matched === false);
 
   return (
     <PageTransition>
@@ -268,12 +261,21 @@ export function StudentExercisesPage() {
           <Card>
             <CardBody>
               <VStack align="stretch" spacing={4}>
-                <VStack align="stretch" spacing={2}>
-                  <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
-                  <Text fontSize="sm" color="gray.500">
-                    {selectedStudentIds.map((s) => s.label).join(' · ')}
-                  </Text>
-                </VStack>
+                <HStack justify="space-between" align="start">
+                  <VStack align="stretch" spacing={2}>
+                    <Heading size="md">Αποτελέσματα Βαθμολόγησης</Heading>
+                    <Text fontSize="sm" color="gray.500">
+                      {selectedStudentIds.map((s) => s.label).join(' · ')}
+                    </Text>
+                  </VStack>
+                  {submission && (
+                    <ExplainRegexFailuresButton
+                      submissionId={submission.id}
+                      hasFailedRegex={hasFailedRegexCheckpoints}
+                      onExplained={setSubmission}
+                    />
+                  )}
+                </HStack>
 
                 {regexGradeMutation.isPending || llmGradeMutation.isPending ? (
                   <HStack spacing={3} justify="center" py={10}>
@@ -282,22 +284,11 @@ export function StudentExercisesPage() {
                 )
                   : hasAnyResults
                     ? <>
-                      <GradingAccordion
-                        items={allCheckpoints.map((cp) => {
-                          const regex = regexResults.find((r) => r.checkpointId === cp.checkpointId);
-                          const llm = llmResults.find((r) => r.checkpointId === cp.checkpointId);
-                          return {
-                            checkpointId: cp.checkpointId,
-                            checkpointDescription: cp.checkpointDescription,
-                            ...(regex && { regexMatched: regex.matched, regexSnippets: regex.matchedSnippets }),
-                            ...(llm && { llmMatched: llm.matched, llmSnippets: llm.matchedSnippets }),
-                          };
-                        })}
-                      />
+                      <GradingAccordion items={mapCheckpointResultsToAccordionItems(gradingResult!)} />
 
                       <VStack align="stretch" spacing={2}>
                         <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
-                          {regexResults.length > 0 && (
+                          {regexPassedCount != null && (
                             <HStack flex="1" minW="160px">
                               <Text fontWeight="medium" color="gray.400">Βαθμός Regex:</Text>
                               <Text fontWeight="bold">{regexPassedCount}/{totalCount}</Text>
@@ -308,7 +299,7 @@ export function StudentExercisesPage() {
                           )}
                           <HStack flex="1" minW="160px">
                             <Text fontWeight="medium" color="gray.400">Βαθμός LLM:</Text>
-                            {llmResults.length > 0
+                            {llmPassedCount != null
                               ? (
                                 <>
                                   <Text fontWeight="bold">{llmPassedCount}/{totalCount}</Text>
@@ -361,7 +352,7 @@ export function StudentExercisesPage() {
                               colorScheme="green"
                               onClick={handleTeacherGrade}
                               isLoading={saveScoreMutation.isPending}
-                              isDisabled={!submissionId}
+                              isDisabled={!submission}
                             >
                               Αποθήκευση βαθμολογίας Εκπαιδευτικού
                             </Button>

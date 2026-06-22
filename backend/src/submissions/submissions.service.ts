@@ -36,13 +36,6 @@ export interface CheckpointMatch {
   }>;
 }
 
-export interface UploadAndGradeResult {
-  submissionId: string;
-  checkpoints: CheckpointMatch[];
-  method: 'regex' | 'llm';
-  projectReport?: string | null;
-}
-
 type FetchedGradeData =
   | { kind: 'standard'; method: 'regex' | 'llm'; checkpointMatches: CheckpointMatch[] }
   | { kind: 'project-existing'; checkpointMatches: CheckpointMatch[] }
@@ -73,7 +66,7 @@ export class SubmissionsService {
     studentIds: string[],
     file: Express.Multer.File,
     method: 'regex' | 'llm' = 'regex',
-  ): Promise<UploadAndGradeResult> {
+  ) {
     // 1. Verify exercise exists and is approved
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -282,17 +275,16 @@ export class SubmissionsService {
     });
 
     if ((exercise as any).exerciseType === 'PROJECT') {
-      const projectReport = await this.generateAndSaveProjectReport(result.submissionId, result.checkpoints, exercise!.title);
-      return { ...result, projectReport };
+      await this.generateAndSaveProjectReport(result.submissionId, result.checkpoints, exercise!.title);
     }
 
-    return result;
+    // Return the full submission (same shape as GET /submissions/:id) so the
+    // caller always sees both regex and LLM results together, regardless of
+    // which method was just run.
+    return this.findOne(result.submissionId);
   }
 
-  async regradeSubmission(
-    submissionId: string,
-    method: 'regex' | 'llm',
-  ): Promise<{ checkpoints: CheckpointMatch[]; submissionId: string; method: 'regex' | 'llm' }> {
+  async regradeSubmission(submissionId: string, method: 'regex' | 'llm') {
     const submission = await this.prisma.submission.findUnique({
       where: { id: submissionId },
       select: { id: true, exerciseId: true, content: true },
@@ -328,9 +320,10 @@ export class SubmissionsService {
     if ((exercise as any).exerciseType === 'PROJECT') {
       const result = await this.gradeProjectAndSave(submissionId, exercise, extractedFiles);
       await this.generateAndSaveProjectReport(submissionId, result.checkpoints, exercise.title);
-      return result;
+      return this.findOne(submissionId);
     }
-    return this.gradeAndSave(submissionId, exercise, extractedFiles, method);
+    await this.gradeAndSave(submissionId, exercise, extractedFiles, method);
+    return this.findOne(submissionId);
   }
 
   async explainRegexFailures(

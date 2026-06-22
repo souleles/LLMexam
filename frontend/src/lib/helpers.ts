@@ -1,3 +1,31 @@
+import { Submission } from './api';
+import { CheckpointAccordionItem, SnippetMatch } from '@/components/GradingAccordion';
+
+function parseSnippets(
+  raw: Array<{ file?: string; line: number; snippet: string } | string>,
+): SnippetMatch[] {
+  return raw.map((s) => (typeof s === 'string' ? JSON.parse(s) : s));
+}
+
+export function mapCheckpointResultsToAccordionItems(
+  gradingResult: NonNullable<Submission['gradingResult']>,
+): CheckpointAccordionItem[] {
+  const hasRegex = gradingResult.passedCheckpoints != null;
+  return (gradingResult.checkpointResults ?? []).map((cr) => ({
+    checkpointId: cr.checkpointId,
+    checkpointDescription: cr.checkpointDescription,
+    ...(hasRegex && {
+      regexMatched: cr.matched,
+      regexSnippets: parseSnippets(cr.matchedSnippets),
+      regexFailureExplanation: cr.regexFailureExplanation,
+    }),
+    ...(cr.llmMatched !== undefined && {
+      llmMatched: cr.llmMatched,
+      llmSnippets: parseSnippets(cr.llmMatchedSnippets ?? []),
+    }),
+  }));
+}
+
 export const darkSelectStyles = {
   control: (base: any) => ({
     ...base,
