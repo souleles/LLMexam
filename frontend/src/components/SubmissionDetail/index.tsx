@@ -88,7 +88,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
     (cr) => cr.matched === false,
   );
   const hasFailedRegexCheckpoints = !isProject && failedCheckpointResults.length > 0;
-  const hasSavedExplanations = failedCheckpointResults.some((cr) => !!cr.regexFailureExplanation);
 
   const {
     isOpen: isExplainOpen,
@@ -96,7 +95,7 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
     onClose: onExplainClose,
   } = useDisclosure();
   const [explanations, setExplanations] = useState<
-    Array<{ checkpointId: string; checkpointDescription: string; explanation: string }>
+    Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }>
   >([]);
 
   const explainMutation = useExplainRegexFailures({
@@ -112,19 +111,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
 
   const handleExplainFailures = () => {
     explainMutation.mutate({ submissionId: submission.id });
-  };
-
-  const handleViewSavedExplanations = () => {
-    setExplanations(
-      failedCheckpointResults
-        .filter((cr) => !!cr.regexFailureExplanation)
-        .map((cr) => ({
-          checkpointId: cr.checkpointId,
-          checkpointDescription: cr.checkpointDescription,
-          explanation: cr.regexFailureExplanation as string,
-        })),
-    );
-    onExplainOpen();
   };
 
   return (
@@ -211,17 +197,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                       isDisabled={regradeMutation.isPending || explainMutation.isPending}
                     >
                       Αιτιολόγηση Αποτυχημένων Regex
-                    </Button>
-                  )}
-                  {hasFailedRegexCheckpoints && hasSavedExplanations && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="orange"
-                      onClick={handleViewSavedExplanations}
-                      isDisabled={explainMutation.isPending}
-                    >
-                      Προβολή Αιτιολογήσεων
                     </Button>
                   )}
                   <Button
@@ -441,7 +416,9 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
               ) : (
                 explanations.map((e) => (
                   <Box key={e.checkpointId}>
-                    <Text fontWeight="medium" fontSize="sm" mb={1}>{e.checkpointDescription}</Text>
+                    <Text fontWeight="medium" fontSize="sm" mb={1}>
+                      Checkpoint {e.checkpointOrder}: {e.checkpointDescription}
+                    </Text>
                     <Text fontSize="sm" color="gray.300">{e.explanation}</Text>
                   </Box>
                 ))

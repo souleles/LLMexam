@@ -94,7 +94,7 @@ export class SubmissionsController {
   @Post(':id/explain-regex-failures')
   async explainRegexFailures(
     @Param('id') id: string,
-  ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> }> {
+  ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> }> {
     return this.submissionsService.explainRegexFailures(id);
   }
 

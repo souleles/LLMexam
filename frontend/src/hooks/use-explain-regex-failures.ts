@@ -7,7 +7,7 @@ interface ExplainRegexFailuresVars {
 
 interface ExplainRegexFailuresResult {
   submissionId: string;
-  explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }>;
+  explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }>;
 }
 
 export function useExplainRegexFailures(

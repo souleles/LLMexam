@@ -221,7 +221,7 @@ export const api = {
     },
     explainRegexFailures: async (
       submissionId: string,
-    ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> }> => {
+    ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> }> => {
       const { data } = await httpClient.post(`/api/submissions/${submissionId}/explain-regex-failures`);
       return data;
     },

@@ -335,7 +335,7 @@ export class SubmissionsService {
 
   async explainRegexFailures(
     submissionId: string,
-  ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> }> {
+  ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> }> {
     const submission = await this.prisma.submission.findUnique({
       where: { id: submissionId },
       select: { id: true, exerciseId: true, content: true },
@@ -397,7 +397,7 @@ export class SubmissionsService {
       res.data.results.map((r: any) => [r.checkpoint_id, r.explanation]),
     );
 
-    const explanations: Array<{ checkpointId: string; checkpointDescription: string; explanation: string }> = [];
+    const explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> = [];
 
     for (const cr of failedResults) {
       const explanation = explanationsByCheckpointId.get(cr.checkpointId);
@@ -409,9 +409,12 @@ export class SubmissionsService {
       explanations.push({
         checkpointId: cr.checkpointId,
         checkpointDescription: cr.checkpoint.description,
+        checkpointOrder: cr.checkpoint.order,
         explanation,
       });
     }
+
+    explanations.sort((a, b) => a.checkpointOrder - b.checkpointOrder);
 
     this.logger.log(`Saved ${explanations.length} regex failure explanations for submission ${submissionId}`);
 
