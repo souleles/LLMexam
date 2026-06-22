@@ -89,7 +89,8 @@ export function SubmissionsList({
                       <Text fontWeight="medium">{primaryLabel}</Text>
                     )}
                     <Text fontSize="sm" color="gray.400">
-                      {new Date(submission.createdAt).toLocaleDateString('el-GR')}{' '}
+                      {new Date(submission.createdAt).toLocaleDateString('el-GR')}{' - '}
+                      {new Date(submission.createdAt).toLocaleTimeString('el-GR')}{' '}
                       • {submission.fileName}
                     </Text>
                   </VStack>
