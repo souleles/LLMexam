@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Param, Query, Body, Patch, UseGuards } from '@nestjs/common';
 import { GradingService } from './grading.service';
-import { GradingResultResponseDto, CheckpointResultDto, UpdateTeacherScoreDto } from './dto/grading.dto';
+import { GradingResultResponseDto, CheckpointResultDto, UpdateTeacherAcceptedDto } from './dto/grading.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('grading')
@@ -18,11 +18,11 @@ export class GradingController {
     return { message: 'Results saved successfully' };
   }
 
-  @Patch('submission/:submissionId/teacher-score')
-  async updateTeacherScore(
-    @Param('submissionId') submissionId: string,
-    @Body() dto: UpdateTeacherScoreDto,
+  @Patch('checkpoint-result/:id/teacher-accepted')
+  async updateCheckpointTeacherAccepted(
+    @Param('id') id: string,
+    @Body() dto: UpdateTeacherAcceptedDto,
   ): Promise<GradingResultResponseDto> {
-    return this.gradingService.updateTeacherScore(submissionId, dto);
+    return this.gradingService.updateCheckpointTeacherAccepted(id, dto);
   }
 }
