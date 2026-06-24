@@ -116,6 +116,7 @@ model CheckpointResult {
   llmMatched              Boolean?
   llmMatchedSnippets      String[]      @default([])
   regexFailureExplanation String?
+  teacherAccepted         Boolean?
   checkpoint              Checkpoint    @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
   gradingResult           GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
 
