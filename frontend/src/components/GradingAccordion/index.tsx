@@ -9,6 +9,7 @@ import {
   Code,
   Divider,
   HStack,
+  IconButton,
   Text,
   VStack,
 } from '@chakra-ui/react';
@@ -22,7 +23,9 @@ export interface SnippetMatch {
 
 export interface CheckpointAccordionItem {
   checkpointId: string;
+  checkpointResultId: string;
   checkpointDescription: string;
+  teacherAccepted?: boolean | null;
   regexMatched?: boolean;
   regexSnippets?: SnippetMatch[];
   regexFailureExplanation?: string | null;
@@ -32,6 +35,7 @@ export interface CheckpointAccordionItem {
 
 interface GradingAccordionProps {
   items: CheckpointAccordionItem[];
+  onTeacherAcceptedChange?: (checkpointResultId: string, value: boolean) => void;
 }
 
 function SnippetList({ snippets, colorScheme = 'blue' }: { snippets: SnippetMatch[]; colorScheme?: string }) {
@@ -58,7 +62,7 @@ function SnippetList({ snippets, colorScheme = 'blue' }: { snippets: SnippetMatc
   );
 }
 
-export function GradingAccordion({ items }: GradingAccordionProps) {
+export function GradingAccordion({ items, onTeacherAcceptedChange }: GradingAccordionProps) {
   return (
     <Accordion allowMultiple>
       {items.map((item, index) => {
@@ -90,6 +94,26 @@ export function GradingAccordion({ items }: GradingAccordionProps) {
                     </Badge>
                   )}
                 </HStack>
+                {onTeacherAcceptedChange && (
+                  <HStack mr={2} spacing={1} onClick={(e) => e.stopPropagation()}>
+                    <IconButton
+                      aria-label="Αποδοχή από καθηγητή"
+                      icon={<FiCheck />}
+                      size="xs"
+                      colorScheme={item.teacherAccepted === true ? 'green' : 'gray'}
+                      variant={item.teacherAccepted === true ? 'solid' : 'outline'}
+                      onClick={() => onTeacherAcceptedChange(item.checkpointResultId, true)}
+                    />
+                    <IconButton
+                      aria-label="Απόρριψη από καθηγητή"
+                      icon={<FiX />}
+                      size="xs"
+                      colorScheme={item.teacherAccepted === false ? 'red' : 'gray'}
+                      variant={item.teacherAccepted === false ? 'solid' : 'outline'}
+                      onClick={() => onTeacherAcceptedChange(item.checkpointResultId, false)}
+                    />
+                  </HStack>
+                )}
                 <AccordionIcon />
               </AccordionButton>
             </h2>
