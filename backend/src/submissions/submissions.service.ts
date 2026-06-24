@@ -570,6 +570,7 @@ export class SubmissionsService {
               llmMatched: cr.llmMatched,
               llmMatchedSnippets: cr.llmMatchedSnippets,
               regexFailureExplanation: cr.regexFailureExplanation ?? null,
+              teacherAccepted: cr.teacherAccepted,
             })),
           }
         : null,
