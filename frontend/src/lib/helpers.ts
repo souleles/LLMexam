@@ -13,7 +13,9 @@ export function mapCheckpointResultsToAccordionItems(
   const hasRegex = gradingResult.passedCheckpoints != null;
   return (gradingResult.checkpointResults ?? []).map((cr) => ({
     checkpointId: cr.checkpointId,
+    checkpointResultId: cr.id,
     checkpointDescription: cr.checkpointDescription,
+    teacherAccepted: cr.teacherAccepted,
     ...(hasRegex && {
       regexMatched: cr.matched,
       regexSnippets: parseSnippets(cr.matchedSnippets),
