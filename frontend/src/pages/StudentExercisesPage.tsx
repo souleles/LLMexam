@@ -8,7 +8,7 @@ import { QueryKeys } from '@/lib/queryKeys';
 import { useGetExercises } from '@/hooks/use-get-exercises';
 import { useGetStudents } from '@/hooks/use-get-students';
 import { useUploadAndGrade } from '@/hooks/use-upload-and-grade';
-import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
+import { useUpdateCheckpointTeacherAccepted } from '@/hooks/use-update-checkpoint-teacher-accepted';
 import {
   Badge,
   Box,
@@ -21,18 +21,13 @@ import {
   FormLabel,
   HStack,
   Heading,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
   Text,
   useToast,
   VStack
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { FiCpu, FiSave, FiUpload } from 'react-icons/fi';
+import { FiCpu, FiUpload } from 'react-icons/fi';
 import ReactSelect from 'react-select';
 import { darkSelectStyles } from '@/lib/helpers';
 
@@ -41,7 +36,6 @@ export function StudentExercisesPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Array<{ value: string; label: string }>>([]);
   const [file, setFile] = useState<File | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [teacherPassed, setTeacherPassed] = useState<number>(0);
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -69,9 +63,6 @@ export function StudentExercisesPage() {
   const regexGradeMutation = useUploadAndGrade({
     onSuccess: (data: Submission) => {
       setSubmission(data);
-      if (data.gradingResult?.passedCheckpoints != null) {
-        setTeacherPassed(data.gradingResult.passedCheckpoints);
-      }
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -94,11 +85,6 @@ export function StudentExercisesPage() {
   const llmGradeMutation = useUploadAndGrade({
     onSuccess: (data: Submission) => {
       setSubmission(data);
-      // No regex results yet (first grade for this submission) — default the
-      // teacher override to the LLM pass count instead of leaving it at 0.
-      if (data.gradingResult?.passedCheckpoints == null && data.gradingResult?.llmPassedCheckpoints != null) {
-        setTeacherPassed(data.gradingResult.llmPassedCheckpoints);
-      }
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
       const n = selectedStudentIds.length;
       toast({
@@ -118,25 +104,23 @@ export function StudentExercisesPage() {
     },
   });
 
-  const saveScoreMutation = useSaveTeacherScore({
+  const updateTeacherAcceptedMutation = useUpdateCheckpointTeacherAccepted({
     onSuccess: () => {
-      toast({
-        title: 'Επιτυχής αποθήκευση',
-        description: 'Ο βαθμός του εκπαιδευτικού αποθηκεύτηκε',
-        status: 'success',
-        duration: 3000,
-      });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions] });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
         title: 'Σφάλμα',
-        description: error.message || 'Αποτυχία αποθήκευσης βαθμού',
+        description: 'Αποτυχία αποθήκευσης βαθμολογίας',
         status: 'error',
         duration: 5000,
       });
     },
   });
+
+  const handleTeacherAcceptedChange = (checkpointResultId: string, value: boolean) => {
+    updateTeacherAcceptedMutation.mutate({ checkpointResultId, teacherAccepted: value });
+  };
 
   const handleGrade = async (method: 'regex' | 'llm') => {
     if (!selectedExerciseId || !file || selectedStudentIds.length === 0) {
@@ -155,8 +139,6 @@ export function StudentExercisesPage() {
       await llmGradeMutation.mutateAsync(vars);
     }
   };
-
-  const handleTeacherGrade = async () => await saveScoreMutation.mutateAsync({ submissionId: submission!.id, score: teacherPassed })
 
   const gradingResult = submission?.gradingResult ?? null;
   const hasAnyResults = !!gradingResult;
@@ -284,7 +266,10 @@ export function StudentExercisesPage() {
                 )
                   : hasAnyResults
                     ? <>
-                      <GradingAccordion items={mapCheckpointResultsToAccordionItems(gradingResult!)} />
+                      <GradingAccordion
+                        items={mapCheckpointResultsToAccordionItems(gradingResult!)}
+                        onTeacherAcceptedChange={handleTeacherAcceptedChange}
+                      />
 
                       <VStack align="stretch" spacing={2}>
                         <HStack spacing={4} pt={1} w="full" flexWrap="wrap">
@@ -322,43 +307,6 @@ export function StudentExercisesPage() {
                           </VStack>
                         </>
                       )}
-                      <Divider />
-                      <VStack align="stretch">
-                        <HStack w="full" flexWrap="wrap">
-                          <HStack flex={1} minW="300px">
-                            <Text fontWeight="medium" color="gray.400">Βαθμός Εκπαιδευτικού:</Text>
-                            <NumberInput
-                              value={teacherPassed}
-                              min={0}
-                              max={totalCount}
-                              size="sm"
-                              w="80px"
-                              onChange={(_, val) => setTeacherPassed(isNaN(val) ? 0 : Math.min(totalCount, Math.max(0, val)))}
-                            >
-                              <NumberInputField />
-                              <NumberInputStepper>
-                                <NumberIncrementStepper />
-                                <NumberDecrementStepper />
-                              </NumberInputStepper>
-                            </NumberInput>
-                            <Text fontWeight="bold">/{totalCount}</Text>
-                            <Badge colorScheme={teacherPassed === totalCount ? 'green' : 'yellow'}>
-                              {Math.round((teacherPassed / totalCount) * 100)}%
-                            </Badge>
-                          </HStack>
-                          <HStack flex={1}>
-                            <Button
-                              rightIcon={<FiSave />}
-                              colorScheme="green"
-                              onClick={handleTeacherGrade}
-                              isLoading={saveScoreMutation.isPending}
-                              isDisabled={!submission}
-                            >
-                              Αποθήκευση βαθμολογίας Εκπαιδευτικού
-                            </Button>
-                          </HStack>
-                        </HStack>
-                      </VStack>
                     </>
                     : <Text color="gray.500" fontStyle="italic">
                       Δεν υπάρχουν αποτελέσματα προς εμφάνιση. Παρακαλώ ανεβάστε ένα αρχείο και βαθμολογήστε για να δείτε τα αποτελέσματα εδώ.

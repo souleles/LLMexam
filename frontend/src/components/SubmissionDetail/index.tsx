@@ -2,7 +2,7 @@ import { DownloadButton } from '@/components/DownloadButton';
 import { ExplainRegexFailuresButton } from '@/components/ExplainRegexFailuresButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
 import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
-import { useSaveTeacherScore } from '@/hooks/use-save-teacher-score';
+import { useUpdateCheckpointTeacherAccepted } from '@/hooks/use-update-checkpoint-teacher-accepted';
 import { ExerciseType, Submission } from '@/lib/api';
 import { mapCheckpointResultsToAccordionItems } from '@/lib/helpers';
 import { QueryKeys } from '@/lib/queryKeys';
@@ -14,26 +14,12 @@ import {
   CardBody,
   Heading,
   HStack,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
   Text,
-  useDisclosure,
-  useToast,
   VStack,
+  useToast,
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { FiEdit2, FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw } from 'react-icons/fi';
 
 interface SubmissionDetailProps {
   submission: Submission;
@@ -42,33 +28,20 @@ interface SubmissionDetailProps {
 
 export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailProps) {
   const isProject = (exerciseType ?? submission.exerciseType) === ExerciseType.PROJECT;
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const total = submission.gradingResult?.totalCheckpoints ?? 0;
-  const existingScore = submission.gradingResult?.teacherScore ?? null;
-  const [scoreValue, setScoreValue] = useState<number | ''>(existingScore ?? '');
-
-  const saveScoreMutation = useSaveTeacherScore({
+  const updateTeacherAcceptedMutation = useUpdateCheckpointTeacherAccepted({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] });
-      toast({ title: 'Η βαθμολογία αποθηκεύτηκε', status: 'success', duration: 3000 });
-      onClose();
     },
     onError: () => {
       toast({ title: 'Σφάλμα αποθήκευσης βαθμολογίας', status: 'error', duration: 3000 });
     },
   });
 
-  const handleOpen = () => {
-    setScoreValue(submission.gradingResult?.teacherScore ?? '');
-    onOpen();
-  };
-
-  const handleSave = async () => {
-    if (scoreValue === '') return;
-    await saveScoreMutation.mutateAsync({ submissionId: submission.id, score: scoreValue });
+  const handleTeacherAcceptedChange = (checkpointResultId: string, value: boolean) => {
+    updateTeacherAcceptedMutation.mutate({ checkpointResultId, teacherAccepted: value });
   };
 
   const regradeMutation = useRegradeSubmission({
@@ -169,16 +142,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
                     isDisabled={regradeMutation.isPending}
                     onExplained={() => queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] })}
                   />
-                  <Button
-                    leftIcon={<FiEdit2 />}
-                    size="sm"
-                    variant="outline"
-                    colorScheme="blue"
-                    onClick={handleOpen}
-                    isDisabled={regradeMutation.isPending}
-                  >
-                    {existingScore != null ? 'Επεξεργασία Βαθμού' : 'Προσθήκη Βαθμού'}
-                  </Button>
                 </HStack>
               </HStack>
 
@@ -244,7 +207,10 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
               </HStack>
 
               {/* Checkpoint Results */}
-              <GradingAccordion items={mapCheckpointResultsToAccordionItems(submission.gradingResult)} />
+              <GradingAccordion
+                items={mapCheckpointResultsToAccordionItems(submission.gradingResult)}
+                onTeacherAcceptedChange={handleTeacherAcceptedChange}
+              />
             </VStack>
           </CardBody>
         </Card>
@@ -310,50 +276,6 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
           </CardBody>
         </Card>
       )}
-
-      {/* Teacher Score Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Βαθμολογία Εκπαιδευτικού</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack align="stretch" spacing={3}>
-              <Text fontSize="sm" color="gray.400">
-                Εισάγετε τον αριθμό checkpoints που πέρασε ο φοιτητής (0–{total}).
-              </Text>
-              <NumberInput
-                value={scoreValue}
-                min={0}
-                max={total}
-                onChange={(_, val) => setScoreValue(isNaN(val) ? '' : Math.min(total, Math.max(0, val)))}
-              >
-                <NumberInputField placeholder={`0 – ${total}`} />
-                <NumberInputStepper>
-                  <NumberIncrementStepper />
-                  <NumberDecrementStepper />
-                </NumberInputStepper>
-              </NumberInput>
-              {scoreValue !== '' && (
-                <Text fontSize="sm" color="gray.400">
-                  {Math.round((scoreValue / total) * 100)}% ({scoreValue}/{total})
-                </Text>
-              )}
-            </VStack>
-          </ModalBody>
-          <ModalFooter gap={2}>
-            <Button variant="ghost" onClick={onClose}>Ακύρωση</Button>
-            <Button
-              colorScheme="blue"
-              onClick={handleSave}
-              isDisabled={scoreValue === ''}
-              isLoading={saveScoreMutation.isPending}
-            >
-              Αποθήκευση
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </VStack>
   );
 }
