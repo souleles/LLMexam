@@ -1,9 +1,8 @@
-import { IsNumber, Min } from 'class-validator';
+import { IsBoolean } from 'class-validator';
 
-export class UpdateTeacherScoreDto {
-  @IsNumber()
-  @Min(0)
-  teacherScore: number;
+export class UpdateTeacherAcceptedDto {
+  @IsBoolean()
+  teacherAccepted: boolean;
 }
 
 export class GradingResultResponseDto {
@@ -29,6 +28,7 @@ export class CheckpointResultDto {
     line: number;
     snippet: string;
   }>;
+  teacherAccepted?: boolean | null;
   checkpoint?: {
     order: number;
     description: string;
