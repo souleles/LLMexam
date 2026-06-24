@@ -77,6 +77,7 @@ export interface Submission {
       llmMatched?: boolean;
       llmMatchedSnippets?: Array<{ file?: string; line: number; snippet: string } | string>;
       regexFailureExplanation?: string | null;
+      teacherAccepted?: boolean | null;
     }>;
   } | null;
 }
@@ -268,9 +269,12 @@ export const api = {
     saveResults: async (results: GradingResult[]): Promise<void> => {
       await httpClient.post('/api/grading/results', results);
     },
-    updateTeacherScore: async (submissionId: string, teacherScore: number): Promise<void> => {
-      await httpClient.patch(`/api/grading/submission/${submissionId}/teacher-score`, {
-        teacherScore,
+    updateCheckpointTeacherAccepted: async (
+      checkpointResultId: string,
+      teacherAccepted: boolean,
+    ): Promise<void> => {
+      await httpClient.patch(`/api/grading/checkpoint-result/${checkpointResultId}/teacher-accepted`, {
+        teacherAccepted,
       });
     },
   },
