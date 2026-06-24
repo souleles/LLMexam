@@ -725,6 +725,16 @@ export class SubmissionsService {
       }
     }
 
+    const siblingResults = await tx.checkpointResult.findMany({
+      where: { gradingResultId: gradingResult.id },
+      select: { teacherAccepted: true },
+    });
+    const teacherScore = siblingResults.filter((cr: { teacherAccepted: boolean | null }) => cr.teacherAccepted === true).length;
+    await tx.gradingResult.update({
+      where: { id: gradingResult.id },
+      data: { teacherScore },
+    });
+
     this.logger.log(`Saved grading result ${gradingResult.id} for submission ${submissionId}`);
     return { checkpointMatches, method: resolvedMethod };
   }
@@ -786,7 +796,8 @@ export class SubmissionsService {
           score,
         },
         update: { totalCheckpoints, passedCheckpoints: passed, score },
-        // teacherScore, llmScore, llmPassedCheckpoints are intentionally NOT touched
+        // llmScore, llmPassedCheckpoints are intentionally NOT touched here;
+        // teacherScore is recomputed below from teacherAccepted flags
       });
       const existingCRs: Array<{ id: string; checkpointId: string }> =
         await this.prisma.checkpointResult.findMany({
@@ -814,6 +825,15 @@ export class SubmissionsService {
           });
         }
       }
+      const siblingResults = await this.prisma.checkpointResult.findMany({
+        where: { gradingResultId: gradingResult.id },
+        select: { teacherAccepted: true },
+      });
+      const teacherScore = siblingResults.filter((cr) => cr.teacherAccepted === true).length;
+      await this.prisma.gradingResult.update({
+        where: { id: gradingResult.id },
+        data: { teacherScore },
+      });
       this.logger.log(`Saved regex grading result ${gradingResult.id} for submission ${submissionId}`);
     } else {
       const db = this.prisma as any;
@@ -858,6 +878,15 @@ export class SubmissionsService {
           });
         }
       }
+      const siblingResults = await db.checkpointResult.findMany({
+        where: { gradingResultId: gradingResult.id },
+        select: { teacherAccepted: true },
+      });
+      const teacherScore = siblingResults.filter((cr: { teacherAccepted: boolean | null }) => cr.teacherAccepted === true).length;
+      await db.gradingResult.update({
+        where: { id: gradingResult.id },
+        data: { teacherScore },
+      });
       this.logger.log(`Saved LLM grading result ${gradingResult.id} for submission ${submissionId}`);
     }
 
