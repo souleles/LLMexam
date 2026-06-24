@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   GradingResultResponseDto,
   CheckpointResultDto,
-  UpdateTeacherScoreDto,
+  UpdateTeacherAcceptedDto,
 } from './dto/grading.dto';
 
 /** Parse a stored matchedSnippet string back to {file, line, snippet}. */
@@ -63,6 +63,7 @@ export class GradingService {
         confidence: cr.matched ? 1.0 : 0.0,
         matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
         matchedSnippets,
+        teacherAccepted: cr.teacherAccepted,
         checkpoint: {
           order: cr.checkpoint.order,
           description: cr.checkpoint.description,
@@ -93,27 +94,31 @@ export class GradingService {
     );
   }
 
-  async updateTeacherScore(submissionId: string, dto: UpdateTeacherScoreDto): Promise<GradingResultResponseDto> {
-    // Find the grading result for this submission
-    const gradingResult = await this.prisma.gradingResult.findUnique({
-      where: { submissionId },
-      include: {
-        checkpointResults: {
-          include: {
-            checkpoint: true,
-          },
-        },
-      },
+  async updateCheckpointTeacherAccepted(
+    checkpointResultId: string,
+    dto: UpdateTeacherAcceptedDto,
+  ): Promise<GradingResultResponseDto> {
+    const checkpointResult = await this.prisma.checkpointResult.findUnique({
+      where: { id: checkpointResultId },
     });
 
-    if (!gradingResult) {
-      throw new NotFoundException(`Grading result for submission ${submissionId} not found`);
+    if (!checkpointResult) {
+      throw new NotFoundException(`Checkpoint result ${checkpointResultId} not found`);
     }
 
-    // Update the teacher score
+    await this.prisma.checkpointResult.update({
+      where: { id: checkpointResultId },
+      data: { teacherAccepted: dto.teacherAccepted },
+    });
+
+    const siblingResults = await this.prisma.checkpointResult.findMany({
+      where: { gradingResultId: checkpointResult.gradingResultId },
+    });
+    const teacherScore = siblingResults.filter((cr) => cr.teacherAccepted === true).length;
+
     const updated = await this.prisma.gradingResult.update({
-      where: { id: gradingResult.id },
-      data: { teacherScore: dto.teacherScore },
+      where: { id: checkpointResult.gradingResultId },
+      data: { teacherScore },
       include: {
         checkpointResults: {
           include: {
@@ -142,6 +147,7 @@ export class GradingService {
         confidence: cr.matched ? 1.0 : 0.0,
         matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
         matchedSnippets: (cr.matchedSnippets as string[]).map((raw) => parseSnippet(raw)),
+        teacherAccepted: cr.teacherAccepted,
         checkpoint: {
           order: cr.checkpoint.order,
           description: cr.checkpoint.description,
