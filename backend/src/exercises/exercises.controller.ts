@@ -178,6 +178,51 @@ export class ExercisesController {
     return this.exercisesService.approve(id);
   }
 
+  @Post(":id/schema")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: "./uploads/schemas",
+        filename: (req, file, callback) => {
+          const uniqueSuffix =
+            Date.now() + "-" + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          callback(null, `schema-${uniqueSuffix}${ext}`);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (extname(file.originalname).toLowerCase() !== ".txt") {
+          return callback(
+            new BadRequestException("Only .txt files are allowed"),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    }),
+  )
+  async uploadSchema(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ExerciseResponseDto> {
+    if (!file) {
+      throw new BadRequestException("File is required");
+    }
+
+    const databaseSchema = fs.readFileSync(file.path, "utf8");
+    fs.unlinkSync(file.path);
+
+    return this.exercisesService.setSchema(id, databaseSchema);
+  }
+
+  @Delete(":id/schema")
+  removeSchema(@Param("id") id: string): Promise<ExerciseResponseDto> {
+    return this.exercisesService.setSchema(id, null);
+  }
+
   @Delete(":id")
   async remove(@Param("id") id: string): Promise<{ message: string }> {
     await this.exercisesService.remove(id);
