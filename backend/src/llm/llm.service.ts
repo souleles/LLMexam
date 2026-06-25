@@ -168,6 +168,14 @@ export class LlmService {
       ConversationType.PATTERN,
     );
 
+    const exercise = await this.prisma.exercise.findUnique({
+      where: { id: exerciseId },
+    });
+
+    if (!exercise) {
+      throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
+    }
+
     const checkpoints = await this.prisma.checkpoint.findMany({
       where: { exerciseId },
       orderBy: { order: "asc" },
@@ -199,6 +207,7 @@ export class LlmService {
           })),
           message,
           rules: rules.map((r) => r.content),
+          database_schema: exercise.databaseSchema ?? undefined,
           history: history.slice(0, -1).map((msg) => ({
             role: msg.role.toLowerCase(),
             content: msg.content,
