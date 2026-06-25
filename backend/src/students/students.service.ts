@@ -235,6 +235,7 @@ export class StudentsService {
           description: cr.checkpoint.description,
           matched: regexDone ? cr.matched : null,
           llm_matched: llmDone ? (cr.llmMatched ?? null) : null,
+          teacher_accepted: cr.teacherAccepted ?? null,
         })),
       };
     });

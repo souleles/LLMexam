@@ -112,6 +112,7 @@ class CheckpointResultInfo(BaseModel):
     description: str
     matched: Optional[bool] = None      # regex grading result; None if not graded by regex
     llm_matched: Optional[bool] = None  # LLM grading result; None if not graded by LLM
+    teacher_accepted: Optional[bool] = None  # teacher override; None if not set, otherwise overrides matched/llm_matched
 
 
 class SubmissionSummary(BaseModel):

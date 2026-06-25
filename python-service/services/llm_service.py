@@ -388,6 +388,8 @@ async def generate_mini_report(request: MiniReportRequest) -> str:
                     parts.append(f"Regex: {'✓' if cp.matched else '✗'}")
                 if cp.llm_matched is not None:
                     parts.append(f"LLM: {'✓' if cp.llm_matched else '✗'}")
+                if cp.teacher_accepted is not None:
+                    parts.append(f"Καθηγητής (υπερισχύει): {'✓' if cp.teacher_accepted else '✗'}")
                 if parts:
                     lines.append(f"   - {cp.description}: {', '.join(parts)}")
 
