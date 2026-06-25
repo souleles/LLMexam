@@ -3,6 +3,7 @@ import { InlineChat } from '@/components/Chat/InlineChat';
 import { DownloadButton } from '@/components/DownloadButton';
 import { CheckpointsCard } from '@/components/Exercise/CheckpointsCard';
 import { RulesCard } from '@/components/Exercise/RulesCard';
+import { SchemaCard } from '@/components/Exercise/SchemaCard';
 import { PageTransition } from '@/components/PageTransition';
 import { SubmissionsList } from '@/components/SubmissionsList';
 import { useApproveExercise } from '@/hooks/use-approve-exercise';
@@ -189,6 +190,9 @@ export function ExerciseDetailPage() {
 
           {/* Checkpoints card — hidden for project exercises */}
           {!isProject && <CheckpointsCard checkpoints={checkpoints} />}
+
+          {/* Schema card — hidden for project exercises */}
+          {!isProject && <SchemaCard exerciseId={exercise.id} schema={exercise.databaseSchema} />}
 
           {/* Rules card — hidden for project exercises */}
           {!isProject && <RulesCard exerciseId={exercise.id} />}
