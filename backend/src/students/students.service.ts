@@ -57,7 +57,12 @@ export class StudentsService {
     await this.prisma.$transaction(
       rows.map((row) =>
         this.prisma.student.upsert({
-          where: { studentIdentifier: row.AM },
+          where: {
+            teacherid_studentIdentifier: {
+              teacherid: userId,
+              studentIdentifier: row.AM,
+            },
+          },
           create: {
             studentIdentifier: row.AM,
             firstName: row.firstName,

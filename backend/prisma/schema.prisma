@@ -141,7 +141,7 @@ model CheckpointResult {
 
 model Student {
   id                 String              @id @default(uuid())
-  studentIdentifier  String              @unique
+  studentIdentifier  String
   firstName          String
   lastName           String
   email              String?
@@ -153,6 +153,7 @@ model Student {
   users              users               @relation(fields: [teacherid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "students_fk")
   submissionStudents SubmissionStudent[]
 
+  @@unique([teacherid, studentIdentifier])
   @@map("students")
 }
 
