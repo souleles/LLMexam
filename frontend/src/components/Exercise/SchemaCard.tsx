@@ -119,10 +119,10 @@ export function SchemaCard({ exerciseId, schema }: SchemaCardProps) {
 
       <Modal isOpen={isOpen} onClose={onClose} size="full">
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent h="100vh" display="flex" flexDirection="column">
           <ModalHeader>Σχήμα Βάσης Δεδομένων</ModalHeader>
           <ModalCloseButton />
-          <ModalBody overflowY="auto">
+          <ModalBody flex="1" overflowY="auto">
             <Box as="pre" whiteSpace="pre-wrap" fontFamily="mono" fontSize="sm">
               {schema}
             </Box>
