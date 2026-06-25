@@ -117,12 +117,12 @@ export function SchemaCard({ exerciseId, schema }: SchemaCardProps) {
         </VStack>
       </CardBody>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="full" scrollBehavior="inside">
+      <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
         <ModalOverlay />
-        <ModalContent h="100vh" display="flex" flexDirection="column">
+        <ModalContent>
           <ModalHeader>Σχήμα Βάσης Δεδομένων</ModalHeader>
           <ModalCloseButton />
-          <ModalBody flex="1" overflowY="auto">
+          <ModalBody>
             <Box as="pre" whiteSpace="pre-wrap" fontFamily="mono" fontSize="sm">
               {schema}
             </Box>
