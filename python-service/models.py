@@ -34,6 +34,7 @@ class GeneratePatternsRequest(BaseModel):
     history: list[Message] = Field(default_factory=list, description="Pattern conversation history")
     message: str = Field(..., description="Current professor message")
     rules: list[str] = Field(default_factory=list, description="Teacher-supplied standing rules")
+    database_schema: Optional[str] = Field(default=None, description="Optional professor-supplied database schema text")
 
 
 class ExtractPdfResponse(BaseModel):
