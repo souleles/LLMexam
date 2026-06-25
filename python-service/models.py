@@ -197,6 +197,25 @@ class ExplainFailuresResponse(BaseModel):
     results: list[CheckpointExplanation]
 
 
+# Explain LLM failures models
+
+class ExplainLlmFailureCheckpoint(BaseModel):
+    """A failed LLM checkpoint to be explained."""
+    id: str
+    description: str
+
+
+class ExplainLlmFailuresRequest(BaseModel):
+    """Request body for /explain-llm-failures endpoint."""
+    checkpoints: list[ExplainLlmFailureCheckpoint]
+    files: list[FileContent]
+
+
+class ExplainLlmFailuresResponse(BaseModel):
+    """Response for /explain-llm-failures endpoint."""
+    results: list[CheckpointExplanation]
+
+
 # Project grading models (no pre-defined checkpoints — LLM discovers questions from exercise text)
 
 class ProjectGradeRequest(BaseModel):

@@ -28,6 +28,7 @@ from models import (
     ProjectReportResponse,
     ExplainFailuresRequest,
     ExplainFailuresResponse,
+    ExplainLlmFailuresRequest,
 )
 from services.pdf_service import extract_text_from_pdf
 from services.llm_service import stream_checkpoint_generation, stream_pattern_generation, generate_mini_report
@@ -36,6 +37,7 @@ from services.grading_service import grade_submission
 from services.llm_grading_service import grade_submission_with_llm
 from services.project_grading_service import grade_project_with_llm, generate_project_report
 from services.explain_failures_service import explain_regex_failures
+from services.explain_llm_failures_service import explain_llm_failures
 
 # Load environment variables
 load_dotenv()
@@ -205,6 +207,19 @@ async def explain_regex_failures_endpoint(request: ExplainFailuresRequest):
         f"Received explain-regex-failures request: {len(request.checkpoints)} checkpoints, {len(request.files)} files"
     )
     return await explain_regex_failures(request)
+
+
+@app.post("/explain-llm-failures", response_model=ExplainFailuresResponse)
+async def explain_llm_failures_endpoint(request: ExplainLlmFailuresRequest):
+    """
+    Explain, in Greek, why each given checkpoint failed LLM-based semantic grading —
+    either because the required code is missing entirely, or because it exists
+    but is implemented incorrectly or incompletely relative to the description.
+    """
+    logger.info(
+        f"Received explain-llm-failures request: {len(request.checkpoints)} checkpoints, {len(request.files)} files"
+    )
+    return await explain_llm_failures(request)
 
 
 @app.post("/generate-mini-report", response_model=MiniReportResponse)

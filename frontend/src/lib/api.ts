@@ -86,6 +86,7 @@ export interface Submission {
       llmMatched?: boolean;
       llmMatchedSnippets?: Array<{ file?: string; line: number; snippet: string } | string>;
       regexFailureExplanation?: string | null;
+      llmFailureExplanation?: string | null;
       teacherAccepted?: boolean | null;
     }>;
   } | null;
@@ -255,6 +256,12 @@ export const api = {
       submissionId: string,
     ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> }> => {
       const { data } = await httpClient.post(`/api/submissions/${submissionId}/explain-regex-failures`);
+      return data;
+    },
+    explainLlmFailures: async (
+      submissionId: string,
+    ): Promise<{ submissionId: string; explanations: Array<{ checkpointId: string; checkpointDescription: string; checkpointOrder: number; explanation: string }> }> => {
+      const { data } = await httpClient.post(`/api/submissions/${submissionId}/explain-llm-failures`);
       return data;
     },
     list: async (exerciseId: string): Promise<Submission[]> => {

@@ -31,6 +31,7 @@ export interface CheckpointAccordionItem {
   regexFailureExplanation?: string | null;
   llmMatched?: boolean;
   llmSnippets?: SnippetMatch[];
+  llmFailureExplanation?: string | null;
 }
 
 interface GradingAccordionProps {
@@ -150,6 +151,16 @@ export function GradingAccordion({ items, onTeacherAcceptedChange }: GradingAcco
                       <Text color="gray.500" fontSize="sm">
                         Δεν βρέθηκαν αποτελέσματα για αυτό το checkpoint
                       </Text>
+                    )}
+                    {!item.llmMatched && item.llmFailureExplanation && (
+                      <Box mt={2} p={2} bg="orange.900" borderRadius="md">
+                        <Text fontSize="xs" color="orange.200" fontWeight="medium" mb={1}>
+                          Αιτιολόγηση Αποτυχίας
+                        </Text>
+                        <Text fontSize="sm" color="orange.100">
+                          {item.llmFailureExplanation}
+                        </Text>
+                      </Box>
                     )}
                   </Box>
                 )}

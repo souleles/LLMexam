@@ -545,6 +545,114 @@ export class SubmissionsService {
     return { submissionId, explanations };
   }
 
+  async explainLlmFailures(
+    submissionId: string,
+  ): Promise<{
+    submissionId: string;
+    explanations: Array<{
+      checkpointId: string;
+      checkpointDescription: string;
+      checkpointOrder: number;
+      explanation: string;
+    }>;
+  }> {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: { id: true, exerciseId: true, content: true },
+    });
+
+    if (!submission) {
+      throw new NotFoundException(
+        `Submission with ID ${submissionId} not found`,
+      );
+    }
+    if (!submission.content) {
+      throw new BadRequestException("Submission has no stored content");
+    }
+
+    const exercise = await this.prisma.exercise.findUnique({
+      where: { id: submission.exerciseId },
+    });
+
+    if (!exercise) {
+      throw new NotFoundException(`Exercise for submission not found`);
+    }
+
+    const gradingResult = await this.prisma.gradingResult.findUnique({
+      where: { submissionId },
+      include: { checkpointResults: { include: { checkpoint: true } } },
+    });
+
+    if (!gradingResult) {
+      throw new BadRequestException("Submission has not been graded yet");
+    }
+
+    const failedResults = gradingResult.checkpointResults.filter(
+      (cr) => cr.llmMatched === false,
+    );
+    if (failedResults.length === 0) {
+      throw new BadRequestException("No failed LLM checkpoints to explain");
+    }
+
+    const extractedFiles = this.parseStoredContent(submission.content);
+    if (extractedFiles.length === 0) {
+      throw new BadRequestException(
+        "Could not parse stored submission content",
+      );
+    }
+
+    this.logger.log(
+      `Explaining ${failedResults.length} failed LLM checkpoints for submission ${submissionId}`,
+    );
+
+    const res = await firstValueFrom(
+      this.httpService.post(`${this.pythonServiceUrl}/explain-llm-failures`, {
+        checkpoints: failedResults.map((cr) => ({
+          id: cr.checkpointId,
+          description: cr.checkpoint.description,
+        })),
+        files: extractedFiles.map((f) => ({
+          relative_path: f.relativePath,
+          content: f.content,
+        })),
+      }),
+    );
+
+    const explanationsByCheckpointId = new Map<string, string>(
+      res.data.results.map((r: any) => [r.checkpoint_id, r.explanation]),
+    );
+
+    const explanations: Array<{
+      checkpointId: string;
+      checkpointDescription: string;
+      checkpointOrder: number;
+      explanation: string;
+    }> = [];
+
+    for (const cr of failedResults) {
+      const explanation = explanationsByCheckpointId.get(cr.checkpointId);
+      if (!explanation) continue;
+      await (this.prisma.checkpointResult as any).update({
+        where: { id: cr.id },
+        data: { llmFailureExplanation: explanation },
+      });
+      explanations.push({
+        checkpointId: cr.checkpointId,
+        checkpointDescription: cr.checkpoint.description,
+        checkpointOrder: cr.checkpoint.order,
+        explanation,
+      });
+    }
+
+    explanations.sort((a, b) => a.checkpointOrder - b.checkpointOrder);
+
+    this.logger.log(
+      `Saved ${explanations.length} LLM failure explanations for submission ${submissionId}`,
+    );
+
+    return { submissionId, explanations };
+  }
+
   async findByStudent(studentId: string) {
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
@@ -709,6 +817,7 @@ export class SubmissionsService {
                 llmMatched: cr.llmMatched,
                 llmMatchedSnippets: cr.llmMatchedSnippets,
                 regexFailureExplanation: cr.regexFailureExplanation ?? null,
+                llmFailureExplanation: (cr as any).llmFailureExplanation ?? null,
                 teacherAccepted: cr.teacherAccepted,
               }),
             ),

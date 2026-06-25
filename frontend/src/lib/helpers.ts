@@ -24,6 +24,7 @@ export function mapCheckpointResultsToAccordionItems(
     ...(cr.llmMatched !== undefined && {
       llmMatched: cr.llmMatched,
       llmSnippets: parseSnippets(cr.llmMatchedSnippets ?? []),
+      llmFailureExplanation: cr.llmFailureExplanation,
     }),
   }));
 }

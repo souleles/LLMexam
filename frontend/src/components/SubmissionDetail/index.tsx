@@ -1,4 +1,5 @@
 import { DownloadButton } from '@/components/DownloadButton';
+import { ExplainLlmFailuresButton } from '@/components/ExplainLlmFailuresButton';
 import { ExplainRegexFailuresButton } from '@/components/ExplainRegexFailuresButton';
 import { GradingAccordion } from '@/components/GradingAccordion';
 import { useRegradeSubmission } from '@/hooks/use-regrade-submission';
@@ -63,6 +64,11 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
   );
   const hasFailedRegexCheckpoints = !isProject && failedCheckpointResults.length > 0;
 
+  const failedLlmCheckpointResults = (submission.gradingResult?.checkpointResults ?? []).filter(
+    (cr) => cr.llmMatched === false,
+  );
+  const hasFailedLlmCheckpoints = failedLlmCheckpointResults.length > 0;
+
   return (
     <VStack align="stretch" spacing={6}>
       <Heading size="md">{submission.exerciseTitle}</Heading>
@@ -111,38 +117,48 @@ export function SubmissionDetail({ submission, exerciseType }: SubmissionDetailP
             <VStack align="stretch" spacing={4}>
               <HStack justify="space-between">
                 <Text fontWeight="bold">Αποτελέσματα Βαθμολόγησης</Text>
-                <HStack>
-                  {!isProject && (
+                <VStack align="end" spacing={2}>
+                  <HStack>
+                    {!isProject && (
+                      <Button
+                        leftIcon={<FiRefreshCw />}
+                        size="sm"
+                        variant="outline"
+                        colorScheme="teal"
+                        onClick={() => handleRegrade('regex')}
+                        isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                        isDisabled={regradeMutation.isPending}
+                      >
+                        Regex
+                      </Button>
+                    )}
                     <Button
                       leftIcon={<FiRefreshCw />}
                       size="sm"
                       variant="outline"
-                      colorScheme="teal"
-                      onClick={() => handleRegrade('regex')}
-                      isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'regex'}
+                      colorScheme="purple"
+                      onClick={() => handleRegrade('llm')}
+                      isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'llm'}
                       isDisabled={regradeMutation.isPending}
                     >
-                      Regex
+                      LLM
                     </Button>
-                  )}
-                  <Button
-                    leftIcon={<FiRefreshCw />}
-                    size="sm"
-                    variant="outline"
-                    colorScheme="purple"
-                    onClick={() => handleRegrade('llm')}
-                    isLoading={regradeMutation.isPending && regradeMutation.variables?.method === 'llm'}
-                    isDisabled={regradeMutation.isPending}
-                  >
-                    LLM
-                  </Button>
-                  <ExplainRegexFailuresButton
-                    submissionId={submission.id}
-                    hasFailedRegex={hasFailedRegexCheckpoints}
-                    isDisabled={regradeMutation.isPending}
-                    onExplained={() => queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] })}
-                  />
-                </HStack>
+                  </HStack>
+                  <HStack>
+                    <ExplainRegexFailuresButton
+                      submissionId={submission.id}
+                      hasFailedRegex={hasFailedRegexCheckpoints}
+                      isDisabled={regradeMutation.isPending}
+                      onExplained={() => queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] })}
+                    />
+                    <ExplainLlmFailuresButton
+                      submissionId={submission.id}
+                      hasFailedLlm={hasFailedLlmCheckpoints}
+                      isDisabled={regradeMutation.isPending}
+                      onExplained={() => queryClient.invalidateQueries({ queryKey: [QueryKeys.Submissions, submission.id] })}
+                    />
+                  </HStack>
+                </VStack>
               </HStack>
 
               {/* Summary */}

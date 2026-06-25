@@ -124,6 +124,21 @@ export class SubmissionsController {
     return this.submissionsService.explainRegexFailures(id);
   }
 
+  @Post(":id/explain-llm-failures")
+  async explainLlmFailures(
+    @Param("id") id: string,
+  ): Promise<{
+    submissionId: string;
+    explanations: Array<{
+      checkpointId: string;
+      checkpointDescription: string;
+      checkpointOrder: number;
+      explanation: string;
+    }>;
+  }> {
+    return this.submissionsService.explainLlmFailures(id);
+  }
+
   @Get()
   findAll(
     @Query("studentId") studentId?: string,
