@@ -37,7 +37,7 @@ export function SchemaCard({ exerciseId, schema }: SchemaCardProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercise, exerciseId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.Exercises, exerciseId] });
   };
 
   const uploadMutation = useUploadSchema({
