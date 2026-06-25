@@ -10,18 +10,19 @@ datasource db {
 model Exercise {
   id            String         @id @default(uuid())
   title         String
-  fileName      String?
   pdfUrl        String
   status        ExerciseStatus @default(DRAFT)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   extractedText String?
+  databaseSchema String?
   teacherid     String
   exerciseType  ExerciseType   @default(EXERCISE)
+  fileName      String?
   checkpoints   Checkpoint[]
-  rules         Rule[]
   conversations Conversation[]
   users         users          @relation(fields: [teacherid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "exercises_fk")
+  rules         Rule[]
   submissions   Submission[]
 
   @@map("exercises")
