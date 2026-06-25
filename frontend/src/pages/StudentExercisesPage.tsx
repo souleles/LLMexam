@@ -1,3 +1,4 @@
+import { ExplainLlmFailuresButton } from '@/components/ExplainLlmFailuresButton';
 import { ExplainRegexFailuresButton } from '@/components/ExplainRegexFailuresButton';
 import { FileUploader } from '@/components/FileUploader';
 import { PageTransition } from '@/components/PageTransition';
@@ -119,7 +120,27 @@ export function StudentExercisesPage() {
   });
 
   const handleTeacherAcceptedChange = (checkpointResultId: string, value: boolean) => {
-    updateTeacherAcceptedMutation.mutate({ checkpointResultId, teacherAccepted: value });
+    const previousSubmission = submission;
+    setSubmission((prev) => {
+      if (!prev?.gradingResult?.checkpointResults) return prev;
+      return {
+        ...prev,
+        gradingResult: {
+          ...prev.gradingResult,
+          checkpointResults: prev.gradingResult.checkpointResults.map((cr) =>
+            cr.id === checkpointResultId ? { ...cr, teacherAccepted: value } : cr,
+          ),
+        },
+      };
+    });
+    updateTeacherAcceptedMutation.mutate(
+      { checkpointResultId, teacherAccepted: value },
+      {
+        onError: () => {
+          setSubmission(previousSubmission);
+        },
+      },
+    );
   };
 
   const handleGrade = async (method: 'regex' | 'llm') => {
@@ -145,9 +166,12 @@ export function StudentExercisesPage() {
   const totalCount = gradingResult?.totalCheckpoints ?? 0;
   const regexPassedCount = gradingResult?.passedCheckpoints ?? null;
   const llmPassedCount = gradingResult?.llmPassedCheckpoints ?? null;
+  const teacherScore = gradingResult?.checkpointResults?.filter(result => result.teacherAccepted)?.length ?? 0;
   const projectReport = gradingResult?.projectReport ?? null;
   const hasFailedRegexCheckpoints =
     !isProjectExercise && (gradingResult?.checkpointResults ?? []).some((cr) => cr.matched === false);
+  const hasFailedLlmCheckpoints =
+    (gradingResult?.checkpointResults ?? []).some((cr) => cr.llmMatched === false);
 
   return (
     <PageTransition>
@@ -251,11 +275,18 @@ export function StudentExercisesPage() {
                     </Text>
                   </VStack>
                   {submission && (
-                    <ExplainRegexFailuresButton
-                      submissionId={submission.id}
-                      hasFailedRegex={hasFailedRegexCheckpoints}
-                      onExplained={setSubmission}
-                    />
+                    <HStack>
+                      <ExplainRegexFailuresButton
+                        submissionId={submission.id}
+                        hasFailedRegex={hasFailedRegexCheckpoints}
+                        onExplained={setSubmission}
+                      />
+                      <ExplainLlmFailuresButton
+                        submissionId={submission.id}
+                        hasFailedLlm={hasFailedLlmCheckpoints}
+                        onExplained={setSubmission}
+                      />
+                    </HStack>
                   )}
                 </HStack>
 
@@ -295,6 +326,13 @@ export function StudentExercisesPage() {
                               )
                               : <Text fontWeight="bold">Δεν έχει βαθμολογηθεί</Text>
                             }
+                          </HStack>
+                          <HStack flex="1" minW="160px">
+                            <Text fontWeight="medium" color="gray.400">Βαθμός Καθηγητή:</Text>
+                            <Text fontWeight="bold">{teacherScore}/{totalCount}</Text>
+                            <Badge colorScheme="blue">
+                              {Math.round((teacherScore) / totalCount * 100)}%
+                            </Badge>
                           </HStack>
                         </HStack>
                       </VStack>
