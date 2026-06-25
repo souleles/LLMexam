@@ -32,6 +32,15 @@ import { AuthGuard } from "../auth/guards/auth.guard";
 import { AuthorizedUser } from "@/auth/dto/AuthorizedUser";
 import { AuthUser } from "@/auth/decorators/AuthUser";
 
+function decodeFilename(name: string): string {
+  try {
+    const decoded = Buffer.from(name, "latin1").toString("utf8");
+    return decoded.includes("�") ? name : decoded;
+  } catch {
+    return name;
+  }
+}
+
 @Controller("exercises")
 @UseGuards(AuthGuard)
 export class ExercisesController {
@@ -97,6 +106,7 @@ export class ExercisesController {
     }
 
     const pdfUrl = `/uploads/exercises/${file.filename}`;
+    const fileName = decodeFilename(file.originalname);
 
     // Extract text from PDF via Python service
     let extractedText: string | undefined;
@@ -123,7 +133,13 @@ export class ExercisesController {
     }
 
     return this.exercisesService.create(
-      { title, pdfUrl, extractedText, exerciseType: exerciseType as any },
+      {
+        title,
+        pdfUrl,
+        fileName,
+        extractedText,
+        exerciseType: exerciseType as any,
+      },
       user.sub,
     );
   }
@@ -145,7 +161,7 @@ export class ExercisesController {
     if (!fs.existsSync(filePath)) {
       throw new NotFoundException("File not found");
     }
-    const filename = `${exercise.title}.pdf`;
+    const filename = exercise.fileName || `${exercise.title}.pdf`;
     (res as any).download(filePath, filename);
   }
 

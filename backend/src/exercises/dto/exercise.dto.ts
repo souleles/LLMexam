@@ -12,6 +12,10 @@ export class CreateExerciseDto {
 
   @IsString()
   @IsOptional()
+  fileName?: string;
+
+  @IsString()
+  @IsOptional()
   extractedText?: string;
 
   @IsEnum(ExerciseType)
@@ -37,6 +41,8 @@ export class ExerciseResponseDto {
   id: string;
 
   title: string;
+
+  fileName?: string;
 
   originalPdfPath: string;
 

@@ -177,7 +177,7 @@ export function ExerciseDetailPage() {
                 <HStack justify="space-between" w="full">
                   <HStack spacing={2}>
                     <FiFileText size={16} />
-                    <Text fontSize="sm" color="gray.300">{exercise.title}.pdf</Text>
+                    <Text fontSize="sm" color="gray.300">{exercise.fileName ?? `${exercise.title}.pdf`}</Text>
                   </HStack>
                   <DownloadButton
                     url={`${import.meta.env.VITE_API_BASE_URL}/api/exercises/${exercise.id}/download`}

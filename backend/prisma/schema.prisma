@@ -10,6 +10,7 @@ datasource db {
 model Exercise {
   id            String         @id @default(uuid())
   title         String
+  fileName      String?
   pdfUrl        String
   status        ExerciseStatus @default(DRAFT)
   createdAt     DateTime       @default(now())

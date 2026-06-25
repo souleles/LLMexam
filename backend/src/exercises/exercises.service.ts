@@ -100,6 +100,7 @@ export class ExercisesService {
     return {
       id: exercise.id,
       title: exercise.title,
+      fileName: exercise.fileName,
       originalPdfPath: exercise.pdfUrl,
       status: exercise.status.toLowerCase() as "draft" | "approved",
       exerciseType: exercise.exerciseType.toLowerCase() as

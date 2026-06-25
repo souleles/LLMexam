@@ -13,6 +13,7 @@ export enum ExerciseType {
 export interface Exercise {
   id: string;
   title: string;
+  fileName?: string;
   originalPdfPath: string;
   extractedText?: string;
   status: ExerciseStatus;
