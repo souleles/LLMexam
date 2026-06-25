@@ -46,6 +46,8 @@ export class ExerciseResponseDto {
 
   originalPdfPath: string;
 
+  databaseSchema?: string;
+
   // extractedText?: string;
 
   status: "draft" | "approved";

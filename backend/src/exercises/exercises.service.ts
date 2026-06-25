@@ -87,6 +87,26 @@ export class ExercisesService {
     return this.update(id, { status: ExerciseStatus.APPROVED });
   }
 
+  async setSchema(
+    id: string,
+    databaseSchema: string | null,
+  ): Promise<ExerciseResponseDto> {
+    try {
+      const exercise = await this.prisma.exercise.update({
+        where: { id },
+        data: { databaseSchema },
+        include: {
+          checkpoints: true,
+          submissions: true,
+        },
+      });
+
+      return this.mapToResponseDto(exercise);
+    } catch (error) {
+      throw new NotFoundException(`Exercise with ID ${id} not found`);
+    }
+  }
+
   async remove(id: string): Promise<void> {
     try {
       await this.prisma.exercise.delete({
@@ -102,6 +122,7 @@ export class ExercisesService {
       title: exercise.title,
       fileName: exercise.fileName,
       originalPdfPath: exercise.pdfUrl,
+      databaseSchema: exercise.databaseSchema ?? undefined,
       status: exercise.status.toLowerCase() as "draft" | "approved",
       exerciseType: exercise.exerciseType.toLowerCase() as
         | "exercise"
