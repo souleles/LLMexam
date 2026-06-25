@@ -36,6 +36,13 @@ def build_rules_text(rules: list[str]) -> str:
     return f"Λάβε υπόψην του εξής κανόνες: {', '.join(rules)}\n\n"
 
 
+def build_schema_text(schema: str | None) -> str:
+    """Build the database-schema sentence injected into the patterns prompt, or '' if absent."""
+    if not schema:
+        return ""
+    return f"Σχήμα βάσης δεδομένων:\n{schema}\n\n"
+
+
 def build_messages(request: GenerateCheckpointsRequest) -> list[SystemMessage | HumanMessage | AIMessage]:
     """
     Build LangChain message list for checkpoint generation.
@@ -202,6 +209,7 @@ def _build_pattern_messages(request: GeneratePatternsRequest) -> list:
         extracted_text=request.extracted_text,
         message=request.message,
         rules_text=build_rules_text(request.rules),
+        schema_text=build_schema_text(request.database_schema),
     )
     messages.append(HumanMessage(content=user_content))
 

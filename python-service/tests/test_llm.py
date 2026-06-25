@@ -87,3 +87,18 @@ def test_build_rules_text_with_rules():
     result = build_rules_text(["Όλα τα ονόματα στα Αγγλικά", "Χρήση snake_case"])
 
     assert result == "Λάβε υπόψην του εξής κανόνες: Όλα τα ονόματα στα Αγγλικά, Χρήση snake_case\n\n"
+
+
+def test_build_schema_text_empty():
+    from services.llm_service import build_schema_text
+
+    assert build_schema_text(None) == ""
+    assert build_schema_text("") == ""
+
+
+def test_build_schema_text_with_schema():
+    from services.llm_service import build_schema_text
+
+    result = build_schema_text("CREATE TABLE students (id INT);")
+
+    assert result == "Σχήμα βάσης δεδομένων:\nCREATE TABLE students (id INT);\n\n"

@@ -353,7 +353,7 @@ USER_PROMPT_PATTERNS = """Ακολουθούν τα τρέχοντα checkpoints
 {extracted_text}
 ```
 
-{rules_text}Οδηγίες καθηγητή: {message}
+{schema_text}{rules_text}Οδηγίες καθηγητή: {message}
 
 **Εργασία σου:**
 1. Ανάλυσε κάθε checkpoint pattern
