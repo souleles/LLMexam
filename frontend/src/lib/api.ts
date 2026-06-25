@@ -16,6 +16,7 @@ export interface Exercise {
   fileName?: string;
   originalPdfPath: string;
   extractedText?: string;
+  databaseSchema?: string;
   status: ExerciseStatus;
   exerciseType: ExerciseType;
   createdAt: string;
@@ -176,6 +177,18 @@ export const api = {
     },
     approve: async (id: string): Promise<Exercise> => {
       const { data } = await httpClient.patch(`/api/exercises/${id}/approve`);
+      return data;
+    },
+    uploadSchema: async (id: string, file: File): Promise<Exercise> => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await httpClient.post(`/api/exercises/${id}/schema`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    },
+    deleteSchema: async (id: string): Promise<Exercise> => {
+      const { data } = await httpClient.delete(`/api/exercises/${id}/schema`);
       return data;
     },
   },
