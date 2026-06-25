@@ -17,6 +17,7 @@ class GenerateCheckpointsRequest(BaseModel):
     current_checkpoints: str = Field(default="", description="Current checkpoint JSON as string")
     history: list[Message] = Field(default_factory=list, description="Conversation history")
     message: str = Field(..., description="Current professor message")
+    rules: list[str] = Field(default_factory=list, description="Teacher-supplied standing rules")
 
 
 class CheckpointInfo(BaseModel):
@@ -32,6 +33,7 @@ class GeneratePatternsRequest(BaseModel):
     extracted_text: str = Field(default="", description="Original exercise text for context")
     history: list[Message] = Field(default_factory=list, description="Pattern conversation history")
     message: str = Field(..., description="Current professor message")
+    rules: list[str] = Field(default_factory=list, description="Teacher-supplied standing rules")
 
 
 class ExtractPdfResponse(BaseModel):

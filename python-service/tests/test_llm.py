@@ -73,3 +73,17 @@ async def test_stream_checkpoint_generation():
     # This would need a real OpenAI API key for integration testing
     # For now, this is a placeholder structure
     pass
+
+
+def test_build_rules_text_empty():
+    from services.llm_service import build_rules_text
+
+    assert build_rules_text([]) == ""
+
+
+def test_build_rules_text_with_rules():
+    from services.llm_service import build_rules_text
+
+    result = build_rules_text(["Όλα τα ονόματα στα Αγγλικά", "Χρήση snake_case"])
+
+    assert result == "Λάβε υπόψην του εξής κανόνες: Όλα τα ονόματα στα Αγγλικά, Χρήση snake_case\n\n"

@@ -1,5 +1,8 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { ConversationRole as PrismaConversationRole, ConversationType } from '@prisma/client';
+import { IsString, IsNotEmpty, IsEnum, IsOptional } from "class-validator";
+import {
+  ConversationRole as PrismaConversationRole,
+  ConversationType,
+} from "@prisma/client";
 
 export class CreateConversationDto {
   @IsString()
@@ -21,8 +24,8 @@ export class CreateConversationDto {
 export class ConversationResponseDto {
   id: string;
   exerciseId: string;
-  role: 'professor' | 'assistant';
-  type: 'CHECKPOINT' | 'PATTERN';
+  role: "professor" | "assistant";
+  type: "CHECKPOINT" | "PATTERN";
   content: string;
   createdAt: string;
 }

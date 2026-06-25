@@ -1,4 +1,4 @@
-import { IsBoolean } from 'class-validator';
+import { IsBoolean } from "class-validator";
 
 export class UpdateTeacherAcceptedDto {
   @IsBoolean()
@@ -48,7 +48,11 @@ export class ExerciseGradingResultsDto {
 }
 
 export class StudentGradingResultDto {
-  students: Array<{ studentIdentifier: string; firstName: string; lastName: string }>;
+  students: Array<{
+    studentIdentifier: string;
+    firstName: string;
+    lastName: string;
+  }>;
   submissionId: string;
   fileName: string;
   score: number;

@@ -1,19 +1,31 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCheckpointDto, UpdateCheckpointDto, CheckpointResponseDto } from './dto/checkpoint.dto';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import {
+  CreateCheckpointDto,
+  UpdateCheckpointDto,
+  CheckpointResponseDto,
+} from "./dto/checkpoint.dto";
 
 @Injectable()
 export class CheckpointsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createCheckpointDto: CreateCheckpointDto): Promise<CheckpointResponseDto> {
+  async create(
+    createCheckpointDto: CreateCheckpointDto,
+  ): Promise<CheckpointResponseDto> {
     // Verify exercise exists
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: createCheckpointDto.exerciseId },
     });
 
     if (!exercise) {
-      throw new NotFoundException(`Exercise with ID ${createCheckpointDto.exerciseId} not found`);
+      throw new NotFoundException(
+        `Exercise with ID ${createCheckpointDto.exerciseId} not found`,
+      );
     }
 
     // Validate regex pattern
@@ -24,11 +36,17 @@ export class CheckpointsService {
     }
 
     return await this.prisma.checkpoint.create({
-      data: { ...createCheckpointDto, indicatorSolution: createCheckpointDto.indicatorSolution ?? '' },
+      data: {
+        ...createCheckpointDto,
+        indicatorSolution: createCheckpointDto.indicatorSolution ?? "",
+      },
     });
   }
 
-  async createMany(exerciseId: string, checkpoints: Omit<CreateCheckpointDto, 'exerciseId'>[]): Promise<CheckpointResponseDto[]> {
+  async createMany(
+    exerciseId: string,
+    checkpoints: Omit<CreateCheckpointDto, "exerciseId">[],
+  ): Promise<CheckpointResponseDto[]> {
     // Verify exercise exists
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -43,7 +61,9 @@ export class CheckpointsService {
       try {
         new RegExp(checkpoint.pattern);
       } catch (error) {
-        throw new BadRequestException(`Invalid regex pattern in checkpoint "${checkpoint.description}": ${error.message}`);
+        throw new BadRequestException(
+          `Invalid regex pattern in checkpoint "${checkpoint.description}": ${error.message}`,
+        );
       }
     }
 
@@ -59,7 +79,7 @@ export class CheckpointsService {
           data: {
             ...checkpoint,
             exerciseId,
-            indicatorSolution: checkpoint.indicatorSolution ?? '',
+            indicatorSolution: checkpoint.indicatorSolution ?? "",
           },
         }),
       ),
@@ -69,7 +89,7 @@ export class CheckpointsService {
   async findByExercise(exerciseId: string): Promise<CheckpointResponseDto[]> {
     const checkpoints = await this.prisma.checkpoint.findMany({
       where: { exerciseId },
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
 
     return checkpoints;
@@ -77,7 +97,7 @@ export class CheckpointsService {
 
   async findAll(): Promise<CheckpointResponseDto[]> {
     const checkpoints = await this.prisma.checkpoint.findMany({
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
 
     return checkpoints;
@@ -95,13 +115,18 @@ export class CheckpointsService {
     return checkpoint;
   }
 
-  async update(id: string, updateCheckpointDto: UpdateCheckpointDto): Promise<CheckpointResponseDto> {
+  async update(
+    id: string,
+    updateCheckpointDto: UpdateCheckpointDto,
+  ): Promise<CheckpointResponseDto> {
     // Validate regex pattern if provided
     if (updateCheckpointDto.pattern) {
       try {
         new RegExp(updateCheckpointDto.pattern);
       } catch (error) {
-        throw new BadRequestException(`Invalid regex pattern: ${error.message}`);
+        throw new BadRequestException(
+          `Invalid regex pattern: ${error.message}`,
+        );
       }
     }
 
@@ -129,7 +154,12 @@ export class CheckpointsService {
 
   async bulkUpdatePatterns(
     exerciseId: string,
-    patterns: { order: number; pattern: string; patternDescription?: string; indicatorSolution?: string }[],
+    patterns: {
+      order: number;
+      pattern: string;
+      patternDescription?: string;
+      indicatorSolution?: string;
+    }[],
   ): Promise<CheckpointResponseDto[]> {
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -140,11 +170,12 @@ export class CheckpointsService {
     }
 
     await this.prisma.$transaction(
-      patterns.map(({ order, pattern, patternDescription, indicatorSolution }) =>
-        this.prisma.checkpoint.updateMany({
-          where: { exerciseId, order },
-          data: { pattern, patternDescription, indicatorSolution },
-        }),
+      patterns.map(
+        ({ order, pattern, patternDescription, indicatorSolution }) =>
+          this.prisma.checkpoint.updateMany({
+            where: { exerciseId, order },
+            data: { pattern, patternDescription, indicatorSolution },
+          }),
       ),
     );
 

@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as XLSX from 'xlsx';
-import axios from 'axios';
-import { PrismaService } from '../prisma/prisma.service';
-import { StudentResponseDto } from './dto/student.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as XLSX from "xlsx";
+import axios from "axios";
+import { PrismaService } from "../prisma/prisma.service";
+import { StudentResponseDto } from "./dto/student.dto";
 
 interface StudentRow {
   AM: string;
@@ -20,24 +24,33 @@ export class StudentsService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.pythonServiceUrl = this.configService.get('PYTHON_SERVICE_URL', 'http://localhost:8000');
+    this.pythonServiceUrl = this.configService.get(
+      "PYTHON_SERVICE_URL",
+      "http://localhost:8000",
+    );
   }
 
-  async importFromFile(file: Express.Multer.File, userId: string): Promise<StudentResponseDto[]> {
+  async importFromFile(
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<StudentResponseDto[]> {
     let rows: StudentRow[];
 
     try {
-      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const workbook = XLSX.read(file.buffer, { type: "buffer" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        defval: "",
+      });
       rows = this.parseRows(raw);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new BadRequestException(`Failed to parse file: ${errorMessage}`);
     }
 
     if (rows.length === 0) {
-      throw new BadRequestException('No valid rows found in file');
+      throw new BadRequestException("No valid rows found in file");
     }
 
     // Upsert all students
@@ -53,8 +66,8 @@ export class StudentsService {
             users: {
               connect: {
                 id: userId,
-              }
-            }
+              },
+            },
           },
           update: {
             firstName: row.firstName,
@@ -71,7 +84,7 @@ export class StudentsService {
   async findAll(userId: string): Promise<StudentResponseDto[]> {
     return this.prisma.student.findMany({
       where: { teacherid: userId },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
   }
 
@@ -115,7 +128,7 @@ export class StudentsService {
                   },
                   orderBy: {
                     checkpoint: {
-                      order: 'asc',
+                      order: "asc",
                     },
                   },
                 },
@@ -125,7 +138,7 @@ export class StudentsService {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -152,14 +165,15 @@ export class StudentsService {
             score: ss.submission.gradingResult.score,
             teacherScore: ss.submission.gradingResult.teacherScore,
             gradedAt: ss.submission.gradingResult.gradedAt,
-            checkpointResults: ss.submission.gradingResult.checkpointResults.map((cr) => ({
-              id: cr.id,
-              checkpointId: cr.checkpointId,
-              checkpointDescription: cr.checkpoint.description,
-              checkpointOrder: cr.checkpoint.order,
-              matched: cr.matched,
-              matchedSnippets: cr.matchedSnippets,
-            })),
+            checkpointResults:
+              ss.submission.gradingResult.checkpointResults.map((cr) => ({
+                id: cr.id,
+                checkpointId: cr.checkpointId,
+                checkpointDescription: cr.checkpoint.description,
+                checkpointOrder: cr.checkpoint.order,
+                matched: cr.matched,
+                matchedSnippets: cr.matchedSnippets,
+              })),
           }
         : null,
     }));
@@ -184,23 +198,28 @@ export class StudentsService {
               include: {
                 checkpointResults: {
                   include: { checkpoint: true },
-                  orderBy: { checkpoint: { order: 'asc' } },
+                  orderBy: { checkpoint: { order: "asc" } },
                 },
               },
             },
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     const submissions = submissionStudents.map((ss) => {
       const gr = ss.submission.gradingResult;
-      const regexDone = gr?.passedCheckpoints !== null && gr?.passedCheckpoints !== undefined;
-      const llmDone = gr?.llmPassedCheckpoints !== null && gr?.llmPassedCheckpoints !== undefined;
+      const regexDone =
+        gr?.passedCheckpoints !== null && gr?.passedCheckpoints !== undefined;
+      const llmDone =
+        gr?.llmPassedCheckpoints !== null &&
+        gr?.llmPassedCheckpoints !== undefined;
       return {
         exercise_title: ss.submission.exercise.title,
-        submitted_at: new Date(ss.submission.createdAt).toLocaleDateString('el-GR'),
+        submitted_at: new Date(ss.submission.createdAt).toLocaleDateString(
+          "el-GR",
+        ),
         total_checkpoints: gr?.totalCheckpoints ?? 0,
         passed_checkpoints: regexDone ? gr.passedCheckpoints : null,
         score: regexDone ? gr.score : null,
@@ -234,22 +253,36 @@ export class StudentsService {
 
       return { report };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Error generating mini report from Python service:', {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("Error generating mini report from Python service:", {
         studentId,
         message: errorMessage,
       });
-      throw new Error('Failed to generate mini report from LLM service');
+      throw new Error("Failed to generate mini report from LLM service");
     }
   }
 
   private parseRows(raw: Record<string, unknown>[]): StudentRow[] {
     return raw
       .map((row) => {
-        const am = String(row['AM'] ?? row['am'] ?? '').trim();
-        const firstName = String(row['firstName'] ?? row['firstname'] ?? row['FirstName'] ?? row['first_name'] ?? '').trim();
-        const lastName = String(row['lastName'] ?? row['lastname'] ?? row['LastName'] ?? row['last_name'] ?? '').trim();
-        const email = String(row['email'] ?? row['Email'] ?? '').trim() || undefined;
+        const am = String(row["AM"] ?? row["am"] ?? "").trim();
+        const firstName = String(
+          row["firstName"] ??
+            row["firstname"] ??
+            row["FirstName"] ??
+            row["first_name"] ??
+            "",
+        ).trim();
+        const lastName = String(
+          row["lastName"] ??
+            row["lastname"] ??
+            row["LastName"] ??
+            row["last_name"] ??
+            "",
+        ).trim();
+        const email =
+          String(row["email"] ?? row["Email"] ?? "").trim() || undefined;
 
         return { AM: am, firstName, lastName, email };
       })

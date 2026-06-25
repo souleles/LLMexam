@@ -7,32 +7,34 @@ import {
   UploadedFile,
   UseInterceptors,
   UseGuards,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
-import { StudentResponseDto } from './dto/student.dto';
-import { StudentsService } from './students.service';
-import { AuthGuard } from '../auth/guards/auth.guard';
-import { AuthorizedUser } from '@/auth/dto/AuthorizedUser';
-import { AuthUser } from '@/auth/decorators/AuthUser';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
+import { StudentResponseDto } from "./dto/student.dto";
+import { StudentsService } from "./students.service";
+import { AuthGuard } from "../auth/guards/auth.guard";
+import { AuthorizedUser } from "@/auth/dto/AuthorizedUser";
+import { AuthUser } from "@/auth/decorators/AuthUser";
 
-const ALLOWED_EXTENSIONS = ['.csv', '.xlsx', '.xls'];
+const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 
-@Controller('students')
+@Controller("students")
 @UseGuards(AuthGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
-  @Post('upload')
+  @Post("upload")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: memoryStorage(),
       fileFilter: (req, file, callback) => {
-        const ext = file.originalname.slice(file.originalname.lastIndexOf('.')).toLowerCase();
+        const ext = file.originalname
+          .slice(file.originalname.lastIndexOf("."))
+          .toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
           return callback(
             new BadRequestException(
-              `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
+              `File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(", ")}`,
             ),
             false,
           );
@@ -44,10 +46,10 @@ export class StudentsController {
   )
   async upload(
     @UploadedFile() file: Express.Multer.File,
-    @AuthUser() user: AuthorizedUser
+    @AuthUser() user: AuthorizedUser,
   ): Promise<StudentResponseDto[]> {
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException("No file uploaded");
     }
     return this.studentsService.importFromFile(file, user.sub);
   }
@@ -57,13 +59,13 @@ export class StudentsController {
     return this.studentsService.findAll(user.sub);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string): Promise<StudentResponseDto> {
+  @Get(":id")
+  findOne(@Param("id") id: string): Promise<StudentResponseDto> {
     return this.studentsService.findOne(id);
   }
 
-  @Get(':id/mini-report')
-  getMiniReport(@Param('id') id: string) {
+  @Get(":id/mini-report")
+  getMiniReport(@Param("id") id: string) {
     return this.studentsService.getMiniReport(id);
   }
 }

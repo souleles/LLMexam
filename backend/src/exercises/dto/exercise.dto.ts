@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
-import { ExerciseStatus, ExerciseType } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from "class-validator";
+import { ExerciseStatus, ExerciseType } from "@prisma/client";
 
 export class CreateExerciseDto {
   @IsString()
@@ -42,9 +42,9 @@ export class ExerciseResponseDto {
 
   // extractedText?: string;
 
-  status: 'draft' | 'approved';
+  status: "draft" | "approved";
 
-  exerciseType: 'exercise' | 'project';
+  exerciseType: "exercise" | "project";
 
   createdAt: string;
 

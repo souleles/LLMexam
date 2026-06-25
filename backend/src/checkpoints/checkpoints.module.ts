@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { CheckpointsService } from './checkpoints.service';
-import { CheckpointsController } from './checkpoints.controller';
+import { Module } from "@nestjs/common";
+import { CheckpointsService } from "./checkpoints.service";
+import { CheckpointsController } from "./checkpoints.controller";
 
 @Module({
   controllers: [CheckpointsController],

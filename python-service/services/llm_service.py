@@ -29,6 +29,13 @@ from prompts.mini_report_prompts import (
 logger = logging.getLogger(__name__)
 
 
+def build_rules_text(rules: list[str]) -> str:
+    """Build the teacher-rules sentence injected into prompts, or '' if no rules."""
+    if not rules:
+        return ""
+    return f"Λάβε υπόψην του εξής κανόνες: {', '.join(rules)}\n\n"
+
+
 def build_messages(request: GenerateCheckpointsRequest) -> list[SystemMessage | HumanMessage | AIMessage]:
     """
     Build LangChain message list for checkpoint generation.
@@ -50,6 +57,7 @@ def build_messages(request: GenerateCheckpointsRequest) -> list[SystemMessage | 
         user_content = USER_PROMPT_INITIAL.format(
             extracted_text=request.text,
             message=request.message,
+            rules_text=build_rules_text(request.rules),
         )
         messages.append(HumanMessage(content=user_content))
     else:
@@ -71,7 +79,8 @@ def build_messages(request: GenerateCheckpointsRequest) -> list[SystemMessage | 
         # Add current message
         user_content = USER_PROMPT_REFINEMENT.format(
             extracted_text=request.text,
-            message=request.message
+            message=request.message,
+            rules_text=build_rules_text(request.rules),
         )
         messages.append(HumanMessage(content=user_content))
     
@@ -192,6 +201,7 @@ def _build_pattern_messages(request: GeneratePatternsRequest) -> list:
         checkpoints=checkpoints_json,
         extracted_text=request.extracted_text,
         message=request.message,
+        rules_text=build_rules_text(request.rules),
     )
     messages.append(HumanMessage(content=user_content))
 

@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { GradingService } from './grading.service';
-import { GradingController } from './grading.controller';
+import { Module } from "@nestjs/common";
+import { GradingService } from "./grading.service";
+import { GradingController } from "./grading.controller";
 
 @Module({
   controllers: [GradingController],

@@ -1,13 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateExerciseDto, UpdateExerciseDto, ExerciseResponseDto } from './dto/exercise.dto';
-import { ExerciseStatus } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import {
+  CreateExerciseDto,
+  UpdateExerciseDto,
+  ExerciseResponseDto,
+} from "./dto/exercise.dto";
+import { ExerciseStatus } from "@prisma/client";
 
 @Injectable()
 export class ExercisesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createExerciseDto: CreateExerciseDto, userId: string): Promise<ExerciseResponseDto> {
+  async create(
+    createExerciseDto: CreateExerciseDto,
+    userId: string,
+  ): Promise<ExerciseResponseDto> {
     const exercise = await this.prisma.exercise.create({
       data: {
         ...createExerciseDto,
@@ -33,7 +40,7 @@ export class ExercisesService {
         submissions: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -56,7 +63,10 @@ export class ExercisesService {
     return this.mapToResponseDto(exercise);
   }
 
-  async update(id: string, updateExerciseDto: UpdateExerciseDto): Promise<ExerciseResponseDto> {
+  async update(
+    id: string,
+    updateExerciseDto: UpdateExerciseDto,
+  ): Promise<ExerciseResponseDto> {
     try {
       const exercise = await this.prisma.exercise.update({
         where: { id },
@@ -91,8 +101,10 @@ export class ExercisesService {
       id: exercise.id,
       title: exercise.title,
       originalPdfPath: exercise.pdfUrl,
-      status: exercise.status.toLowerCase() as 'draft' | 'approved',
-      exerciseType: exercise.exerciseType.toLowerCase() as 'exercise' | 'project',
+      status: exercise.status.toLowerCase() as "draft" | "approved",
+      exerciseType: exercise.exerciseType.toLowerCase() as
+        | "exercise"
+        | "project",
       createdAt: exercise.createdAt.toISOString(),
       updatedAt: exercise.updatedAt.toISOString(),
       checkpointCount: exercise.checkpoints?.length || 0,

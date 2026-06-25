@@ -32,6 +32,13 @@ export interface Checkpoint {
   order: number;
 }
 
+export interface Rule {
+  id: string;
+  exerciseId: string;
+  content: string;
+  order: number;
+}
+
 export interface ConversationMessage {
   id: string;
   exerciseId: string;
@@ -188,6 +195,16 @@ export const api = {
       patterns: { order: number; pattern: string; patternDescription: string; indicatorSolution: string }[],
     ): Promise<Checkpoint[]> => {
       const { data } = await httpClient.patch(`/api/checkpoints/bulk-patterns/${exerciseId}`, patterns);
+      return data;
+    },
+  },
+  rules: {
+    list: async (exerciseId: string): Promise<Rule[]> => {
+      const { data } = await httpClient.get(`/api/rules?exerciseId=${exerciseId}`);
+      return data;
+    },
+    replace: async (exerciseId: string, rules: string[]): Promise<Rule[]> => {
+      const { data } = await httpClient.put(`/api/rules/${exerciseId}`, { rules });
       return data;
     },
   },

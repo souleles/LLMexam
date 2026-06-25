@@ -18,6 +18,7 @@ model Exercise {
   teacherid     String
   exerciseType  ExerciseType   @default(EXERCISE)
   checkpoints   Checkpoint[]
+  rules         Rule[]
   conversations Conversation[]
   users         users          @relation(fields: [teacherid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "exercises_fk")
   submissions   Submission[]
@@ -41,6 +42,18 @@ model Checkpoint {
 
   @@index([exerciseId])
   @@map("checkpoints")
+}
+
+model Rule {
+  id         String   @id @default(uuid())
+  exerciseId String
+  content    String
+  order      Int
+  createdAt  DateTime @default(now())
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@map("rules")
 }
 
 model Conversation {

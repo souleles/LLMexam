@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
-import { ConversationRole } from '@prisma/client';
+import { IsString, IsNotEmpty, IsEnum } from "class-validator";
+import { ConversationRole } from "@prisma/client";
 
 export class CreateConversationDto {
   @IsString()

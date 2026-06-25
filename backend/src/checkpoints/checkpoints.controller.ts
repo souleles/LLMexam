@@ -8,60 +8,69 @@ import {
   Delete,
   Query,
   UseGuards,
-} from '@nestjs/common';
-import { CheckpointsService } from './checkpoints.service';
-import { CreateCheckpointDto, UpdateCheckpointDto, CheckpointResponseDto } from './dto/checkpoint.dto';
-import { AuthGuard } from '../auth/guards/auth.guard';
+} from "@nestjs/common";
+import { CheckpointsService } from "./checkpoints.service";
+import {
+  CreateCheckpointDto,
+  UpdateCheckpointDto,
+  CheckpointResponseDto,
+} from "./dto/checkpoint.dto";
+import { AuthGuard } from "../auth/guards/auth.guard";
 
-@Controller('checkpoints')
+@Controller("checkpoints")
 @UseGuards(AuthGuard)
 export class CheckpointsController {
   constructor(private readonly checkpointsService: CheckpointsService) {}
 
   @Post()
-  create(@Body() createCheckpointDto: CreateCheckpointDto): Promise<CheckpointResponseDto> {
+  create(
+    @Body() createCheckpointDto: CreateCheckpointDto,
+  ): Promise<CheckpointResponseDto> {
     return this.checkpointsService.create(createCheckpointDto);
   }
 
-  @Post('bulk/:exerciseId')
+  @Post("bulk/:exerciseId")
   createMany(
-    @Param('exerciseId') exerciseId: string,
-    @Body() checkpoints: Omit<CreateCheckpointDto, 'exerciseId'>[],
+    @Param("exerciseId") exerciseId: string,
+    @Body() checkpoints: Omit<CreateCheckpointDto, "exerciseId">[],
   ): Promise<CheckpointResponseDto[]> {
     return this.checkpointsService.createMany(exerciseId, checkpoints);
   }
 
   @Get()
-  findAll(@Query('exerciseId') exerciseId?: string): Promise<CheckpointResponseDto[]> {
+  findAll(
+    @Query("exerciseId") exerciseId?: string,
+  ): Promise<CheckpointResponseDto[]> {
     if (exerciseId) {
       return this.checkpointsService.findByExercise(exerciseId);
     }
     return this.checkpointsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string): Promise<CheckpointResponseDto> {
+  @Get(":id")
+  findOne(@Param("id") id: string): Promise<CheckpointResponseDto> {
     return this.checkpointsService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch(":id")
   update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateCheckpointDto: UpdateCheckpointDto,
   ): Promise<CheckpointResponseDto> {
     return this.checkpointsService.update(id, updateCheckpointDto);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
+  @Delete(":id")
+  async remove(@Param("id") id: string): Promise<{ message: string }> {
     await this.checkpointsService.remove(id);
-    return { message: 'Checkpoint deleted successfully' };
+    return { message: "Checkpoint deleted successfully" };
   }
 
-  @Patch('bulk-patterns/:exerciseId')
+  @Patch("bulk-patterns/:exerciseId")
   bulkUpdatePatterns(
-    @Param('exerciseId') exerciseId: string,
-    @Body() patterns: { order: number; pattern: string; patternDescription?: string }[],
+    @Param("exerciseId") exerciseId: string,
+    @Body()
+    patterns: { order: number; pattern: string; patternDescription?: string }[],
   ): Promise<CheckpointResponseDto[]> {
     return this.checkpointsService.bulkUpdatePatterns(exerciseId, patterns);
   }

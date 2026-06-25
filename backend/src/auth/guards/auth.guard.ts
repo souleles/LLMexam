@@ -3,8 +3,8 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -12,18 +12,18 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    
+
     const token: string = request.cookies.jwt;
     if (!token) {
-      throw new UnauthorizedException('Παρακαλώ συνδεθείτε!');
+      throw new UnauthorizedException("Παρακαλώ συνδεθείτε!");
     }
     try {
       const payload = await this.jwtService.verify(token, {
         secret: process.env.JWT_SECRET,
       });
-      request['user'] = payload;
+      request["user"] = payload;
     } catch {
-      throw new UnauthorizedException('Παρακαλώ συνδεθείτε!');
+      throw new UnauthorizedException("Παρακαλώ συνδεθείτε!");
     }
     return true;
   }

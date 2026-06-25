@@ -1,17 +1,25 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   GradingResultResponseDto,
   CheckpointResultDto,
   UpdateTeacherAcceptedDto,
-} from './dto/grading.dto';
+} from "./dto/grading.dto";
 
 /** Parse a stored matchedSnippet string back to {file, line, snippet}. */
-function parseSnippet(raw: string): { file?: string; line: number; snippet: string } {
+function parseSnippet(raw: string): {
+  file?: string;
+  line: number;
+  snippet: string;
+} {
   try {
     const parsed = JSON.parse(raw);
-    if (typeof parsed === 'object' && parsed !== null && 'line' in parsed) {
-      return { file: parsed.file, line: Number(parsed.line), snippet: String(parsed.snippet ?? '') };
+    if (typeof parsed === "object" && parsed !== null && "line" in parsed) {
+      return {
+        file: parsed.file,
+        line: Number(parsed.line),
+        snippet: String(parsed.snippet ?? ""),
+      };
     }
   } catch {
     // Fall through to legacy format handling
@@ -19,7 +27,11 @@ function parseSnippet(raw: string): { file?: string; line: number; snippet: stri
   // Legacy format: "file.sql:42 - snippet text"
   const legacyMatch = raw.match(/^(.+):(\d+) - (.*)$/s);
   if (legacyMatch) {
-    return { file: legacyMatch[1], line: Number(legacyMatch[2]), snippet: legacyMatch[3] };
+    return {
+      file: legacyMatch[1],
+      line: Number(legacyMatch[2]),
+      snippet: legacyMatch[3],
+    };
   }
   return { line: 0, snippet: raw };
 }
@@ -46,12 +58,14 @@ export class GradingService {
       },
     });
 
-    this.logger.log(`Found ${results.length} checkpoint result(s) for exercise ${exerciseId}`);
+    this.logger.log(
+      `Found ${results.length} checkpoint result(s) for exercise ${exerciseId}`,
+    );
     return results.map((cr) => {
       const matchedSnippets = cr.matchedSnippets.map((raw) => {
         const parsed = parseSnippet(raw);
         this.logger.debug(
-          `Checkpoint ${cr.checkpointId} snippet -> file=${parsed.file ?? '?'}, line=${parsed.line}, snippet=${parsed.snippet.slice(0, 80)}`,
+          `Checkpoint ${cr.checkpointId} snippet -> file=${parsed.file ?? "?"}, line=${parsed.line}, snippet=${parsed.snippet.slice(0, 80)}`,
         );
         return parsed;
       });
@@ -103,7 +117,9 @@ export class GradingService {
     });
 
     if (!checkpointResult) {
-      throw new NotFoundException(`Checkpoint result ${checkpointResultId} not found`);
+      throw new NotFoundException(
+        `Checkpoint result ${checkpointResultId} not found`,
+      );
     }
 
     await this.prisma.checkpointResult.update({
@@ -114,7 +130,9 @@ export class GradingService {
     const siblingResults = await this.prisma.checkpointResult.findMany({
       where: { gradingResultId: checkpointResult.gradingResultId },
     });
-    const teacherScore = siblingResults.filter((cr) => cr.teacherAccepted === true).length;
+    const teacherScore = siblingResults.filter(
+      (cr) => cr.teacherAccepted === true,
+    ).length;
 
     const updated = await this.prisma.gradingResult.update({
       where: { id: checkpointResult.gradingResultId },
@@ -146,7 +164,9 @@ export class GradingService {
         matched: cr.matched,
         confidence: cr.matched ? 1.0 : 0.0,
         matchedPatterns: cr.matched ? [cr.checkpoint.pattern] : [],
-        matchedSnippets: (cr.matchedSnippets as string[]).map((raw) => parseSnippet(raw)),
+        matchedSnippets: (cr.matchedSnippets as string[]).map((raw) =>
+          parseSnippet(raw),
+        ),
         teacherAccepted: cr.teacherAccepted,
         checkpoint: {
           order: cr.checkpoint.order,

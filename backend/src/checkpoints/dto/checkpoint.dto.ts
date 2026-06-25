@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  Min,
+} from "class-validator";
 
 export class CreateCheckpointDto {
   @IsString()
