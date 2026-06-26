@@ -1,14 +1,15 @@
 import { Box, VStack, Text, Icon, useToast } from '@chakra-ui/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FiUpload, FiFile } from 'react-icons/fi';
 
 interface FileUploaderProps {
   accept?: string;
   maxFiles?: number;
   onFilesSelected: (files: File[]) => void;
+  toggleClearFiles?: boolean; // Optional prop to trigger clearing files
 }
 
-export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: FileUploaderProps) {
+export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected, toggleClearFiles }: FileUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const toast = useToast();
@@ -70,6 +71,10 @@ export function FileUploader({ accept = '*', maxFiles = 10, onFilesSelected }: F
     },
     [handleFiles]
   );
+
+  useEffect(() => {
+    setFiles([]);
+  }, [toggleClearFiles]);
 
   return (
     <Box>

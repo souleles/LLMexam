@@ -173,6 +173,21 @@ export function StudentExercisesPage() {
   const hasFailedLlmCheckpoints =
     (gradingResult?.checkpointResults ?? []).some((cr) => cr.llmMatched === false);
 
+  const handleChangeExercise = (exerciseId: string) => {
+    setSelectedExerciseId(exerciseId);
+    handleClearForm();
+  }
+
+  const handleChangeStudents = (students: Array<{ value: string; label: string }>) => {
+    setSelectedStudentIds(students);
+    handleClearForm();
+  }
+
+  const handleClearForm = () => {
+    setFile(null);
+    setSubmission(null);
+  }
+
   return (
     <PageTransition>
       <Box>
@@ -193,7 +208,7 @@ export function StudentExercisesPage() {
                   <ReactSelect
                     options={exerciseOptions}
                     value={exerciseOptions.find((opt) => opt.value === selectedExerciseId) || null}
-                    onChange={(opt) => setSelectedExerciseId(opt?.value || '')}
+                    onChange={(opt) => handleChangeExercise(opt?.value || '')}
                     placeholder="Επιλέξτε άσκηση..."
                     noOptionsMessage={() => 'Δεν βρέθηκαν ασκήσεις'}
                     isClearable
@@ -207,7 +222,7 @@ export function StudentExercisesPage() {
                     isMulti
                     options={studentOptions}
                     value={selectedStudentIds}
-                    onChange={(opts) => setSelectedStudentIds(opts as Array<{ value: string; label: string }>)}
+                    onChange={(opts) => handleChangeStudents(opts as Array<{ value: string; label: string }>)}
                     placeholder="Επιλέξτε φοιτητές..."
                     noOptionsMessage={() => 'Δεν βρέθηκαν φοιτητές'}
                     hideSelectedOptions={false}
@@ -227,6 +242,7 @@ export function StudentExercisesPage() {
                     accept=".sql,.txt,.py,.pdf,.docx,.js,.ts,.tsx,.zip,.rar"
                     maxFiles={1}
                     onFilesSelected={(files) => setFile(files[0] || null)}
+                    toggleClearFiles={!!submission}
                   />
                   <FormHelperText>
                     ZIP ή RAR αρχείο με πολλαπλά αρχεία ή ένα μεμονωμένο αρχείο
